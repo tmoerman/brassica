@@ -27,7 +27,9 @@ libraryDependencies ++= Seq(
 
   "LLNL"    % "spark-hdf5"      % "0.0.4",
 
-  "org.apache.spark"       %% "spark-hive"         % "2.0.2",
+  "com.jsuereth" %% "scala-arm" % "2.0",
+
+  "org.apache.spark"       %% "spark-hive"         % "2.0.0",
 
   "org.scalatest"          %% "scalatest"          % "2.2.4"       % "test",
   "com.holdenkarau"        %% "spark-testing-base" % "2.0.0_0.6.0" % "test"
