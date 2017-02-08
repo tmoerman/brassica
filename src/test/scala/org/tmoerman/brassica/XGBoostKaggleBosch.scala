@@ -1,21 +1,34 @@
 package org.tmoerman.brassica
 
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
+import ml.dmlc.xgboost4j.scala.Booster
 import ml.dmlc.xgboost4j.scala.spark.{XGBoost => SparkXGBoost}
+import org.apache.spark.SparkConf
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.sql.functions.lit
 import org.scalatest.{FlatSpec, Matchers}
 
 /**
   * Based on: https://www.elenacuoco.com/2016/10/10/scala-spark-xgboost-classification/
+  *
+  * Issue: https://github.com/dmlc/xgboost/issues/1827
   */
 class XGBoostKaggleBosch extends FlatSpec with DataFrameSuiteBase with Matchers {
+
+  override def conf =
+    new SparkConf()
+      .setMaster("local[*]")
+      .setAppName("XGBoost-Spark Kaggle Bosch")
+      .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+      .set("spark.ui.enabled", "false")
+      .set("spark.app.id", appID)
+      .registerKryoClasses(Array(classOf[Booster]))
 
   behavior of "xgboost"
 
   it should "work" in {
 
-    val path = "/Users/tmo/work/ghb2016/data/bosch/"
+    val path = "src/test/resources/bosch/"
 
     val trainSet =
       spark

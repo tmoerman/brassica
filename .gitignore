@@ -5,3 +5,6 @@
 /project/target/
 /target/
 activator*
+/src/test/resources/bosch/test_numeric.csv
+/src/test/resources/bosch/train_numeric.csv
+/.idea/

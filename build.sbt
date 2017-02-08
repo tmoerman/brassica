@@ -21,13 +21,18 @@ resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/mave
 // Change this to another test framework if you prefer
 libraryDependencies ++= Seq(
 
-  // built from source and installed with `mvn -DskipTests install`
+  // This dependency must be built from source:
+  // git clone https://github.com/dmlc/xgboost.git
+  // cd xgboost/jvm-packages
+  // mvn -DskipTests install
   "ml.dmlc" % "xgboost4j"       % "0.7",
   "ml.dmlc" % "xgboost4j-spark" % "0.7",
 
-  "LLNL"    % "spark-hdf5"      % "0.0.4",
+  "com.esotericsoftware.kryo" % "kryo"       % "2.21", // old version, cfr. XGBoost
+  "LLNL"                 % "spark-hdf5" % "0.0.4",
 
   "com.jsuereth" %% "scala-arm" % "2.0",
+
 
   "org.apache.spark"       %% "spark-hive"         % "2.0.0",
 
