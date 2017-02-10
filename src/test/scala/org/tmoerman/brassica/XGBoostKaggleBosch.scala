@@ -5,6 +5,7 @@ import ml.dmlc.xgboost4j.scala.Booster
 import ml.dmlc.xgboost4j.scala.spark.{XGBoost => SparkXGBoost}
 import org.apache.spark.SparkConf
 import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.lit
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -26,16 +27,17 @@ class XGBoostKaggleBosch extends FlatSpec with DataFrameSuiteBase with Matchers 
 
   behavior of "xgboost"
 
-  it should "work" in {
+  it should "work" ignore {
 
-    val path = "src/test/resources/bosch/"
+    val pathIn  = "src/test/resources/bosch/"
+    val pathOut = pathIn + "out/"
 
     val trainSet =
       spark
         .read
         .option("header", "true")
         .option("inferSchema", true)
-        .csv(path + "train_numeric.csv")
+        .csv(pathIn + "train_numeric.csv")
         .cache
 
     lazy val testSet =
@@ -43,10 +45,8 @@ class XGBoostKaggleBosch extends FlatSpec with DataFrameSuiteBase with Matchers 
         .read
         .option("header", "true")
         .option("inferSchema", true)
-        .csv(path + "/test_numeric.csv")
+        .csv(pathIn + "/test_numeric.csv")
         .cache
-
-    val r0 = trainSet.take(1).apply(0)
 
     // assemble the features
 
@@ -64,18 +64,17 @@ class XGBoostKaggleBosch extends FlatSpec with DataFrameSuiteBase with Matchers 
         .setInputCols(featureColumns) // filtered header: id and response are removed.
         .setOutputCol("features")     // puts the feature column values into a SparseVector.
 
-    val train_DF0 = assembler.transform(df)
-    val test_DF0 = assembler.transform(df_test)
-
     // prep for xgboost
 
     val train =
-      train_DF0
+      assembler
+        .transform(df)
         .withColumn("label", df("Response").cast("double")) // add "label" column with the response from the original DF
         .select("label", "features")                        // select label (value) and features (sparse vector)
 
     val test =
-      test_DF0
+      assembler
+        .transform(df_test)
         .withColumn("label", lit(1.0)) // TODO why ???
         .withColumnRenamed("Id", "id")
         .select("id", "label", "features")
@@ -85,41 +84,50 @@ class XGBoostKaggleBosch extends FlatSpec with DataFrameSuiteBase with Matchers 
     val Array(trainingData, testData) = train.randomSplit(Array(0.7, 0.3), seed = 0)
 
     // number of iterations
-    val numRound = 10
+    val numRound   = 10
     val numWorkers = 4
 
     // training parameters
     val paramMap = Map(
-      "eta"               -> 0.023f,
-      "max_depth"         -> 10,
-      "min_child_weight"  -> 3.0,
-      "subsample"         -> 1.0,
-      "colsample_bytree"  -> 0.82,
-      "colsample_bylevel" -> 0.9,
-      "base_score"        -> 0.005,
+      "eta"               -> 0.023f, // (default: 0.3) step size shrinkage used in update to prevents overfitting
+      "max_depth"         -> 10,     // (default: 6) maximum depth of a tree
+      "min_child_weight"  -> 3.0,    // (default: 1) minimum sum if instance weight
+      "subsample"         -> 1.0,    // (default: 1 = ALL) subsample ratio of the training instance
+      "colsample_bytree"  -> 0.82,   // (default: 1 = ALL) subsample ratio of columns when constructing each tree.
+      "colsample_bylevel" -> 0.9,    // (default: 1 = ALL) subsample ratio of columns for each split, in each level
+      "base_score"        -> 0.005,  // (default: 0.5) the initial prediction score of all instances, global bias
       "eval_metric"       -> "auc",
       "seed"              -> 49,
       "silent"            -> 1,
-      "objective"         -> "binary:logistic")
+      "objective"         -> "binary:logistic") // Specify the learning task and the corresponding learning objective
 
     val resultModel =
       SparkXGBoost
         .trainWithDataFrame(
           trainingData,
           paramMap,
-          round = numRound,
+          round    = numRound,
           nWorkers = numWorkers,
-          useExternalMemory = true)
+          useExternalMemory = true) // TODO try with false
 
-    val predictions =
+    val predictions: DataFrame =
       resultModel
         .setExternalMemory(true)
         .transform(testData)
         .select("label", "probabilities")
 
+    predictions.show(3)
+
     predictions
       .write
-      .save(path+"preds.parquet")
+      .save(pathOut + "preds.parquet")
+
+    //prediction on test set for submission file
+    val submission = resultModel.setExternalMemory(true).transform(test).select("id", "probabilities")
+    submission.show(10)
+    submission.write.save(pathOut + "submission.parquet")
+
+    spark.stop()
 
   }
 
