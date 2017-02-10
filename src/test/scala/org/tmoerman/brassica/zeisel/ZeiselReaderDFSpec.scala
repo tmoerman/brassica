@@ -14,7 +14,7 @@ class ZeiselReaderDFSpec extends FlatSpec with DataFrameSuiteBase with Matchers 
 
   val mRNA = zeisel + "expression_mRNA_17-Aug-2014.txt"
 
-  it should "parse the schema correctly" in {
+  it should "parse the schema correctly" ignore  {
     val lines = rawLines(spark, mRNA)
 
     val schema = parseSchema(lines)
@@ -29,13 +29,15 @@ class ZeiselReaderDFSpec extends FlatSpec with DataFrameSuiteBase with Matchers 
 
     val schema = parseSchema(lines)
 
-    val rows = parseRows(lines, schema.size)
+    val rows = parseRows(lines, schema.size, maxCells = Some(5))
+
+    println(rows.map(_.toSeq.take(20).mkString(", ")).collect.mkString("\n"))
 
     rows.count shouldBe 3005
   }
 
   it should "parse the DataFrame correctly" in {
-    val df = apply(spark, mRNA, Some(10))
+    val df = apply(spark, mRNA, Some(20))
 
     df.createOrReplaceTempView("cells")
 

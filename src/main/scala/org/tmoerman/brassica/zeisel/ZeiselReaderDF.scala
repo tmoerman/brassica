@@ -80,7 +80,7 @@ object ZeiselReaderDF {
   private[zeisel] def parseRows(lines: RDD[Line],
                                 nrFeatures: Int,
                                 na: Option[Int] = Some(0),
-                                limit: Option[Int] = None): RDD[Row] = {
+                                maxCells: Option[Int] = None): RDD[Row] = {
     type ACC = Array[Any]
 
     def init(entry: (Any, Index)): ACC = entry match { case (v, i) =>
@@ -100,12 +100,20 @@ object ZeiselReaderDF {
       case _         => null
     }
 
+    implicit class PimpCols[T: ClassTag](list: List[T]) {
+      def select: List[T] = {
+        val result = list.drop(2)
+
+        maxCells.map(v => result.take(v)).getOrElse(result)
+      }
+    }
+
     lines
       .flatMap {
-        case (cols, feat @ (0l | 7l | 8l | 9l))      => cols.drop(2).zipWithIndex.map { case (v, cell) => (cell, (v,         feat)) }
-        case (cols, feat @ (1l | 2l | 3l | 4l | 5l)) => cols.drop(2).zipWithIndex.map { case (v, cell) => (cell, (v.toInt,   feat)) }
-        case (cols, feat @ 6l)                       => cols.drop(2).zipWithIndex.map { case (v, cell) => (cell, (v.toFloat, feat)) }
-        case (cols, feat) => cols.drop(2).takeOrAll(limit).zipWithIndex.flatMap { case (v, cell) =>
+        case (cols, feat @ (0l | 7l | 8l | 9l))      => cols.select.zipWithIndex.map     { case (v, cell) => (cell, (v,         feat)) }
+        case (cols, feat @ (1l | 2l | 3l | 4l | 5l)) => cols.select.zipWithIndex.map     { case (v, cell) => (cell, (v.toInt,   feat)) }
+        case (cols, feat @ 6l)                       => cols.select.zipWithIndex.map     { case (v, cell) => (cell, (v.toFloat, feat)) }
+        case (cols, feat)                            => cols.select.zipWithIndex.flatMap { case (v, cell) =>
           if (na.contains(v.toInt))
             Seq.empty
           else
@@ -116,10 +124,6 @@ object ZeiselReaderDF {
       .map(a =>
         Row.fromSeq(a)
       )
-  }
-
-  implicit class Extra[T: ClassTag](list: List[T]) {
-    def takeOrAll(n: Option[Int]): List[T] = n.map(v => list.take(v)).getOrElse(list)
   }
 
 }
