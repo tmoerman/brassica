@@ -8,7 +8,7 @@ scalaVersion := "2.11.8"
 sparkVersion := "2.0.2"
 sparkComponents ++= Seq("core", "mllib", "sql")
 
-javaOptions ++= Seq("-Xms512M", "-Xmx2048M", "-XX:MaxPermSize=2048M", "-XX:+CMSClassUnloadingEnabled")
+javaOptions ++= Seq("-Xms1G", "-Xmx8G", "-XX:MaxPermSize=8G", "-XX:+CMSClassUnloadingEnabled")
 parallelExecution in Test := false
 
 // See http://stackoverflow.com/questions/28565837/filename-too-long-sbt
@@ -21,6 +21,8 @@ resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/mave
 // Change this to another test framework if you prefer
 libraryDependencies ++= Seq(
 
+  "org.scala-lang.modules" %% "scala-xml"        % "1.0.5",
+
   // This dependency must be built from source:
   // git clone https://github.com/dmlc/xgboost.git
   // cd xgboost/jvm-packages
@@ -29,14 +31,12 @@ libraryDependencies ++= Seq(
   "ml.dmlc" % "xgboost4j-spark" % "0.7",
 
   "com.esotericsoftware.kryo" % "kryo"       % "2.21", // old version, cfr. XGBoost
-  "LLNL"                 % "spark-hdf5" % "0.0.4",
+  "LLNL"                      % "spark-hdf5" % "0.0.4",
 
   "com.jsuereth" %% "scala-arm" % "2.0",
 
-
-  "org.apache.spark"       %% "spark-hive"         % "2.0.0",
-
-  "org.scalatest"          %% "scalatest"          % "2.2.4"       % "test",
+  "org.apache.spark"       %% "spark-hive"         % "2.0.0"       % "test",
+  "org.scalatest"          %% "scalatest"          % "3.0.1"       % "test",
   "com.holdenkarau"        %% "spark-testing-base" % "2.0.0_0.6.0" % "test"
 
 )
