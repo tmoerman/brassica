@@ -1,4 +1,4 @@
-package org.tmoerman.brassica
+package org.tmoerman.brassica.cases.megacell
 
 import java.io.File
 
@@ -12,7 +12,7 @@ import scala.util.Try
 /**
   * @author Thomas Moerman
   */
-object Megacell {
+object MegacellReader {
 
   private[this] val INDPTR  = "/mm10/indptr"
   private[this] val DATA    = "/mm10/data"
