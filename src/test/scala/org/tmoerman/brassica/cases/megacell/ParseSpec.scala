@@ -1,4 +1,4 @@
-package org.tmoerman.brassica
+package org.tmoerman.brassica.cases.megacell
 
 import java.io.File
 
@@ -19,7 +19,7 @@ class ParseSpec extends FlatSpec with Matchers {
 
   behavior of "parsing a hdf5 file"
 
-  it should "work" in {
+  it should "work" ignore {
     val reader = HDF5FactoryProvider.get().openForReading(bigsc)
 
     val members = reader.getGroupMembers("/mm10").asScala
@@ -29,7 +29,7 @@ class ParseSpec extends FlatSpec with Matchers {
     println(members)
   }
 
-  it should "print node info" in {
+  it should "print node info" ignore {
     import HDF5Schema._
 
     val reader = new HDF5Reader(bigsc)

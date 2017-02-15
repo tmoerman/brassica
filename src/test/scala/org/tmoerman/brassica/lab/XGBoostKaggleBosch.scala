@@ -1,4 +1,4 @@
-package org.tmoerman.brassica
+package org.tmoerman.brassica.lab
 
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import ml.dmlc.xgboost4j.scala.Booster
@@ -50,10 +50,11 @@ class XGBoostKaggleBosch extends FlatSpec with DataFrameSuiteBase with Matchers 
 
     // assemble the features
 
-    val df = trainSet.na.fill(0).sample(withReplacement = true, fraction = 0.7, seed = 10)
+    val df = trainSet.na.fill(0).sample(withReplacement = true, fraction = 0.7, seed = 10) // why sample this?
+
     val df_test = testSet.na.fill(0)
 
-    val featureColumns =
+    val featureColumns: Array[String] =
       df
         .columns
         .filter(! _.contains("Id"))       // id is not a predictive
