@@ -1,11 +1,13 @@
 package org.tmoerman.brassica.cases.zeisel
 
 import breeze.linalg.{SparseVector => BreezeSparseVector}
-import org.apache.spark.mllib.linalg.BreezeConversions._
-import org.apache.spark.mllib.linalg.VectorUDT
+import org.apache.spark.ml.attribute.AttributeGroup
+import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.{StructField, _}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.tmoerman.brassica._
+import org.tmoerman.brassica.cases.DataReader
 
 import scala.reflect.ClassTag
 
@@ -16,9 +18,8 @@ import scala.reflect.ClassTag
   *
   * @author Thomas Moerman
   */
-object ZeiselReader {
+object ZeiselReader extends DataReader {
 
-  type Index = Long
   type Line = (List[String], Index)
 
   private[zeisel] val NR_META_FEATURES  = 10
@@ -29,18 +30,24 @@ object ZeiselReader {
   /**
     * @param spark The SparkSession.
     * @param file The Zeisel mRNA expression file name.
-    * @return Returns a DataFrame of the Zeisel expression mRNA data.
+    * @return Returns a tuple:
+    *         - DataFrame of the Zeisel expression mRNA data with schema
+    *         - Gene list
     */
-  def apply(spark: SparkSession, file: String, limit: Option[Int] = None): DataFrame = {
-    val lines = rawLines(spark, file)
+  def apply(spark: SparkSession, file: String): (DataFrame, List[Gene]) = {
+    val lines = rawLines(spark, file).cache
+
+    val genes = parseGenes(lines)
 
     val schema = parseSchema(lines)
 
-    val nrFeatures = lines.count.toInt - NR_META_FEATURES
+    val nrExpressionFeatures = lines.count.toInt - NR_META_FEATURES
 
-    val rows = parseRows(lines, nrFeatures, limit)
+    val rows = parseRows(lines, nrExpressionFeatures)
 
-    spark.createDataFrame(rows, schema).na.fill(0)
+    val df = spark.createDataFrame(rows, schema).na.fill(0)
+
+    (df, genes)
   }
 
   /**
@@ -57,13 +64,24 @@ object ZeiselReader {
       .filter(_._2 != EMPTY_LINE_INDEX)
 
   /**
+    * @param lines
+    * @return Returns the List of Gene names.
+    */
+  private[zeisel] def parseGenes(lines: RDD[Line]): List[Gene] =
+    lines
+      .filter(_._2 >= FEAT_INDEX_OFFSET)
+      .map(_._1.head)
+      .collect
+      .toList
+
+  /**
     * Parse the Zeisel DataFrame schema.
     *
     * @param lines The RDD of raw lines.
     * @return Returns the schema StructType.
     */
   private[zeisel] def parseSchema(lines: RDD[Line]): StructType = {
-    val features = StructField("expression", new VectorUDT(), nullable = false)
+    val features = new AttributeGroup(EXPRESSION_VECTOR).toStructField()
 
     val meta =
       (lines: @unchecked)
@@ -86,9 +104,9 @@ object ZeiselReader {
     *         followed by the meta attributes.
     */
   private[zeisel] def parseRows(lines: RDD[Line],
-                                nrExpressionFeatures: Int,
+                                nrExpressionFeatures: Count,
                                 na: Option[Int] = Some(0),
-                                takeCells: Option[Int] = None): RDD[Row] = {
+                                nrCells: Option[Int] = None): RDD[Row] = {
 
     type ACC = (Array[Any], BreezeSparseVector[Double])
 
@@ -126,7 +144,7 @@ object ZeiselReader {
       def prep: List[T] = {
         val result = list.drop(OBSERVATION_INDEX_OFFSET)
 
-        takeCells.map(n => result.take(n)).getOrElse(result)
+        nrCells.map(n => result.take(n)).getOrElse(result)
       }
     }
 
@@ -135,7 +153,6 @@ object ZeiselReader {
         case (cols, metaIdx @ (0l | 7l | 8l | 9l))      => cols.prep.zipWithIndex.map     { case (v, cellIdx) => (cellIdx, (v,         metaIdx)) }
         case (cols, metaIdx @ (1l | 2l | 3l | 4l | 5l)) => cols.prep.zipWithIndex.map     { case (v, cellIdx) => (cellIdx, (v.toInt,   metaIdx)) }
         case (cols, metaIdx @ 6l)                       => cols.prep.zipWithIndex.map     { case (v, cellIdx) => (cellIdx, (v.toFloat, metaIdx)) }
-
         case (cols, featIdx)                            => cols.prep.zipWithIndex.flatMap { case (v, cellIdx) =>
           if (na.contains(v.toInt))
             Seq.empty

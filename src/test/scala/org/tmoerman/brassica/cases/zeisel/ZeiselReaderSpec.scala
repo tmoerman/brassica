@@ -10,7 +10,7 @@ import ZeiselReader._
   */
 class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
-  behavior of "DF reader"
+  behavior of "ZeiselReader"
 
   val mRNA = zeisel + "expression_mRNA_17-Aug-2014.txt"
 
@@ -26,10 +26,20 @@ class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
     schema.exists(_.name == "expression") shouldBe true
   }
 
+  it should "parse the gene names correctly" in {
+    val lines = rawLines(spark, mRNA)
+
+    val genes = parseGenes(lines)
+
+    genes.take(5) shouldBe List("Tspan12", "Tshz1", "Fnbp1l", "Adamts15", "Cldn12")
+  }
+
   it should "parse the DataFrame correctly" in {
-    val df = apply(spark, mRNA)
+    val (df, _) = apply(spark, mRNA)
 
     df.count shouldBe 3005
+
+    df.show(5, truncate = true)
   }
 
 }
