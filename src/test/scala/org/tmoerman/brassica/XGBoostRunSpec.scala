@@ -14,9 +14,7 @@ import org.tmoerman.brassica.XGBoostRun.sliceGenes
 /**
   * @author Thomas Moerman
   */
-class XGBoostRunSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
-
-  
+class XGBoostRunSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   "sliceGenes" should "work with both sparse and dense vectors" in {
     val data = Arrays.asList(
@@ -37,8 +35,8 @@ class XGBoostRunSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
     sliced
       .select("target")
-      .collect // ScalaTest matchers are not Serializable
-      .foreach(_.apply(0).asInstanceOf[MLVector].size shouldBe 1)
+      .collect
+      .foreach(_.apply(0).isInstanceOf[Double] shouldBe true)
 
     sliced
       .select("regulators")
