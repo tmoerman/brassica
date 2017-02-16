@@ -27,16 +27,14 @@ object Genie3Reader extends DataReader {
         .option("delimiter", "\t")
         .csv(file)
 
-    val columns = csv.columns
-
     val assembler =
       new VectorAssembler()
-        .setInputCols(columns)
+        .setInputCols(csv.columns)
         .setOutputCol(EXPRESSION_VECTOR)
 
     val df = assembler.transform(csv).select(EXPRESSION_VECTOR)
 
-    (df, columns.toList)
+    (df, csv.columns.toList)
   }
 
 }
