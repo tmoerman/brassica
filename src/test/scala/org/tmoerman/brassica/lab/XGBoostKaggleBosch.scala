@@ -1,29 +1,18 @@
-package org.tmoerman.brassica
+package org.tmoerman.brassica.lab
 
-import com.holdenkarau.spark.testing.DataFrameSuiteBase
-import ml.dmlc.xgboost4j.scala.Booster
 import ml.dmlc.xgboost4j.scala.spark.{XGBoost => SparkXGBoost}
-import org.apache.spark.SparkConf
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.lit
 import org.scalatest.{FlatSpec, Matchers}
+import org.tmoerman.brassica.XGBoostSuiteBase
 
 /**
   * Based on: https://www.elenacuoco.com/2016/10/10/scala-spark-xgboost-classification/
   *
   * Issue: https://github.com/dmlc/xgboost/issues/1827
   */
-class XGBoostKaggleBosch extends FlatSpec with DataFrameSuiteBase with Matchers {
-
-  override def conf =
-    new SparkConf()
-      .setMaster("local[*]")
-      .setAppName("XGBoost-Spark Kaggle Bosch")
-      .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-      .set("spark.ui.enabled", "false")
-      .set("spark.app.id", appID)
-      .registerKryoClasses(Array(classOf[Booster]))
+class XGBoostKaggleBosch extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   behavior of "xgboost"
 
@@ -50,10 +39,11 @@ class XGBoostKaggleBosch extends FlatSpec with DataFrameSuiteBase with Matchers 
 
     // assemble the features
 
-    val df = trainSet.na.fill(0).sample(withReplacement = true, fraction = 0.7, seed = 10)
+    val df = trainSet.na.fill(0).sample(withReplacement = true, fraction = 0.7, seed = 10) // why sample this?
+
     val df_test = testSet.na.fill(0)
 
-    val featureColumns =
+    val featureColumns: Array[String] =
       df
         .columns
         .filter(! _.contains("Id"))       // id is not a predictive
