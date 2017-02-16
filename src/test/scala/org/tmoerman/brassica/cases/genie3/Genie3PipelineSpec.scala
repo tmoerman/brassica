@@ -14,7 +14,7 @@ class Genie3PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     val TFs = List("CD19", "CDH17", "RAD51", "OSR2", "TBX3")
 
-    val result =
+    val GRN =
       ScenicPipeline(
         spark,
         DataPaths.genie3,
@@ -23,8 +23,7 @@ class Genie3PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
         nrRounds = 10,
         nrWorkers = 4)
 
-    result.toDF()
+    GRN.show(20)
   }
-
 
 }

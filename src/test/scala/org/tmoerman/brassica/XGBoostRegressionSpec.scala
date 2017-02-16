@@ -9,12 +9,12 @@ import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.StructType
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.XGBoostRun.sliceGenes
+import org.tmoerman.brassica.XGBoostRegression.sliceGenes
 
 /**
   * @author Thomas Moerman
   */
-class XGBoostRunSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
+class XGBoostRegressionSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   "sliceGenes" should "work with both sparse and dense vectors" in {
     val data = Arrays.asList(

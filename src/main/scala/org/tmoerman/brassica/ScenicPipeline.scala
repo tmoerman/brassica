@@ -20,44 +20,46 @@ object ScenicPipeline {
     *   - https://github.com/dmlc/xgboost/blob/master/doc/parameter.md
     *   - https://github.com/dmlc/xgboost/issues/332
     *
-    * @param spark
-    * @param file
-    * @param dataReader
-    * @param transcriptionFactors
-    * @param params
-    * @param nrRounds
+    * @param spark The SparkSession.
+    * @param file The data file path.
+    * @param dataReader The DataReader suitable for parsing the specified file.
+    * @param candidateRegulators The list of candidate regulators (transcription factors) or Nil,
+    *                             in which case all genes are considered as candidate regulators.
+    * @param params The XGBoost parameter Map.
+    * @param nrRounds The nr of rounds XGBoost parameter.
     */
   def apply(spark: SparkSession,
             file: String,
             dataReader: DataReader,
-            transcriptionFactors: List[Gene] = Nil,
+            candidateRegulators: List[Gene] = Nil,
             params: XGBoostParams = DEFAULT_PARAMS,
             nrWorkers: Int,
-            nrRounds: Int): DataFrame = {
+            nrRounds: Int) = {
 
     val (df, genes) = dataReader(spark, file)
 
-    val candidateRegulators = regulatorIndices(genes, transcriptionFactors.toSet)
+    val candidateRegulatorIndices = regulatorIndices(genes, candidateRegulators.toSet)
 
-    val grn =
+    val GRN =
        genes
         .zipWithIndex
-        .map { case (_, targetIndex) => XGBoostRun(df, targetIndex, candidateRegulators, params, nrRounds, nrWorkers) }
+        .map { case (_, targetIndex) =>
+          XGBoostRegression(spark, df, targetIndex, candidateRegulatorIndices, params, nrRounds, nrWorkers) }
         .reduce(_ union _)
 
-    grn
+    GRN
   }
 
   /**
-    * @param genes
-    * @param transcriptionFactors
+    * @param allGenes The List of all genes in the data set.
+    * @param candidateRegulators The Set of
     * @return Returns the indices of the subset of genes in the DataFrame,
     *         that also occur in the specified Set of transcription factors.
     */
-  def regulatorIndices(genes: List[Gene], transcriptionFactors: Set[Gene]): List[Int] =
-    genes
+  def regulatorIndices(allGenes: List[Gene], candidateRegulators: Set[Gene]): List[Int] =
+    allGenes
       .zipWithIndex
-      .filter { case (gene, _) => transcriptionFactors.toSet.contains(gene) }
+      .filter { case (gene, _) => candidateRegulators.toSet.contains(gene) }
       .map(_._2)
 
 }
