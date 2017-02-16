@@ -21,12 +21,11 @@ resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/mave
 // Change this to another test framework if you prefer
 libraryDependencies ++= Seq(
 
-  "org.scala-lang.modules" %% "scala-xml"        % "1.0.5",
-
   // This dependency must be built from source:
   // git clone https://github.com/dmlc/xgboost.git
   // cd xgboost/jvm-packages
   // mvn -DskipTests install
+
   "ml.dmlc" % "xgboost4j"       % "0.7",
   "ml.dmlc" % "xgboost4j-spark" % "0.7",
 
@@ -36,7 +35,7 @@ libraryDependencies ++= Seq(
   "com.jsuereth" %% "scala-arm" % "2.0",
 
   "org.apache.spark"       %% "spark-hive"         % "2.0.0"       % "test",
-  "org.scalatest"          %% "scalatest"          % "3.0.1"       % "test",
+  "org.scalatest"          %% "scalatest"          % "2.2.1"       % "test",
   "com.holdenkarau"        %% "spark-testing-base" % "2.0.0_0.6.0" % "test"
 
 )
