@@ -9,19 +9,19 @@ import org.apache.spark.ml.linalg.{Vector => MLVector, Matrix => MLMatrix}
 object BreezeMLConversions {
 
   implicit class MLLibVectorConversion(val vector: MLVector) extends AnyVal {
-    def toBreeze: BreezeVector[Double] = vector.asBreeze
+    def br: BreezeVector[Double] = vector.asBreeze
   }
 
   implicit class BreezeVectorConversion(val vector: BreezeVector[Double]) extends AnyVal {
-    def toMLLib: MLVector = Vectors.fromBreeze(vector)
+    def ml: MLVector = Vectors.fromBreeze(vector)
   }
-
+  
   implicit class MLLibMatrixConversion(val matrix: MLMatrix) extends AnyVal {
-    def toBreeze: BreezeMatrix[Double] = matrix.asBreeze
+    def br: BreezeMatrix[Double] = matrix.asBreeze
   }
 
   implicit class BreezeMatrixConversion(val matrix: BreezeMatrix[Double]) extends AnyVal {
-    def toMLLib: MLMatrix = Matrices.fromBreeze(matrix)
+    def ml: MLMatrix = Matrices.fromBreeze(matrix)
   }
 
 }
