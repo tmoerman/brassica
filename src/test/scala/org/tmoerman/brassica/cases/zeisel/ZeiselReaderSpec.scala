@@ -2,8 +2,8 @@ package org.tmoerman.brassica.cases.zeisel
 
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.DataPaths._
-import ZeiselReader._
+import org.tmoerman.brassica.cases.zeisel.ZeiselReader._
+import org.tmoerman.brassica.util.PropsReader.props
 
 /**
   * @author Thomas Moerman
@@ -12,7 +12,7 @@ class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
   behavior of "ZeiselReader"
 
-  val mRNA = zeisel + "expression_mRNA_17-Aug-2014.txt"
+  def mRNA = props("zeisel")
 
   it should "parse the schema correctly" in {
     val lines = rawLines(spark, mRNA)
