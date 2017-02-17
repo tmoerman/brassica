@@ -3,7 +3,7 @@ package org.tmoerman.brassica
 import ml.dmlc.xgboost4j.scala.spark.TrackerConf
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.tmoerman.brassica.util.TimeUtils
-import org.tmoerman.brassica.util.TimeUtils.time
+import org.tmoerman.brassica.util.TimeUtils.profile
 
 import scala.concurrent.duration.{Duration, MILLISECONDS}
 
@@ -46,7 +46,7 @@ object ScenicPipeline {
     val (regulations, timings) =
       genes
         .zipWithIndex
-        .map { case (_, targetIndex) => time {
+        .map { case (_, targetIndex) => profile {
           XGBoostRegression
             .apply(spark, expressionData, targetIndex, candidateRegulatorIndices, params, nrRounds, nrWorkers) }}
         .foldLeft(acc) { case ((regulations, durations), (df, t)) => (df :: regulations, t :: durations) }
