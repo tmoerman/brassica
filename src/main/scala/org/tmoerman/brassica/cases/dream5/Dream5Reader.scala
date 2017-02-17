@@ -32,8 +32,8 @@ object Dream5Reader extends DataReader {
     *         - DataFrame of the cell data. By convention, the first
     *         - List of genes.
     */
-  def apply(spark: SparkSession, files: String*): (DataFrame, List[Gene]) =
-    (files: @unchecked) match { case Seq(dataFile, genesFile, _ @ _*) =>
+  def apply(spark: SparkSession, files: String*): (DataFrame, List[Gene]) = (files: @unchecked) match {
+    case Seq(dataFile, genesFile, _ @ _*) =>
       val data = csvread(dataFile, '\t').t.ml
 
       val rows = data.rowIter.map(Row(_)).toList
