@@ -9,7 +9,7 @@ import org.tmoerman.brassica._
 /**
   * @author Thomas Moerman
   */
-class GenieReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
+class Genie3ReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
   behavior of "GenieReader"
 
