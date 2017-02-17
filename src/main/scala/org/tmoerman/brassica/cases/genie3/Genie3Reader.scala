@@ -13,19 +13,19 @@ object Genie3Reader extends DataReader {
 
   /**
     * @param spark The SparkSession.
-    * @param file The Genie3 expression file name.
+    * @param files The Genie3 expression file name.
     * @return Returns a tuple:
     *         - DataFrame
     *         - Gene list
     */
-  def apply(spark: SparkSession, file: String): (DataFrame, List[String]) = {
+  def apply(spark: SparkSession, files: String*): (DataFrame, List[String]) = {
     val csv =
       spark
         .read
         .option("header", true)
         .option("inferSchema", true)
         .option("delimiter", "\t")
-        .csv(file)
+        .csv(files.head)
 
     val assembler =
       new VectorAssembler()

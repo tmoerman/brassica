@@ -29,13 +29,13 @@ object ZeiselReader extends DataReader {
 
   /**
     * @param spark The SparkSession.
-    * @param file The Zeisel mRNA expression file name.
+    * @param files The Zeisel mRNA expression file name.
     * @return Returns a tuple:
     *         - DataFrame of the Zeisel expression mRNA data with schema
     *         - Gene list
     */
-  def apply(spark: SparkSession, file: String): (DataFrame, List[Gene]) = {
-    val lines = rawLines(spark, file).cache
+  def apply(spark: SparkSession, files: String*): (DataFrame, List[Gene]) = {
+    val lines = rawLines(spark, files.head).cache
 
     val genes = parseGenes(lines)
 
@@ -81,19 +81,18 @@ object ZeiselReader extends DataReader {
     * @return Returns the schema StructType.
     */
   private[zeisel] def parseSchema(lines: RDD[Line]): StructType = {
-    val features = new AttributeGroup(EXPRESSION_VECTOR).toStructField()
-
     val meta =
-      (lines: @unchecked)
+      lines
         .take(NR_META_FEATURES)
         .map {
           case (_ :: name :: _, 0l | 7l | 8l | 9l)      => StructField(name, StringType,  nullable = false)
           case (_ :: name :: _, 1l | 2l | 3l | 4l | 5l) => StructField(name, IntegerType, nullable = false)
           case (_ :: name :: _, 6l)                     => StructField(name, FloatType,   nullable = false)
+          case _ => ???
         }
         .toList
 
-    StructType(features :: meta)
+    StructType(FEATURES_STRUCT_FIELD :: meta)
   }
 
   /**
@@ -162,7 +161,7 @@ object ZeiselReader extends DataReader {
       .combineByKey(init, update, merge)
       .sortByKey()
       .values
-      .map { case (meta, features) => Row.fromSeq(features.toMLLib :: meta.toList) }
+      .map { case (meta, features) => Row.fromSeq(features.ml :: meta.toList) }
   }
 
 }

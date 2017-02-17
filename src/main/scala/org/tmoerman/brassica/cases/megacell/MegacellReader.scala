@@ -14,6 +14,8 @@ import scala.util.Try
   */
 object MegacellReader {
 
+  // TODO override DataReader
+
   private[this] val INDPTR  = "/mm10/indptr"
   private[this] val DATA    = "/mm10/data"
   private[this] val INDICES = "/mm10/indices"
