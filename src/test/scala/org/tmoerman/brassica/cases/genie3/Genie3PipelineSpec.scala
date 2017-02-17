@@ -12,18 +12,20 @@ class Genie3PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   it should "run on the Genie3 test data" in {
 
-    val TFs = List("CD19", "CDH17", "RAD51", "OSR2", "TBX3")
+    val regulators = List("CD19", "CDH17", "RAD51", "OSR2", "TBX3")
 
-    val GRN =
+    val (expression, genes) = Genie3Reader.apply(spark, DataPaths.genie3)
+
+    val (grn, timings) =
       ScenicPipeline(
         spark,
-        DataPaths.genie3,
-        Genie3Reader,
-        TFs,
+        expression, genes, regulators,
         nrRounds = 10,
         nrWorkers = 4)
 
-    GRN.show(20)
+    grn.show(20)
+
+    println(timings.mkString("\n"))
   }
 
 }
