@@ -1,7 +1,7 @@
 package org.tmoerman.brassica
 
 import ml.dmlc.xgboost4j.scala.spark.TrackerConf
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.tmoerman.brassica.cases.DataReader
 
 import scala.concurrent.duration.{Duration, MILLISECONDS}

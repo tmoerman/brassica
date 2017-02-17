@@ -10,6 +10,8 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.StructType
 import org.scalatest.{Matchers, FlatSpec}
 
+import scala.collection.JavaConversions._
+
 /**
   * Created by tmo on 14/02/17.
   */
@@ -17,7 +19,7 @@ class VectorSlicerSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
   "it" should "illustrate how Vector slicing works" in {
 
-    val data = Arrays.asList(
+    val data = List(
       Row(Vectors.sparse(3, Seq((0, -2.0), (1, 2.3)))),
       Row(Vectors.dense(-2.0, 2.3, 0.0))
     )
