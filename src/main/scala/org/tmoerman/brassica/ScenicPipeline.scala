@@ -1,11 +1,9 @@
 package org.tmoerman.brassica
 
-import ml.dmlc.xgboost4j.scala.spark.TrackerConf
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.tmoerman.brassica.util.TimeUtils
 import org.tmoerman.brassica.util.TimeUtils.profile
 
-import scala.concurrent.duration.{Duration, MILLISECONDS}
+import scala.concurrent.duration.Duration
 
 /**
   * @author Thomas Moerman
@@ -13,7 +11,7 @@ import scala.concurrent.duration.{Duration, MILLISECONDS}
 object ScenicPipeline {
 
   val DEFAULT_PARAMS: XGBoostParams = Map(
-    "tracker_conf" -> TrackerConf(Duration.apply(0L, MILLISECONDS), "scala")
+    //"tracker_conf" -> TrackerConf(Duration(0L, MILLISECONDS), "scala")
   )
 
   /**
@@ -25,35 +23,47 @@ object ScenicPipeline {
     * @param expressionData The DataFrame containing the expression data.
     * @param genes The List of all genes corresponding to the columns in the DataFrame.
     * @param candidateRegulators The list of candidate regulators (transcription factors) or Nil,
-    *                             in which case all genes are considered as candidate regulators.
+    *                            in which case all genes are considered as candidate regulators.
     * @param params The XGBoost parameter Map.
-    * @param nrRounds The nr of rounds XGBoost parameter.
+    * @param targets Optional limit for the nr of targets for which to compute regulators.
     */
   def apply(spark: SparkSession,
             expressionData: DataFrame,
             genes: List[Gene],
+            nrRounds: Int,
             candidateRegulators: List[Gene] = Nil,
             params: XGBoostParams = DEFAULT_PARAMS,
-            nrWorkers: Int,
-            nrRounds: Int) = {
+            targets: List[Gene] = Nil) = {
     
-    val candidateRegulatorIndices = regulatorIndices(genes, candidateRegulators.toSet)
+    val candidateRegulatorIndices = regulatorIndices(genes, candidateRegulators)
 
     type ACC = (List[DataFrame], List[Duration])
 
-    val acc: ACC = (Nil, Nil)
+    val isTarget = targets match {
+      case Nil => (_: Gene) => true
+      case _   => targets.toSet.contains _
+    }
 
     val (regulations, timings) =
       genes
         .zipWithIndex
+        .filter{ case (gene, _) => isTarget(gene) }
         .map { case (_, targetIndex) => profile {
-          XGBoostRegression
-            .apply(spark, expressionData, targetIndex, candidateRegulatorIndices, params, nrRounds, nrWorkers) }}
-        .foldLeft(acc) { case ((regulations, durations), (df, t)) => (df :: regulations, t :: durations) }
+          val subGrn = XGBoostRegression(spark, expressionData, targetIndex, candidateRegulatorIndices, params, nrRounds)
+
+          // TODO sort, limit
+
+          subGrn
+        }}
+        .foldLeft((Nil, Nil): ACC) { case (acc, (reg, dur)) => (reg :: acc._1, dur :: acc._2) }
 
     val grn = regulations.reduce(_ union _)
 
-    (grn, timings)
+    val total = timings.reduce(_ plus _)
+    val avg   = total / timings.length
+    val stats = Map("total" -> total, "avg" -> avg)
+
+    (grn, stats)
   }
 
   /**
@@ -62,10 +72,14 @@ object ScenicPipeline {
     * @return Returns the indices of the subset of genes in the DataFrame,
     *         that also occur in the specified Set of transcription factors.
     */
-  def regulatorIndices(allGenes: List[Gene], candidateRegulators: Set[Gene]): List[Int] =
-    allGenes
-      .zipWithIndex
-      .filter { case (gene, _) => candidateRegulators.toSet.contains(gene) }
-      .map(_._2)
+  def regulatorIndices(allGenes: List[Gene], candidateRegulators: List[Gene]): List[Int] = candidateRegulators match {
+    case Nil =>
+      allGenes.indices.toList
+    case _ =>
+      allGenes
+        .zipWithIndex
+        .filter { case (gene, _) => candidateRegulators.toSet.contains(gene) }
+        .map(_._2)
+  }
 
 }

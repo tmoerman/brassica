@@ -12,11 +12,6 @@ import org.apache.spark.sql.types._
   */
 object XGBoostRegression {
 
-  val TARGET_GENE          = "target"
-  val CANDIDATE_REGULATORS = "regulators"
-  val CANDIDATE_REGULATOR  = "regulator"
-  val IMPORTANCE           = "importance"
-
   /**
     * @param spark The SparkSession.
     * @param trainingData The DataFrame to train the regression model with.
@@ -31,7 +26,7 @@ object XGBoostRegression {
             candidateRegulators: Seq[Int],
             params: XGBoostParams,
             nrRounds: Int,
-            nrWorkers: Int): DataFrame = {
+            nrWorkers: Option[Int] = None): DataFrame = {
 
     val cleanCandidateRegulators = candidateRegulators.filter(_ != targetGene)
 
@@ -43,7 +38,7 @@ object XGBoostRegression {
           sliced,
           params,
           round = nrRounds,
-          nWorkers = nrWorkers,
+          nWorkers = nrWorkers.getOrElse(spark.sparkContext.defaultParallelism),
           useExternalMemory = false, // TODO try with false
           featureCol = CANDIDATE_REGULATORS,
           labelCol = TARGET_GENE)
@@ -56,6 +51,7 @@ object XGBoostRegression {
         .zip(cleanCandidateRegulators)
         .map{ case (importance, candidateRegulator) => (candidateRegulator, targetGene, importance.toInt) }
         .toSeq
+        //.sortBy(- _._3) // order by importance DESC
 
     spark
       .createDataFrame(regulations)
