@@ -1,7 +1,6 @@
 package org.tmoerman.brassica.cases.dream5
 
-import org.scalatest.{Matchers, FlatSpec}
-import org.tmoerman.brassica.util.PropsReader
+import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.PropsReader.props
 import org.tmoerman.brassica.{Gene, ScenicPipeline, XGBoostSuiteBase}
 
@@ -17,7 +16,7 @@ class Dream5PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     val TFs: List[Gene] = Dream5Reader.TFs(ecoliTFs)
 
-    val targets = List("aaaD", "naaeA", "naaeB", "naaeR", "naaeX")
+    val targets = List("aaaD", "aaeA", "aaeB", "aaeR", "aaeX")
 
     val (grn, stats) =
       ScenicPipeline.apply(
@@ -32,7 +31,7 @@ class Dream5PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     println(stats.mkString("\n"))
 
-    grn.coalesce(1).write.csv(props("out") + "ecoli_1_target.csv")
+    grn.coalesce(1).write.csv(props("out") + "ecoli_1_target_2.csv")
   }
 
   it should "run on s. aureus" in {

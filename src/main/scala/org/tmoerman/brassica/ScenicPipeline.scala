@@ -1,9 +1,10 @@
 package org.tmoerman.brassica
 
+import ml.dmlc.xgboost4j.scala.spark.TrackerConf
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.tmoerman.brassica.util.TimeUtils.profile
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 
 /**
   * @author Thomas Moerman
@@ -11,7 +12,7 @@ import scala.concurrent.duration.Duration
 object ScenicPipeline {
 
   val DEFAULT_PARAMS: XGBoostParams = Map(
-    //"tracker_conf" -> TrackerConf(Duration(0L, MILLISECONDS), "scala")
+    "tracker_conf" -> TrackerConf(Duration(0L, MILLISECONDS), "scala")
   )
 
   /**
@@ -25,7 +26,7 @@ object ScenicPipeline {
     * @param candidateRegulators The list of candidate regulators (transcription factors) or Nil,
     *                            in which case all genes are considered as candidate regulators.
     * @param params The XGBoost parameter Map.
-    * @param targets Optional limit for the nr of targets for which to compute regulators.
+    * @param targets Optional limit for the nr of targets for which to compute regulators. Uses all genes if Nil.
     */
   def apply(spark: SparkSession,
             expressionData: DataFrame,
@@ -48,11 +49,8 @@ object ScenicPipeline {
       genes
         .zipWithIndex
         .filter{ case (gene, _) => isTarget(gene) }
-        .map { case (_, targetIndex) => profile {
+        .map { case (gene, targetIndex) => profile {
           val subGrn = XGBoostRegression(spark, expressionData, targetIndex, candidateRegulatorIndices, params, nrRounds)
-
-          // TODO sort, limit
-
           subGrn
         }}
         .foldLeft((Nil, Nil): ACC) { case (acc, (reg, dur)) => (reg :: acc._1, dur :: acc._2) }
@@ -61,7 +59,7 @@ object ScenicPipeline {
 
     val total = timings.reduce(_ plus _)
     val avg   = total / timings.length
-    val stats = Map("total" -> total, "avg" -> avg)
+    val stats = Map("total" -> total.toUnit(SECONDS), "avg" -> avg.toUnit(SECONDS))
 
     (grn, stats)
   }

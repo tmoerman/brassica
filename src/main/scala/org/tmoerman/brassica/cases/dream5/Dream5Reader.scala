@@ -19,7 +19,7 @@ object Dream5Reader extends DataReader {
     * @param file
     * @return Returns the List of TFs from the specified file
     */
-  def TFs(file: String) = fromFile(file).getLines().toList
+  def TFs(file: String) = fromFile(file).getLines.toList
 
   /**
     * Abstract Reader interface to pass to a pipeline.

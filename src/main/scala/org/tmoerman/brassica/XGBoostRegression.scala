@@ -51,7 +51,7 @@ object XGBoostRegression {
         .zip(cleanCandidateRegulators)
         .map{ case (importance, candidateRegulator) => (candidateRegulator, targetGene, importance.toInt) }
         .toSeq
-        //.sortBy(- _._3) // order by importance DESC
+        .sortBy(- _._3) // order by importance DESC
 
     spark
       .createDataFrame(regulations)
