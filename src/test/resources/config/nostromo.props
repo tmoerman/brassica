@@ -10,4 +10,4 @@ zeisel = /media/tmo/data/work/datasets/zeisel/expression_mRNA_17-Aug-2014.txt
 dream5 = /media/tmo/data/work/datasets/dream5/original data/
 
 # out folder
-out = src/test/resources/
+out = src/test/resources/out/
