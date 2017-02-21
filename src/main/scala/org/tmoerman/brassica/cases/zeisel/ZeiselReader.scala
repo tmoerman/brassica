@@ -29,13 +29,13 @@ object ZeiselReader extends DataReader {
 
   /**
     * @param spark The SparkSession.
-    * @param files The Zeisel mRNA expression file name.
+    * @param file The Zeisel mRNA expression file name.
     * @return Returns a tuple:
     *         - DataFrame of the Zeisel expression mRNA data with schema
     *         - Gene list
     */
-  def apply(spark: SparkSession, files: String*): (DataFrame, List[Gene]) = {
-    val lines = rawLines(spark, files.head).cache
+  def apply(spark: SparkSession, file: String): (DataFrame, List[Gene]) = {
+    val lines = rawLines(spark, file).cache
 
     val genes = parseGenes(lines)
 
@@ -51,8 +51,8 @@ object ZeiselReader extends DataReader {
   }
 
   /**
-    * @param spark
-    * @param file
+    * @param spark The Spark session.
+    * @param file The file path.
     * @return Returns the raw lines without the empty line between meta and expression data.
     */
   private[zeisel] def rawLines(spark: SparkSession, file: String): RDD[Line] =
@@ -64,7 +64,7 @@ object ZeiselReader extends DataReader {
       .filter(_._2 != EMPTY_LINE_INDEX)
 
   /**
-    * @param lines
+    * @param lines The RDD of lines.
     * @return Returns the List of Gene names.
     */
   private[zeisel] def parseGenes(lines: RDD[Line]): List[Gene] =
@@ -96,22 +96,22 @@ object ZeiselReader extends DataReader {
   }
 
   /**
-    * @param lines
-    * @param nrExpressionFeatures
-    * @param na
+    * @param lines The RDD of lines.
+    * @param expressionVectorLength The length of a gene expression vector.
+    * @param na The value to consider as N/A.
     * @return Returns row instances where the first entry in each row is the sparse expression vector,
     *         followed by the meta attributes.
     */
   private[zeisel] def parseRows(lines: RDD[Line],
-                                nrExpressionFeatures: Count,
-                                na: Option[Int] = Some(0),
+                                expressionVectorLength: Count,
+                                na: Option[Int] = Some(0), // TODO necessary?
                                 nrCells: Option[Int] = None): RDD[Row] = {
 
     type ACC = (Array[Any], BreezeSparseVector[Double])
 
     def init(entry: (Any, Index)): ACC = {
       val meta     = Array.ofDim[Any](NR_META_FEATURES)
-      val features = BreezeSparseVector.zeros[Double](nrExpressionFeatures)
+      val features = BreezeSparseVector.zeros[Double](expressionVectorLength)
       val acc      = (meta, features)
 
       update(acc, entry)

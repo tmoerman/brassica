@@ -25,26 +25,24 @@ object Dream5Reader extends DataReader {
     * Abstract Reader interface to pass to a pipeline.
     *
     * @param spark The SparkSession.
-    * @param files The data files for Dream5 in order:
-    *              1. {species}_data.tsv
-    *              2. {species}_gene_names.tsv
+    * @param dataFile File {species}_data.tsv
+    * @param genesFile File {species}_gene_names.tsv
     * @return Returns a tuple:
     *         - DataFrame of the cell data. By convention, the first
     *         - List of genes.
     */
-  def apply(spark: SparkSession, files: String*): (DataFrame, List[Gene]) = (files: @unchecked) match {
-    case Seq(dataFile, genesFile, _ @ _*) =>
-      val data = csvread(dataFile, '\t').t.ml
+  def apply(spark: SparkSession, dataFile: String, genesFile: String): (DataFrame, List[Gene]) = {
+    val data = csvread(dataFile, '\t').t.ml
 
-      val rows = data.rowIter.map(Row(_)).toList
+    val rows = data.rowIter.map(Row(_)).toList
 
-      val genes = fromFile(genesFile).getLines().toList
+    val genes = fromFile(genesFile).getLines().toList
 
-      val schema = StructType(FEATURES_STRUCT_FIELD :: Nil)
+    val schema = StructType(FEATURES_STRUCT_FIELD :: Nil)
 
-      val df = spark.createDataFrame(rows, schema)
+    val df = spark.createDataFrame(rows, schema)
 
-      (df, genes)
-    }
+    (df, genes)
+  }
 
 }

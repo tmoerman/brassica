@@ -12,17 +12,6 @@ import org.tmoerman.brassica._
 trait DataReader {
 
   /**
-    * Abstract Reader interface to pass to a pipeline.
-    *
-    * @param spark The SparkSession.
-    * @param files The data files.
-    * @return Returns a tuple:
-    *         - DataFrame of the cell data. By convention, the first
-    *         - List of genes.
-    */
-  def apply(spark: SparkSession, files: String*): (DataFrame, List[String])
-
-  /**
     * The StructField for data Vectors.
     */
   val FEATURES_STRUCT_FIELD = new AttributeGroup(EXPRESSION_VECTOR).toStructField()
@@ -30,7 +19,7 @@ trait DataReader {
   /**
     * Convenience implicit conversion String -> File.
     *
-    * @param path
+    * @param path The file path as a String.
     * @return Returns java.io.File(path)
     */
   implicit def pimp(path: String): File = new File(path)
