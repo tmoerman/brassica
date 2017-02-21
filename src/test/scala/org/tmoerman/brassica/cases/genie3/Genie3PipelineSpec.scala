@@ -17,16 +17,17 @@ class Genie3PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     val (expression, genes) = Genie3Reader.apply(spark, props("genie3"))
 
-    val (grn, timings) =
+    val (grn, stats) =
       ScenicPipeline(
         spark,
-        expression, genes, regulators,
+        expression,
+        genes,
         nrRounds = 10,
-        nrWorkers = 4)
+        regulators)
 
     grn.show(20)
 
-    println(timings.mkString("\n"))
+    println(stats.mkString("\n"))
 
     // val outPath = out("genie3") TODO
 
