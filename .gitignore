@@ -10,3 +10,4 @@ activator*
 /src/test/resources/config/profile.props
 /.idea/
 .sbtopts
+derby.log
