@@ -16,7 +16,7 @@ import scala.io.Source.fromFile
 object Dream5Reader extends DataReader {
 
   /**
-    * @param file
+    * @param file The file path.
     * @return Returns the List of TFs from the specified file
     */
   def TFs(file: String) = fromFile(file).getLines.toList

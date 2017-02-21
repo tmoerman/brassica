@@ -45,7 +45,10 @@ object ZeiselReader extends DataReader {
 
     val rows = parseRows(lines, nrExpressionFeatures)
 
-    val df = spark.createDataFrame(rows, schema).na.fill(0)
+    val df =
+      spark
+        .createDataFrame(rows, schema)
+        .na.fill(0) // TODO is this necessary?
 
     (df, genes)
   }

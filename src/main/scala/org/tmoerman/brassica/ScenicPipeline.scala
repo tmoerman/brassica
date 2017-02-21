@@ -12,7 +12,9 @@ import scala.concurrent.duration._
 object ScenicPipeline {
 
   val DEFAULT_PARAMS: XGBoostParams = Map(
-    "tracker_conf" -> TrackerConf(Duration(0L, MILLISECONDS), "scala")
+    "tracker_conf" -> TrackerConf(Duration(0L, MILLISECONDS), "scala"),
+    "silent" -> 1
+
   )
 
   /**
@@ -50,16 +52,21 @@ object ScenicPipeline {
         .zipWithIndex
         .filter{ case (gene, _) => isTarget(gene) }
         .map { case (gene, targetIndex) => profile {
-          val subGrn = XGBoostRegression(spark, expressionData, targetIndex, candidateRegulatorIndices, params, nrRounds)
-          subGrn
+          XGBoostRegression(spark, expressionData, targetIndex, candidateRegulatorIndices, params, nrRounds)
         }}
         .foldLeft((Nil, Nil): ACC) { case (acc, (reg, dur)) => (reg :: acc._1, dur :: acc._2) }
 
     val grn = regulations.reduce(_ union _)
 
-    val total = timings.reduce(_ plus _)
-    val avg   = total / timings.length
-    val stats = Map("total" -> total.toUnit(SECONDS), "avg" -> avg.toUnit(SECONDS))
+    val total    = timings.reduce(_ plus _)
+    val average  = total / timings.length
+    val estimate = average * genes.length
+
+    val stats =
+      Map(
+        "total"    -> total.toUnit(SECONDS),
+        "average"  -> average.toUnit(SECONDS),
+        "estimate" -> estimate.toUnit(SECONDS))
 
     (grn, stats)
   }
