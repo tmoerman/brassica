@@ -22,6 +22,4 @@ class ScenicPipelineSpec extends FlatSpec with Matchers {
     regulatorIndices(allGenes, List("brca1", "hox")) shouldBe List(0, 2)
   }
 
-
-
 }
