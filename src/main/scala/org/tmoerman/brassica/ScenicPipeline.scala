@@ -2,8 +2,10 @@ package org.tmoerman.brassica
 
 import ml.dmlc.xgboost4j.scala.spark.TrackerConf
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.tmoerman.brassica.util.TimeUtils.profile
+import org.tmoerman.brassica.util.TimeUtils
+import org.tmoerman.brassica.util.TimeUtils.{pretty, profile}
 
+import scala.collection.immutable.ListMap
 import scala.concurrent.duration._
 
 /**
@@ -12,9 +14,8 @@ import scala.concurrent.duration._
 object ScenicPipeline {
 
   val DEFAULT_PARAMS: XGBoostParams = Map(
-    "tracker_conf" -> TrackerConf(Duration(0L, MILLISECONDS), "scala"),
-    "silent" -> 1
-
+    //"tracker_conf" -> TrackerConf(Duration(0L, MILLISECONDS), "scala")
+    //"silent" -> 1
   )
 
   /**
@@ -63,10 +64,14 @@ object ScenicPipeline {
     val estimate = average * genes.length
 
     val stats =
-      Map(
-        "total"    -> total.toUnit(SECONDS),
-        "average"  -> average.toUnit(SECONDS),
-        "estimate" -> estimate.toUnit(SECONDS))
+      ListMap(
+        "# targets"    -> targets.size,
+        "# genes"      -> genes.size,
+        "# regulators" -> candidateRegulatorIndices.size,
+        "total"    -> pretty(total),
+        "average"  -> pretty(average),
+        "estimate" -> pretty(estimate) // TODO better labels
+      )
 
     (grn, stats)
   }
