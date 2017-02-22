@@ -12,10 +12,10 @@ class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
   behavior of "ZeiselReader"
 
-  def mRNA = props("zeisel")
+  def zeiselMrna = props("zeisel")
 
   it should "parse the schema correctly" in {
-    val lines = rawLines(spark, mRNA)
+    val lines = rawLines(spark, zeiselMrna)
 
     val schema = parseSchema(lines)
 
@@ -27,7 +27,7 @@ class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
   }
 
   it should "parse the gene names correctly" in {
-    val lines = rawLines(spark, mRNA)
+    val lines = rawLines(spark, zeiselMrna)
 
     val genes = parseGenes(lines)
 
@@ -35,7 +35,7 @@ class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
   }
 
   it should "parse the DataFrame correctly" in {
-    val (df, _) = apply(spark, mRNA)
+    val (df, _) = apply(spark, zeiselMrna)
 
     df.count shouldBe 3005
 
