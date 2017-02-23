@@ -30,6 +30,6 @@ trait DataReader {
     * @param file
     * @return Returns the list of transcription factors.
     */
-  def TFs(file: String): List[Gene] = Source.fromFile(file).getLines.toList
+  def readTFs(file: String): List[Gene] = Source.fromFile(file).getLines.toList
 
 }

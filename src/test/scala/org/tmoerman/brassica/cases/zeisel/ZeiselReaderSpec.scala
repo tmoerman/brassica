@@ -47,7 +47,7 @@ class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
   }
 
   it should "parse the mouse TFs properly" in {
-    val mm9_TFs = TFs(mouseTFs)
+    val mm9_TFs = readTFs(mouseTFs)
 
     mm9_TFs.size shouldBe 1623
   }

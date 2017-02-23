@@ -11,32 +11,49 @@ import scala.collection.JavaConversions._
 import scala.io.Source.fromFile
 
 /**
+  * Reader function for the Dream 5 training data.
+  *
   * @author Thomas Moerman
   */
 object Dream5Reader extends DataReader {
 
   /**
-    * Abstract Reader interface to pass to a pipeline.
-    *
     * @param spark The SparkSession.
-    * @param dataFile File {species}_data.tsv
-    * @param genesFile File {species}_gene_names.tsv
-    * @return Returns a tuple:
-    *         - DataFrame of the cell data. By convention, the first
-    *         - List of genes.
+    * @param dataFile The .tsv containing the expression data.
+    * @return Returns the expression matrix DataFrame and the List of genes.
     */
-  def apply(spark: SparkSession, dataFile: String, genesFile: String): (DataFrame, List[Gene]) = {
-    val data = csvread(dataFile, '\t').t.ml
+  def readTrainingData(spark: SparkSession, dataFile: String): (DataFrame, List[Gene]) = {
+    val expressionMatrix = csvread(dataFile, '\t', skipLines = 1).t
 
-    val rows = data.rowIter.map(Row(_)).toList
+    val df = toDF(spark, expressionMatrix)
 
-    val genes = fromFile(genesFile).getLines().toList
+    val genes = fromFile(dataFile).getLines.next.split('\t').map(_.trim).toList
+
+    (df, genes)
+  }
+
+  /**
+    * @param spark The SparkSession.
+    * @param dataFile The .tsv containing the expression data.
+    * @param genesFile The .tsv containing the gene names.
+    * @return Returns the expression matrix DataFrame and the List of genes.
+    */
+  def readOriginalData(spark: SparkSession, dataFile: String, genesFile: String): (DataFrame, List[Gene]) = {
+    val expressionMatrix = csvread(dataFile, '\t').t
+
+    val df = toDF(spark, expressionMatrix)
+
+    val genes = fromFile(genesFile).getLines.toList
+
+    (df, genes)
+  }
+
+  private[this] def toDF(spark: SparkSession, data: DenseMatrix[Double]): DataFrame = {
+    val rows = data.ml.rowIter.map(Row(_)).toList
 
     val schema = StructType(FEATURES_STRUCT_FIELD :: Nil)
 
-    val df = spark.createDataFrame(rows, schema)
-
-    (df, genes)
+    spark.createDataFrame(rows, schema)
   }
 
 }
