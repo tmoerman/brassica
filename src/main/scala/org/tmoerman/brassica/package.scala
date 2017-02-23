@@ -12,9 +12,12 @@ package object brassica {
   type XGBoostParams = Map[String, Any]
 
   val EXPRESSION_VECTOR    = "expression"
-  val TARGET_GENE          = "target"
   val CANDIDATE_REGULATORS = "regulators"
-  val CANDIDATE_REGULATOR  = "regulator"
-  val IMPORTANCE           = "importance"
+
+  val TARGET_GENE_INDEX         = "target_index"
+  val TARGET_GENE_NAME          = "target_name"
+  val CANDIDATE_REGULATOR_INDEX = "regulator_index"
+  val CANDIDATE_REGULATOR_NAME  = "regulator_name"
+  val IMPORTANCE                = "importance"
 
 }

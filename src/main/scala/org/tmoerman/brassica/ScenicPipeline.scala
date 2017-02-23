@@ -1,8 +1,6 @@
 package org.tmoerman.brassica
 
-import ml.dmlc.xgboost4j.scala.spark.TrackerConf
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.tmoerman.brassica.util.TimeUtils
 import org.tmoerman.brassica.util.TimeUtils.{pretty, profile}
 
 import scala.collection.immutable.ListMap
@@ -15,7 +13,7 @@ object ScenicPipeline {
 
   val DEFAULT_PARAMS: XGBoostParams = Map(
     //"tracker_conf" -> TrackerConf(Duration(0L, MILLISECONDS), "scala")
-    //"silent" -> 1
+    "silent" -> 1
   )
 
   /**
@@ -52,9 +50,15 @@ object ScenicPipeline {
       genes
         .zipWithIndex
         .filter{ case (gene, _) => isTarget(gene) }
-        .map { case (gene, targetIndex) => profile {
-          XGBoostRegression(spark, expressionData, targetIndex, candidateRegulatorIndices, params, nrRounds)
-        }}
+        .map { case (targetGene, targetIndex) => profile {
+          XGBoostRegression(
+            spark,
+            expressionData,
+            genes,
+            targetIndex,
+            candidateRegulatorIndices,
+            params,
+            nrRounds) }}
         .foldLeft((Nil, Nil): ACC) { case (acc, (reg, dur)) => (reg :: acc._1, dur :: acc._2) }
 
     val grn = regulations.reduce(_ union _)
@@ -65,12 +69,15 @@ object ScenicPipeline {
 
     val stats =
       ListMap(
-        "# targets"    -> targets.size,
-        "# genes"      -> genes.size,
-        "# regulators" -> candidateRegulatorIndices.size,
-        "total"    -> pretty(total),
-        "average"  -> pretty(average),
-        "estimate" -> pretty(estimate) // TODO better labels
+        "nr of cells"        -> expressionData.count,
+        "nr of genes"        -> genes.size,
+        "nr of target genes" -> targets.size,
+
+        "nr of regulator genes" -> s"${candidateRegulatorIndices.size} (${candidateRegulators.size} specified)",
+
+        s"total time on ${targets.size} targets"       -> pretty(total),
+        "average time on 1 target"                     -> pretty(average),
+        s"estimated time on all ${genes.size} targets" -> pretty(estimate)
       )
 
     (grn, stats)
