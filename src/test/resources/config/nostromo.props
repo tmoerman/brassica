@@ -1,5 +1,8 @@
 # Data paths for machine "nostromo"
 
+# mouse TFs
+mouseTFs = src/test/resources/TF/mm9_TFs.txt
+
 # source:
 genie3 = src/test/resources/genie3/data.txt
 
