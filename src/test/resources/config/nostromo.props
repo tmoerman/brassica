@@ -8,6 +8,7 @@ genie3 = src/test/resources/genie3/data.txt
 
 # source:
 zeisel = /media/tmo/data/work/datasets/zeisel/expression_mRNA_17-Aug-2014.txt
+zeiselParquet = src/test/resources/parquet/zeisel
 
 # source:
 dream5 = /media/tmo/data/work/datasets/dream5/original data/
