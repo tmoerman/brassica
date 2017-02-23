@@ -11,7 +11,8 @@ zeisel = /media/tmo/data/work/datasets/zeisel/expression_mRNA_17-Aug-2014.txt
 zeiselParquet = src/test/resources/parquet/zeisel
 
 # source:
-dream5 = /media/tmo/data/work/datasets/dream5/original data/
+dream5Original = /media/tmo/data/work/datasets/dream5/original data/
+# dream5Training =
 
 # out folder
 out = src/test/resources/out/

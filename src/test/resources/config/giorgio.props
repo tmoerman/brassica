@@ -11,7 +11,8 @@ zeisel = /Users/tmo/Work/ghb2016/data/zeisel/expression_mRNA_17-Aug-2014.txt
 zeiselParquet = src/test/resources/parquet/zeisel
 
 # source:
-dream5 = /Users/tmo/Work/ghb2016/data/Dream_challenge/GNI/original data/
+dream5Original = /Users/tmo/Work/ghb2016/data/Dream_challenge/GNI/original data/
+# dream5Training =
 
 # out folder
 out = src/test/resources/out/
