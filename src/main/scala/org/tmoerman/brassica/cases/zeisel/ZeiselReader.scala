@@ -9,6 +9,7 @@ import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.cases.DataReader
 
+import scala.io.Source
 import scala.reflect.ClassTag
 
 /**
@@ -29,13 +30,13 @@ object ZeiselReader extends DataReader {
 
   /**
     * @param spark The SparkSession.
-    * @param file The Zeisel mRNA expression file name.
+    * @param rawFile The raw Zeisel file.
     * @return Returns a tuple:
     *         - DataFrame of the Zeisel expression mRNA data with schema
     *         - Gene list
     */
-  def apply(spark: SparkSession, file: String): (DataFrame, List[Gene]) = {
-    val lines = rawLines(spark, file).cache
+  def apply(spark: SparkSession, rawFile: String): (DataFrame, List[Gene]) = {
+    val lines = rawLines(spark, rawFile).cache
 
     val genes = parseGenes(lines)
 
@@ -49,6 +50,20 @@ object ZeiselReader extends DataReader {
       spark
         .createDataFrame(rows, schema)
         .na.fill(0) // TODO is this necessary?
+
+    (df, genes)
+  }
+
+  /**
+    * @param spark The SparkSession.
+    * @param parquetFile The Zeisel parquet file.
+    * @param rawFile The raw Zeisel data file.
+    * @return Returns the Zeisel gene expression DataFrame from a parquet file.
+    */
+  def fromParquet(spark: SparkSession, parquetFile: String, rawFile: String): (DataFrame, List[Gene]) = {
+    val df = spark.read.parquet(parquetFile)
+
+    val genes = parseGenes(rawLines(spark, rawFile))
 
     (df, genes)
   }
@@ -84,13 +99,16 @@ object ZeiselReader extends DataReader {
     * @return Returns the schema StructType.
     */
   private[zeisel] def parseSchema(lines: RDD[Line]): StructType = {
+
+    def clean(name: String) = name.replace(' ', '_').replace("#", "count")
+
     val meta =
       lines
         .take(NR_META_FEATURES)
         .map {
-          case (_ :: name :: _, 0l | 7l | 8l | 9l)      => StructField(name, StringType,  nullable = false)
-          case (_ :: name :: _, 1l | 2l | 3l | 4l | 5l) => StructField(name, IntegerType, nullable = false)
-          case (_ :: name :: _, 6l)                     => StructField(name, FloatType,   nullable = false)
+          case (_ :: name :: _, 0l | 7l | 8l | 9l)      => StructField(clean(name), StringType,  nullable = false)
+          case (_ :: name :: _, 1l | 2l | 3l | 4l | 5l) => StructField(clean(name), IntegerType, nullable = false)
+          case (_ :: name :: _, 6l)                     => StructField(clean(name), FloatType,   nullable = false)
           case _ => ???
         }
         .toList

@@ -8,6 +8,7 @@ activator*
 /src/test/resources/bosch/*
 /src/test/resources/out/*
 /src/test/resources/config/profile.props
+/src/test/resources/parquet/
 /.idea/
 .sbtopts
 derby.log
