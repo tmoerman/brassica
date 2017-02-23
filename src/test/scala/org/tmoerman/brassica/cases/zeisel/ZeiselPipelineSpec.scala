@@ -19,10 +19,10 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   val mouseTFs = props("mouseTFs")
 
-  it should "run on 5 targets of the Zeisel data set" in {
+  it should "run on target subset of the Zeisel data set" in {
     val (df, genes) = ZeiselReader.fromParquet(spark, zeiselParquet, zeiselMrna)
 
-    val TFs: List[Gene] = ZeiselReader.TFs(mouseTFs)
+    val TFs: List[Gene] = ZeiselReader.readTFs(mouseTFs)
 
     val (grn, info) =
       ScenicPipeline.apply(
@@ -31,9 +31,9 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
         genes,
         nrRounds = 10,
         candidateRegulators = TFs,
-        targets = genes.take(5))
+        targets = genes.take(1))
 
-    grn.show(5)
+    grn.show(50)
 
     println(info.mkString("\n"))
 

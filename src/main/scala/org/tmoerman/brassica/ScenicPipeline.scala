@@ -12,7 +12,8 @@ import scala.concurrent.duration._
 object ScenicPipeline {
 
   val DEFAULT_PARAMS: XGBoostParams = Map(
-    //"tracker_conf" -> TrackerConf(Duration(0L, MILLISECONDS), "scala")
+    //"alpha" -> 10, // L1 regularization, cfr. Lasso
+
     "silent" -> 1
   )
 
@@ -80,7 +81,7 @@ object ScenicPipeline {
         s"estimated time on all ${genes.size} targets" -> pretty(estimate)
       )
 
-    (grn, stats)
+    (grn, stats ++ params)
   }
 
   /**
