@@ -19,6 +19,13 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   val mouseTFs = props("mouseTFs")
 
+  val params = Map(
+    // "alpha" -> 10, // L1 regularization, cfr. Lasso
+    //"colsample_bytree" -> 0.5f,
+    "seed" -> 666,
+    "silent" -> 1
+  )
+
   it should "run on target subset of the Zeisel data set" in {
     val (df, genes) = ZeiselReader.fromParquet(spark, zeiselParquet, zeiselMrna)
 
@@ -29,7 +36,8 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
         spark,
         df,
         genes,
-        nrRounds = 10,
+        params = params,
+        nrRounds = 10000,
         candidateRegulators = TFs,
         targets = genes.take(1))
 

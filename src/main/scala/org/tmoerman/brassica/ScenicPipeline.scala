@@ -70,11 +70,12 @@ object ScenicPipeline {
 
     val stats =
       ListMap(
-        "nr of cells"        -> expressionData.count,
-        "nr of genes"        -> genes.size,
-        "nr of target genes" -> targets.size,
-
+        "nr of cells"           -> expressionData.count,
+        "nr of genes"           -> genes.size,
+        "nr of target genes"    -> targets.size,
         "nr of regulator genes" -> s"${candidateRegulatorIndices.size} (${candidateRegulators.size} specified)",
+
+        "nr of rounds" -> nrRounds,
 
         s"total time on ${targets.size} targets"       -> pretty(total),
         "average time on 1 target"                     -> pretty(average),

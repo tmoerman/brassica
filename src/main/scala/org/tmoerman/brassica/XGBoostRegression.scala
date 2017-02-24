@@ -43,7 +43,7 @@ object XGBoostRegression {
           featureCol = CANDIDATE_REGULATORS,
           labelCol = TARGET_GENE_INDEX)
 
-    val regulations =
+    val geneRegulations =
       model
         .booster
         .getFeatureScore()
@@ -58,7 +58,7 @@ object XGBoostRegression {
         .toSeq
 
     spark
-      .createDataFrame(regulations)
+      .createDataFrame(geneRegulations)
       .toDF(CANDIDATE_REGULATOR_INDEX, CANDIDATE_REGULATOR_NAME, TARGET_GENE_INDEX, TARGET_GENE_NAME, IMPORTANCE)
       .sort(desc(IMPORTANCE))
   }
