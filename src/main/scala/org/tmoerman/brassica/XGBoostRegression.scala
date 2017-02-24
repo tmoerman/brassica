@@ -14,18 +14,23 @@ object XGBoostRegression {
   /**
     * @param spark The SparkSession.
     * @param trainingData The DataFrame to train the regression model with.
+    * @param geneNames The list of gene names.
     * @param targetGeneIndex The index of the target gene.
     * @param candidateRegulatorsIndices The indices of the candidate regulators.
-    * @param params The XGBoost parameter Map.
-    * @return Returns a DataFrame with (candidateRegulator, target, connectionValue) columns.
+    * @param params The XGBoost parameters for this effort.
+    * @param nrRounds The nr of training rounds.
+    * @param normalize Divide the importances by the sum of importances.
+    * @param nrWorkers Technical parallelism parameter.
+    * @return Returns DataFrame representing the sub-GRN.
     */
   def apply(spark: SparkSession,
             trainingData: DataFrame,
-            genes: List[Gene],
+            geneNames: List[Gene],
             targetGeneIndex: Int,
             candidateRegulatorsIndices: Seq[Int],
             params: XGBoostParams,
             nrRounds: Int,
+            normalize: Boolean = false,
             nrWorkers: Option[Int] = None): DataFrame = {
 
     val cleanCandidateRegulators = candidateRegulatorsIndices.filter(_ != targetGeneIndex)
@@ -43,18 +48,19 @@ object XGBoostRegression {
           featureCol = CANDIDATE_REGULATORS,
           labelCol = TARGET_GENE_INDEX)
 
+    val sum = model.booster.getFeatureScore().map(_._2.toInt).sum
+
     val geneRegulations =
       model
         .booster
         .getFeatureScore()
-        .values
-        .zip(cleanCandidateRegulators)
-        .map{ case (importance, candidateRegulatorIndex) => {
-          val targetGeneName = genes.apply(targetGeneIndex)
-          val candidateRegulatorName = genes.apply(candidateRegulatorIndex)
+        .map{ case (featureIndex, importance) => {
+          val candidateRegulatorIndex = featureIndex.substring(1).toInt
+          val candidateRegulatorName  = geneNames.apply(candidateRegulatorIndex)
+          val targetGeneName = geneNames.apply(targetGeneIndex)
+          val finalImportance = if (normalize) (importance.toFloat / sum) else importance.toFloat
 
-          (candidateRegulatorIndex, candidateRegulatorName, targetGeneIndex, targetGeneName, importance.toInt)
-        }}
+          (candidateRegulatorIndex, candidateRegulatorName, targetGeneIndex, targetGeneName, finalImportance) }}
         .toSeq
 
     spark
