@@ -77,6 +77,8 @@ object ScenicPipeline {
 
         "nr of rounds" -> nrRounds,
 
+        "edge count" -> grn.count,
+
         s"total time on ${targets.size} targets"       -> pretty(total),
         "average time on 1 target"                     -> pretty(average),
         s"estimated time on all ${genes.size} targets" -> pretty(estimate)

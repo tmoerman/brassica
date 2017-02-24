@@ -49,7 +49,7 @@ object XGBoostRegression {
           labelCol = TARGET_GENE_INDEX)
 
     val sum = model.booster.getFeatureScore().map(_._2.toInt).sum
-    
+
     val geneRegulations =
       model
         .booster
