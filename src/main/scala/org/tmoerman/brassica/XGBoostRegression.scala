@@ -49,13 +49,13 @@ object XGBoostRegression {
           labelCol = TARGET_GENE_INDEX)
 
     val sum = model.booster.getFeatureScore().map(_._2.toInt).sum
-
+    
     val geneRegulations =
       model
         .booster
         .getFeatureScore()
         .map{ case (featureIndex, importance) => {
-          val candidateRegulatorIndex = featureIndex.substring(1).toInt
+          val candidateRegulatorIndex = cleanCandidateRegulators(featureIndex.substring(1).toInt)
           val candidateRegulatorName  = geneNames.apply(candidateRegulatorIndex)
           val targetGeneName = geneNames.apply(targetGeneIndex)
           val finalImportance = if (normalize) (importance.toFloat / sum) else importance.toFloat
