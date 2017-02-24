@@ -16,7 +16,7 @@ object XGBoostRegression {
     * @param trainingData The DataFrame to train the regression model with.
     * @param geneNames The list of gene names.
     * @param targetGeneIndex The index of the target gene.
-    * @param candidateRegulatorsIndices The indices of the candidate regulators.
+    * @param candidateRegulatorIndices The indices of the candidate regulators.
     * @param params The XGBoost parameters for this effort.
     * @param nrRounds The nr of training rounds.
     * @param normalize Divide the importances by the sum of importances.
@@ -27,15 +27,15 @@ object XGBoostRegression {
             trainingData: DataFrame,
             geneNames: List[Gene],
             targetGeneIndex: Int,
-            candidateRegulatorsIndices: Seq[Int],
+            candidateRegulatorIndices: Seq[Int],
             params: XGBoostParams,
             nrRounds: Int,
             normalize: Boolean = false,
             nrWorkers: Option[Int] = None): DataFrame = {
 
-    val cleanCandidateRegulators = candidateRegulatorsIndices.filter(_ != targetGeneIndex)
+    val cleanCandidateRegulatorIndices = candidateRegulatorIndices.filter(_ != targetGeneIndex)
 
-    val sliced: DataFrame = sliceGenes(trainingData, targetGeneIndex, cleanCandidateRegulators)
+    val sliced: DataFrame = sliceGenes(trainingData, targetGeneIndex, cleanCandidateRegulatorIndices)
 
     val model =
       SparkXGBoost
@@ -55,7 +55,7 @@ object XGBoostRegression {
         .booster
         .getFeatureScore()
         .map{ case (featureIndex, importance) => {
-          val candidateRegulatorIndex = cleanCandidateRegulators(featureIndex.substring(1).toInt)
+          val candidateRegulatorIndex = cleanCandidateRegulatorIndices(featureIndex.substring(1).toInt)
           val candidateRegulatorName  = geneNames.apply(candidateRegulatorIndex)
           val targetGeneName = geneNames.apply(targetGeneIndex)
           val finalImportance = if (normalize) (importance.toFloat / sum) else importance.toFloat
