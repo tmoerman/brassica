@@ -36,7 +36,8 @@ object ScenicPipeline {
             nrRounds: Int,
             candidateRegulators: List[Gene] = Nil,
             params: BoosterParams = DEFAULT_PARAMS,
-            targets: List[Gene] = Nil) = {
+            targets: List[Gene] = Nil,
+            nrWorkers: Option[Int] = None) = {
     
     val candidateRegulatorIndices = regulatorIndices(genes, candidateRegulators)
 
@@ -47,6 +48,8 @@ object ScenicPipeline {
       case _   => targets.toSet.contains _
     }
 
+    val repartitioned = nrWorkers.map(expressionData.repartition).getOrElse(expressionData)
+
     val (regulations, timings) =
       genes
         .zipWithIndex
@@ -54,12 +57,13 @@ object ScenicPipeline {
         .map { case (targetGene, targetIndex) => profile {
           XGBoostRegression(
             spark,
-            expressionData,
+            repartitioned,
             genes,
             targetIndex,
             candidateRegulatorIndices,
             params,
-            nrRounds) }}
+            nrRounds = nrRounds,
+            nrWorkers = nrWorkers) }}
         .foldLeft((Nil, Nil): ACC) { case (acc, (reg, dur)) => (reg :: acc._1, dur :: acc._2) }
 
     val grn = regulations.reduce(_ union _)
@@ -76,6 +80,7 @@ object ScenicPipeline {
         "nr of regulator genes" -> s"${candidateRegulatorIndices.size} (${candidateRegulators.size} specified)",
 
         "nr of rounds" -> nrRounds,
+        "nr of workers" -> nrWorkers.map(_.toString).getOrElse(s"default parallelism ${spark.sparkContext.defaultParallelism}"),
 
         "edge count" -> grn.count,
 
