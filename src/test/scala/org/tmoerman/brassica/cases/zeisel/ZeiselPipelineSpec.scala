@@ -14,15 +14,10 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   behavior of "Scenic pipeline"
 
-  val zeiselMrna    = props("zeisel")
-  val zeiselParquet = props("zeiselParquet")
-
-  val mouseTFs = props("mouseTFs")
-
   val params = Map(
-    //"alpha" -> 10, // L1 regularization, cfr. Lasso
-    "colsample_bytree" -> 0.5f,
-    "subsample" -> 0.5f,
+    // "alpha" -> 10, // L1 regularization, cfr. Lasso
+    // "colsample_bytree" -> 0.5f,
+    // "subsample" -> 0.5f,
     "seed" -> 777,
     "silent" -> 1
   )
@@ -38,10 +33,11 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
         df,
         genes,
         params = params,
-        nrRounds = 100,
+        nrRounds = 10,
         candidateRegulators = TFs,
-        //targets = genes.take(1),
-        targets = List("Slc32a1")
+        //targets = List("Gad1"),
+        targets = List("Gad1", "Celf6", "Dlx1", "Dlx2", "Peg3", "Rufy3", "Msi2", "Maf", "Sp8", "Sox1", "Sp9"),
+        nrWorkers = Some(8)
       )
 
     grn.show()
