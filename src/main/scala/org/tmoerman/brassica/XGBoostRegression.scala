@@ -17,7 +17,7 @@ object XGBoostRegression {
     * @param geneNames The list of gene names.
     * @param targetGeneIndex The index of the target gene.
     * @param candidateRegulatorIndices The indices of the candidate regulators.
-    * @param params The XGBoost parameters for this effort.
+    * @param boosterParams The XGBoost parameters for this effort.
     * @param nrRounds The nr of training rounds.
     * @param normalize Divide the importances by the sum of importances.
     * @param nrWorkers Technical parallelism parameter.
@@ -28,7 +28,7 @@ object XGBoostRegression {
             geneNames: List[Gene],
             targetGeneIndex: Int,
             candidateRegulatorIndices: Seq[Int],
-            params: XGBoostParams,
+            boosterParams: BoosterParams,
             nrRounds: Int,
             normalize: Boolean = false,
             nrWorkers: Option[Int] = None): DataFrame = {
@@ -41,7 +41,7 @@ object XGBoostRegression {
       SparkXGBoost
         .trainWithDataFrame(
           sliced,
-          params,
+          boosterParams,
           round = nrRounds,
           nWorkers = nrWorkers.getOrElse(spark.sparkContext.defaultParallelism),
           useExternalMemory = false,

@@ -9,7 +9,7 @@ package object brassica {
   type Count = Int
   type Index = Long
   type Gene  = String
-  type XGBoostParams = Map[String, Any]
+  type BoosterParams = Map[String, Any]
 
   val EXPRESSION_VECTOR    = "expression"
   val CANDIDATE_REGULATORS = "regulators"

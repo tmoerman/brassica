@@ -11,7 +11,7 @@ import scala.concurrent.duration._
   */
 object ScenicPipeline {
 
-  val DEFAULT_PARAMS: XGBoostParams = Map(
+  val DEFAULT_PARAMS: BoosterParams = Map(
     //"alpha" -> 10, // L1 regularization, cfr. Lasso
 
     "silent" -> 1
@@ -35,7 +35,7 @@ object ScenicPipeline {
             genes: List[Gene],
             nrRounds: Int,
             candidateRegulators: List[Gene] = Nil,
-            params: XGBoostParams = DEFAULT_PARAMS,
+            params: BoosterParams = DEFAULT_PARAMS,
             targets: List[Gene] = Nil) = {
     
     val candidateRegulatorIndices = regulatorIndices(genes, candidateRegulators)
