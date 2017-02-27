@@ -13,6 +13,7 @@ package object brassica {
 
   val EXPRESSION_VECTOR    = "expression"
   val CANDIDATE_REGULATORS = "regulators"
+  val TARGET_GENE          = "target_gene"
 
   val TARGET_GENE_INDEX         = "target_index"
   val TARGET_GENE_NAME          = "target_name"
