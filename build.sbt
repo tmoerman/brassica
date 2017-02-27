@@ -5,8 +5,8 @@ name := "brassica"
 version := "1.0"
 
 scalaVersion := "2.11.8"
-sparkVersion := "2.0.2"
-sparkComponents ++= Seq("core", "mllib", "sql")
+sparkVersion := "2.1.0"
+sparkComponents ++= Seq("core", "mllib", "sql", "hive")
 
 javaOptions ++= Seq("-Xms1G", "-Xmx8G", "-XX:MaxPermSize=8G", "-XX:+CMSClassUnloadingEnabled")
 parallelExecution in Test := false
@@ -29,7 +29,6 @@ libraryDependencies ++= Seq(
 
   "com.jsuereth"           %% "scala-arm"          % "2.0",
 
-  "org.apache.spark"       %% "spark-hive"         % "2.0.0"       % "test",
   "org.scalatest"          %% "scalatest"          % "2.2.1"       % "test",
   "com.holdenkarau"        %% "spark-testing-base" % "2.0.0_0.6.0" % "test"
 
