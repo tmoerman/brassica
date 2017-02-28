@@ -41,8 +41,14 @@ object MegacellReader extends DataReader {
   def apply(spark: SparkSession, path: String): Try[(DataFrame, List[Gene])] =
     managed(HDF5FactoryProvider.get.openForReading(path))
       .map(reader => {
+
+        println("reading CSC matrix")
         val csc   = readCSCMatrix(reader)
+
+        println("converting to DF")
         val df    = toDataFrame(spark, csc)
+
+        println("reader genes")
         val genes = readGeneNames(reader)
 
         (df, genes)
@@ -70,17 +76,17 @@ object MegacellReader extends DataReader {
 
     val matrix =
       blocks
-        //.par // TODO parallel necessary ???
+        .par // TODO parallel necessary ???
         .map{ case (Array(offset, next), col) => {
-        val size  = next - offset
+          val size  = next - offset
 
-        val values     = reader.int32.readArrayBlockWithOffset(DATA,    size.toInt, offset).map(_.toDouble)
-        val rowIndices = reader.int32.readArrayBlockWithOffset(INDICES, size.toInt, offset)
+          val values     = reader.int32.readArrayBlockWithOffset(DATA,    size.toInt, offset).map(_.toDouble)
+          val rowIndices = reader.int32.readArrayBlockWithOffset(INDICES, size.toInt, offset)
 
-        (values zip rowIndices)
-          .foldLeft(zeros[Double](rows, cols)){
-            case (acc, (v, row)) => acc.update(row, col, v); acc }
-      }}
+          (values zip rowIndices)
+            .foldLeft(zeros[Double](rows, cols)){
+              case (acc, (v, row)) => acc.update(row, col, v); acc }
+          }}
         .reduce(_ += _)
         .t // transpose
 
