@@ -14,7 +14,6 @@ class ZeiselParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
   behavior of "Zeisel Parquet I/O"
 
   it should "write the gene expression DF to parquet" in {
-    // only if it doesn't exist yet
     if (! new File(zeiselParquet).exists) {
       val (df, _) = apply(spark, zeiselMrna)
 
