@@ -3,14 +3,18 @@
 # mouse TFs
 mouseTFs = src/test/resources/TF/mm9_TFs.txt
 
-# source:
+# source: TODO
 genie3 = src/test/resources/genie3/data.txt
 
-# source:
+# source: TODO
 zeisel = /Users/tmo/Work/ghb2016/data/zeisel/expression_mRNA_17-Aug-2014.txt
 zeiselParquet = src/test/resources/parquet/zeisel
 
-# source:
+# source: TODO
+megacell = /Users/tmo/work/ghb2016/data/bigsc/1M_neurons_filtered_gene_bc_matrices_h5.h5
+megacellParquet = src/test/resources/parquet/megacell
+
+# source: TODO
 dream5Original = /Users/tmo/Work/ghb2016/data/Dream_challenge/GNI/original data/
 # dream5Training =
 
