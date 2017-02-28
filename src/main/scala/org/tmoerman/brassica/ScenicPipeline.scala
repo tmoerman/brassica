@@ -48,7 +48,7 @@ object ScenicPipeline {
       case _   => targets.toSet.contains _
     }
 
-    val repartitioned = nrWorkers.map(expressionData.repartition).getOrElse(expressionData)
+    val repartitioned = expressionData.repartition(nrWorkers.getOrElse(spark.sparkContext.defaultParallelism)).cache()
 
     val (regulations, timings) =
       genes
