@@ -61,7 +61,7 @@ object ZeiselReader extends DataReader {
     * @return Returns the Zeisel gene expression DataFrame from a parquet file.
     */
   def fromParquet(spark: SparkSession, parquetFile: String, rawFile: String): (DataFrame, List[Gene]) = {
-    val df = spark.read.parquet(parquetFile)
+    val df = spark.read.parquet(parquetFile).cache
 
     val genes = parseGenes(rawLines(spark, rawFile))
 
