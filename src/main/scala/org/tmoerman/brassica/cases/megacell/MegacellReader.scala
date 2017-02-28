@@ -1,6 +1,6 @@
 package org.tmoerman.brassica.cases.megacell
 
-import breeze.linalg.CSCMatrix
+import breeze.linalg.{SparseVector, CSCMatrix}
 import breeze.linalg.CSCMatrix._
 import ch.systemsx.cisd.hdf5.{IHDF5Reader, HDF5FactoryProvider}
 import org.apache.spark.ml.linalg.BreezeMLConversions._
@@ -35,7 +35,6 @@ object MegacellReader extends DataReader {
   /**
     * @param spark The SparkSession.
     * @param path Path of the h5 file with CSC data structure.
-    *
     * @return
     */
   def apply(spark: SparkSession, path: String): Try[(DataFrame, List[Gene])] =
@@ -59,6 +58,46 @@ object MegacellReader extends DataReader {
       .map(readCSCMatrix)
       .tried
 
+  def readCSCMatrixRevised(path: String, limit: Option[Int]): Try[List[SparseVector[Double]]] =
+    managed(HDF5FactoryProvider.get.openForReading(path))
+      .map(reader => readCSCMatrixRevised(reader, limit))
+      .tried
+
+  def readCSCMatrixRevised(reader: IHDF5Reader, limit: Option[Int]): List[SparseVector[Double]] = {
+    val (nrFeatures, nrCells) = reader.int32.readArray(SHAPE) match {
+      case Array(a, b) => (a, b)
+      case _ => throw new Exception("Could not read shape.")
+    }
+
+    val pointers = reader.int64.readArray(INDPTR)
+
+    val blocks =
+      pointers
+        .sliding(2, 1)
+        .zipWithIndex
+        .toList
+
+    assert(blocks.size == nrCells)
+
+    val sparseVectors =
+      blocks
+        .take(limit.getOrElse(nrCells))
+        .map{ case (Array(offset, next), cellIndex) => {
+
+          val blockSize = next - offset
+
+          val featureValues  = reader.int32.readArrayBlockWithOffset(DATA,    blockSize.toInt, offset).map(_.toDouble)
+          val featureIndices = reader.int32.readArrayBlockWithOffset(INDICES, blockSize.toInt, offset)
+          val tuples = featureIndices zip featureValues
+
+          val vector = breeze.linalg.SparseVector.apply(nrFeatures)(tuples: _*)
+
+          vector
+        }}
+
+    sparseVectors //.map(Row(_))
+  }
+
   def readCSCMatrix(reader: IHDF5Reader): CSCMatrix[Double] = {
     val (rows, cols) = reader.int32.readArray(SHAPE) match {
       case Array(a, b) => (a, b)
@@ -74,14 +113,16 @@ object MegacellReader extends DataReader {
         //.take(n.getOrElse(cols)) // TODO meh...
         .toList
 
+    println(s"${blocks.size} blocks to process...")
+
     val matrix =
       blocks
-        .par // TODO parallel necessary ???
+        // .par // TODO parallel necessary ???
         .map{ case (Array(offset, next), col) => {
-          val size  = next - offset
+          val blockSize = next - offset
 
-          val values     = reader.int32.readArrayBlockWithOffset(DATA,    size.toInt, offset).map(_.toDouble)
-          val rowIndices = reader.int32.readArrayBlockWithOffset(INDICES, size.toInt, offset)
+          val values     = reader.int32.readArrayBlockWithOffset(DATA,    blockSize.toInt, offset).map(_.toDouble)
+          val rowIndices = reader.int32.readArrayBlockWithOffset(INDICES, blockSize.toInt, offset)
 
           (values zip rowIndices)
             .foldLeft(zeros[Double](rows, cols)){
