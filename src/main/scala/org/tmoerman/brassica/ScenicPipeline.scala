@@ -55,7 +55,7 @@ object ScenicPipeline {
         .zipWithIndex
         .filter{ case (gene, _) => isTarget(gene) }
         .map { case (targetGene, targetIndex) => profile {
-          XGBoostRegression(
+          XGBoostSparkRegression(
             spark,
             repartitioned,
             genes,

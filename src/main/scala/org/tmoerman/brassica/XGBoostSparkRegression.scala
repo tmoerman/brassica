@@ -1,6 +1,6 @@
 package org.tmoerman.brassica
 
-import ml.dmlc.xgboost4j.scala.spark.{XGBoost => SparkXGBoost}
+import ml.dmlc.xgboost4j.scala.spark.{XGBoost => XGBoostSpark}
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.functions._
@@ -9,7 +9,7 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 /**
   * @author Thomas Moerman
   */
-object XGBoostRegression {
+object XGBoostSparkRegression {
 
   /**
     * @param spark The SparkSession.
@@ -40,7 +40,7 @@ object XGBoostRegression {
     val sliced: DataFrame = sliceGenes(trainingData, targetGeneIndex, cleanCandidateRegulatorIndices)
 
     val model =
-      SparkXGBoost
+      XGBoostSpark
         .trainWithDataFrame(
           sliced,
           boosterParams,
