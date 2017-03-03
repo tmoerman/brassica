@@ -1,8 +1,7 @@
 package org.tmoerman.brassica.cases.megacell
 
-import breeze.linalg.{SparseVector, CSCMatrix}
-import breeze.linalg.CSCMatrix._
-import ch.systemsx.cisd.hdf5.{IHDF5Reader, HDF5FactoryProvider}
+import breeze.linalg.{CSCMatrix, SparseVector}
+import ch.systemsx.cisd.hdf5.{HDF5FactoryProvider, IHDF5Reader}
 import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
@@ -37,37 +36,73 @@ object MegacellReader extends DataReader {
     * @param path Path of the h5 file with CSC data structure.
     * @return
     */
-  def apply(spark: SparkSession, path: String): Try[(DataFrame, List[Gene])] =
+  @deprecated def apply(spark: SparkSession, path: String): Try[(DataFrame, List[Gene])] =
     managed(HDF5FactoryProvider.get.openForReading(path))
       .map(reader => {
 
         println("reading CSC matrix")
-        val csc   = readCSCMatrix(reader)
+        val csc = readCSCMatrix(reader, None)
 
         println("converting to DF")
-        val df    = toDataFrame(spark, csc)
+        //val df    = toDataFrame(spark, csc)
 
         println("reader genes")
         val genes = readGeneNames(reader)
 
-        (df, genes)
+        (???, genes)
       }).tried
 
-  def readCSCMatrix(path: String): Try[CSCMatrix[Double]] =
+  /**
+    * @param path The file path.
+    * @param limit Optional limit on how many cells to read from the file - for testing purposes.
+    * @return Returns a  CSCMatrix of Ints.
+    */
+  def readCSCMatrix(path: String, limit: Option[Int] = None): Try[CSCMatrix[Int]] =
     managed(HDF5FactoryProvider.get.openForReading(path))
-      .map(readCSCMatrix)
+      .map{ reader => readCSCMatrix(reader, limit) }
       .tried
 
-  def readCSCMatrixRevised(path: String, limit: Option[Int]): Try[List[SparseVector[Double]]] =
+  /**
+    * @param reader The managed HDF5 Reader instance.
+    * @param limit Optional limit on how many cells to read from the file - for testing purposes.
+    * @return Returns a CSCMatrix of Ints.
+    */
+  def readCSCMatrix(reader: IHDF5Reader, limit: Option[Int]): CSCMatrix[Int] = {
+    val (nrGenes, nrCells) = readDimensions(reader)
+
+    val pointers = reader.int64.readArray(INDPTR)
+
+    val blocks = pointers.sliding(2, 1).zipWithIndex.toList
+
+    assert(blocks.size == nrCells)
+
+    val matrixBuilder = new CSCMatrix.Builder[Int](rows = nrCells, cols = nrGenes)
+
+    limit
+      .map(blocks.take)
+      .getOrElse(blocks)
+      .foreach{ case (Array(offset, next), cellIndex) => {
+        val blockSize = (next - offset).toInt
+
+        val geneIndices = reader.int32.readArrayBlockWithOffset(INDICES, blockSize, offset).reverse
+
+        val expressionValues = reader.int32.readArrayBlockWithOffset(DATA, blockSize, offset).reverse
+
+        for (i <- 0 until blockSize) {
+          matrixBuilder.add(cellIndex, geneIndices(i), expressionValues(i))
+        }
+      }}
+
+    matrixBuilder.result
+  }
+
+  def readSparseVectors(path: String, limit: Option[Int]): Try[List[SparseVector[Double]]] =
     managed(HDF5FactoryProvider.get.openForReading(path))
-      .map(reader => readCSCMatrixRevised(reader, limit))
+      .map(reader => readSparseVectors(reader, limit))
       .tried
 
-  def readCSCMatrixRevised(reader: IHDF5Reader, limit: Option[Int]): List[SparseVector[Double]] = {
-    val (nrFeatures, nrCells) = reader.int32.readArray(SHAPE) match {
-      case Array(a, b) => (a, b)
-      case _ => throw new Exception("Could not read shape.")
-    }
+  def readSparseVectors(reader: IHDF5Reader, limit: Option[Int]): List[SparseVector[Double]] = {
+    val (nrGenes, nrCells) = readDimensions(reader)
 
     val pointers = reader.int64.readArray(INDPTR)
 
@@ -84,13 +119,13 @@ object MegacellReader extends DataReader {
         .take(limit.getOrElse(nrCells))
         .map{ case (Array(offset, next), cellIndex) => {
 
-          val blockSize = next - offset
+          val blockSize = (next - offset).toInt
 
-          val featureValues  = reader.int32.readArrayBlockWithOffset(DATA,    blockSize.toInt, offset).map(_.toDouble)
-          val featureIndices = reader.int32.readArrayBlockWithOffset(INDICES, blockSize.toInt, offset)
-          val tuples = featureIndices zip featureValues
+          val expressionValues = reader.int32.readArrayBlockWithOffset(DATA,    blockSize, offset).map(_.toDouble)
+          val geneIndices = reader.int32.readArrayBlockWithOffset(INDICES, blockSize, offset)
+          val tuples = geneIndices zip expressionValues
 
-          val vector = breeze.linalg.SparseVector.apply(nrFeatures)(tuples: _*)
+          val vector = breeze.linalg.SparseVector.apply(nrGenes)(tuples: _*)
 
           vector
         }}
@@ -98,40 +133,22 @@ object MegacellReader extends DataReader {
     sparseVectors //.map(Row(_))
   }
 
-  def readCSCMatrix(reader: IHDF5Reader): CSCMatrix[Double] = {
-    val (rows, cols) = reader.int32.readArray(SHAPE) match {
-      case Array(a, b) => (a, b)
-      case _ => throw new Exception("Could not read shape.")
-    }
+  /**
+    * @param path The file path.
+    * @return Returns tuple (nrGenes, nrCells).
+    */
+  def readDimensions(path: String): Try[(Int, Int)] =
+    managed(HDF5FactoryProvider.get.openForReading(path))
+      .map(readDimensions)
+      .tried
 
-    val pointers = reader.int64.readArray(INDPTR)
-
-    val blocks =
-      pointers
-        .sliding(2, 1)
-        .zipWithIndex
-        //.take(n.getOrElse(cols)) // TODO meh...
-        .toList
-
-    println(s"${blocks.size} blocks to process...")
-
-    val matrix =
-      blocks
-        // .par // TODO parallel necessary ???
-        .map{ case (Array(offset, next), col) => {
-          val blockSize = next - offset
-
-          val values     = reader.int32.readArrayBlockWithOffset(DATA,    blockSize.toInt, offset).map(_.toDouble)
-          val rowIndices = reader.int32.readArrayBlockWithOffset(INDICES, blockSize.toInt, offset)
-
-          (values zip rowIndices)
-            .foldLeft(zeros[Double](rows, cols)){
-              case (acc, (v, row)) => acc.update(row, col, v); acc }
-          }}
-        .reduce(_ += _)
-        .t // transpose
-
-    matrix
+  /**
+    * @param reader The managed HDF5 reader instance.
+    * @return Returns tuple (nrGenes, nrCells)
+    */
+  def readDimensions(reader: IHDF5Reader): (Int, Int) = reader.int32.readArray(SHAPE) match {
+    case Array(nrGenes, nrCells) => (nrGenes, nrCells)
+    case _ => throw new Exception("Could not read shape.")
   }
 
   def readGeneNames(path: String): Try[List[Gene]] =
@@ -140,7 +157,7 @@ object MegacellReader extends DataReader {
       .tried
 
   def readGeneNames(reader: IHDF5Reader) = reader.string.readArray(GENE_NAMES).toList
-
+  
   def toDataFrame(spark: SparkSession, csc: CSCMatrix[Double]): DataFrame = {
     val rows = csc.ml.rowIter.map(v => Row(v)).toList
 

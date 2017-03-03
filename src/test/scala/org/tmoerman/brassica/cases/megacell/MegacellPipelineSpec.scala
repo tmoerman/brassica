@@ -26,7 +26,7 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
 
     val limit = Some(10000)
 
-    val vectors = MegacellReader.readCSCMatrixRevised(megacell, limit).get
+    val vectors = MegacellReader.readSparseVectors(megacell, limit).get
 
     val rows = vectors.map(v => Row(v.ml))
 
