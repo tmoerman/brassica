@@ -11,12 +11,6 @@ import scala.concurrent.duration._
   */
 object ScenicPipeline {
 
-  val DEFAULT_PARAMS: BoosterParams = Map(
-    //"alpha" -> 10, // L1 regularization, cfr. Lasso
-
-    "silent" -> 1
-  )
-
   /**
     * See XGBoost docs:
     *   - https://github.com/dmlc/xgboost/blob/master/doc/parameter.md
@@ -34,8 +28,8 @@ object ScenicPipeline {
             expressionData: DataFrame,
             genes: List[Gene],
             nrRounds: Int,
-            candidateRegulators: List[Gene] = Nil,
-            params: BoosterParams = DEFAULT_PARAMS,
+            candidateRegulators: List[Gene],
+            params: BoosterParams = DEFAULT_BOOSTER_PARAMS,
             targets: List[Gene] = Nil,
             nrWorkers: Option[Int] = None) = {
     
@@ -93,16 +87,16 @@ object ScenicPipeline {
   }
 
   /**
-    * @param allGenes The List of all genes in the data set.
+    * @param genes The List of all genes in the data set.
     * @param candidateRegulators The Set of
     * @return Returns the indices of the subset of genes in the DataFrame,
     *         that also occur in the specified Set of transcription factors.
     */
-  def regulatorIndices(allGenes: List[Gene], candidateRegulators: List[Gene]): List[Int] = candidateRegulators match {
+  def regulatorIndices(genes: List[Gene], candidateRegulators: List[Gene]): List[Int] = candidateRegulators match {
     case Nil =>
-      allGenes.indices.toList
+      genes.indices.toList
     case _ =>
-      allGenes
+      genes
         .zipWithIndex
         .filter { case (gene, _) => candidateRegulators.toSet.contains(gene) }
         .map(_._2)

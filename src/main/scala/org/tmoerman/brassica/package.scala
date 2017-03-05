@@ -21,4 +21,12 @@ package object brassica {
   val CANDIDATE_REGULATOR_NAME  = "regulator_name"
   val IMPORTANCE                = "importance"
 
+  val DEFAULT_BOOSTER_PARAMS: BoosterParams = Map(
+    "silent" -> 1
+  )
+
+  case class XGBoostParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
+                           nrRounds: Int = 10,
+                           nrWorkers: Option[Int] = Some(1))
+
 }

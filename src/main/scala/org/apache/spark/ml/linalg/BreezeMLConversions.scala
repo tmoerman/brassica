@@ -1,6 +1,6 @@
 package org.apache.spark.ml.linalg
 
-import breeze.linalg.{Matrix => BreezeMatrix, Vector => BreezeVector}
+import breeze.linalg.{Matrix => BreezeMatrix, Vector => BreezeVector, CSCMatrix}
 import org.apache.spark.ml.linalg.{Vector => MLVector, Matrix => MLMatrix}
 
 /**
@@ -23,5 +23,11 @@ object BreezeMLConversions {
   implicit class BreezeMatrixConversion(val matrix: BreezeMatrix[Double]) extends AnyVal {
     def ml: MLMatrix = Matrices.fromBreeze(matrix)
   }
+
+//  implicit class CSCMatrixFunctions[T](val csc: CSCMatrix[T]) extends AnyVal {
+//
+//
+//
+//  }
 
 }

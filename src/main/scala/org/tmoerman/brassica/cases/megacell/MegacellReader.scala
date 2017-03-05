@@ -1,8 +1,9 @@
 package org.tmoerman.brassica.cases.megacell
 
-import breeze.linalg.{CSCMatrix, SparseVector}
+import breeze.linalg.{CSCMatrix, SparseVector, DenseMatrix => BDM}
 import ch.systemsx.cisd.hdf5.{HDF5FactoryProvider, IHDF5Reader}
 import org.apache.spark.ml.linalg.BreezeMLConversions._
+import org.apache.spark.ml.linalg.{SparseMatrix, DenseMatrix}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.tmoerman.brassica.Gene
@@ -64,10 +65,12 @@ object MegacellReader extends DataReader {
 
   /**
     * @param reader The managed HDF5 Reader instance.
-    * @param limit Optional limit on how many cells to read from the file - for testing purposes.
+    * @param cellLimit Optional limit on how many cells to read from the file - for testing purposes.
     * @return Returns a CSCMatrix of Ints.
     */
-  def readCSCMatrix(reader: IHDF5Reader, limit: Option[Int]): CSCMatrix[Int] = {
+  def readCSCMatrix(reader: IHDF5Reader,
+                    cellLimit: Option[Int]): CSCMatrix[Int] = {
+
     val (nrGenes, nrCells) = readDimensions(reader)
 
     val pointers = reader.int64.readArray(INDPTR)
@@ -78,19 +81,26 @@ object MegacellReader extends DataReader {
 
     val matrixBuilder = new CSCMatrix.Builder[Int](rows = nrCells, cols = nrGenes)
 
-    limit
+    type GeneIndex = Int
+    type ExpressionValue = Int
+
+    def readBlock(reader: IHDF5Reader, offset: Long, next: Long): (Array[GeneIndex], Array[ExpressionValue]) = {
+      val blockSize = (next - offset).toInt
+
+      val geneIndices = reader.int32.readArrayBlockWithOffset(INDICES, blockSize, offset)
+
+      val expressionValues = reader.int32.readArrayBlockWithOffset(DATA, blockSize, offset)
+
+      (geneIndices, expressionValues)
+    }
+
+    cellLimit
       .map(blocks.take)
       .getOrElse(blocks)
       .foreach{ case (Array(offset, next), cellIndex) => {
-        val blockSize = (next - offset).toInt
+        val (geneIndices, expressionValues) = readBlock(reader, offset, next)
 
-        val geneIndices = reader.int32.readArrayBlockWithOffset(INDICES, blockSize, offset).reverse
-
-        val expressionValues = reader.int32.readArrayBlockWithOffset(DATA, blockSize, offset).reverse
-
-        for (i <- 0 until blockSize) {
-          matrixBuilder.add(cellIndex, geneIndices(i), expressionValues(i))
-        }
+        for (i <- geneIndices.indices) matrixBuilder.add(cellIndex, geneIndices(i), expressionValues(i))
       }}
 
     matrixBuilder.result
