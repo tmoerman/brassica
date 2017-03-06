@@ -1,16 +1,8 @@
 package org.tmoerman.brassica.cases.megacell
 
-import com.holdenkarau.spark.testing.DataFrameSuiteBase
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.StructType
-import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.cases.megacell.MegacellReader._
-
-import org.apache.spark.ml.linalg.BreezeMLConversions._
-import org.tmoerman.brassica.util.TimeUtils
-import scala.collection.JavaConversions._
-
 import breeze.linalg._
+import org.scalatest.{FlatSpec, Matchers}
+import org.tmoerman.brassica.util.TimeUtils
 // import breeze.numerics._
 
 /**
@@ -45,14 +37,6 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
 
     col1.toArray.take(10) shouldBe Array(1, 1, 0, 0, 2, 1, 1, 1, 0, 0)
   }
-
-//  it should "read the data as a DataFrame" in {
-//    val vectors = MegacellReader.readSparseVectors(megacell, limit = Some(10)).get
-//
-//    val df = spark.createDataFrame(vectors.map(v => Row(v.ml)), StructType(FEATURES_STRUCT_FIELD :: Nil))
-//
-//    df.show()
-//  }
 
   it should "parse the gene list correctly" in {
     val genes = MegacellReader.readGeneNames(megacell).get
