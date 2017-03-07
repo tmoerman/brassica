@@ -1,9 +1,10 @@
 package org.apache.spark.ml.linalg
 
-import breeze.linalg.{Matrix => BreezeMatrix, Vector => BreezeVector, CSCMatrix}
-import org.apache.spark.ml.linalg.{Vector => MLVector, Matrix => MLMatrix}
+import breeze.linalg.{CSCMatrix, Matrix => BreezeMatrix, SparseVector => BSV, Vector => BreezeVector}
+import breeze.storage.Zero
+import org.apache.spark.ml.linalg.{Matrix => MLMatrix, Vector => MLVector}
 
-import scala.collection.mutable.ArrayBuilder
+import scala.reflect.ClassTag
 
 /**
   * @author Thomas Moerman
@@ -26,23 +27,19 @@ object BreezeMLConversions {
     def ml: MLMatrix = Matrices.fromBreeze(matrix)
   }
 
-  import  ml.dmlc.xgboost4j.LabeledPoint
+  implicit class CSCMatrixFunctions[T:ClassTag:Zero](val csc: CSCMatrix[T]) {
 
-  implicit class CSCMatrixFunctions[Int](val csc: CSCMatrix[Int]) extends AnyVal {
+    def columns: Iterator[BSV[T]] = Iterator.tabulate(csc.cols) { j =>
+      val colStart = csc.colPtrs(j)
+      val colEnd = csc.colPtrs(j + 1)
 
-//    override def colIter: Iterator[Vector] = {
-//
-//        Iterator.tabulate(csc.cols) { j =>
-//          val colStart = csc.colPtrs(j)
-//          val colEnd = csc.colPtrs(j + 1)
-//          val ii = csc.rowIndices.slice(colStart, colEnd)
-//          val vv = csc.data.slice(colStart, colEnd)
-//
-//          new SparseVector(csc.rows, ii, vv)
-//        }
-//
-//    }
+      val indices = csc.rowIndices.slice(colStart, colEnd)
+      val values  = csc.data.slice(colStart, colEnd)
 
+      val tuples = indices zip values
+
+      BSV(csc.rows)(tuples: _*)
+    }
 
   }
 
