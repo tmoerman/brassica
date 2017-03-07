@@ -54,12 +54,12 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
 
     val csc: CSCMatrix[Int] = MegacellReader.readCSCMatrix(megacell, cellTop = limit).get
 
-    val col13 = csc(0 until nrCells, 13).flatten()
+    val col13 = csc(0 until limit.get, 13).flatten()
 
     col13.toArray.take(10) shouldBe COL_13
   }
 
-  it should "read CSC matrix, limit 10k" in {
+  it should "read CSC matrix, limit 1k" in {
     val (nrCells, nrGenes) = MegacellReader.readDimensions(megacell).get
 
     val limit = Some(1000)
@@ -70,7 +70,7 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
 
     println(s"reading ${limit.get} Megacell entries took ${duration.toSeconds} seconds")
 
-    val col13 = csc(0 until nrCells, 13).flatten()
+    val col13 = csc(0 until limit.get, 13).flatten()
 
     col13.toArray.take(10) shouldBe COL_13
   }

@@ -4,6 +4,10 @@ import java.lang.Math.min
 
 import breeze.linalg.{CSCMatrix, SparseVector, DenseMatrix => BDM, Vector => BVector}
 import ch.systemsx.cisd.hdf5.{HDF5FactoryProvider, IHDF5Reader}
+import ml.dmlc.xgboost4j.java.DMatrix.SparseType
+import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
+import ml.dmlc.xgboost4j.scala.DMatrix
+import ml.dmlc.xgboost4j.java.{DMatrix => JDMatrix}
 import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
@@ -100,7 +104,7 @@ object MegacellReader extends DataReader {
   def readRows[R](path: String,
                   rowFn: RowFn[R],
                   cellTop: Option[CellCount] = None,
-                  genePredicate: Option[(GeneIndex) => Boolean] = None): Try[List[R]] =
+                  genePredicate: Option[GeneIndex => Boolean] = None): Try[List[R]] =
     managed(HDF5FactoryProvider.get.openForReading(path))
       .map{ reader => readRows(reader, rowFn, cellTop, genePredicate) }
       .tried
@@ -116,7 +120,7 @@ object MegacellReader extends DataReader {
   def readRows[R](reader: IHDF5Reader,
                   rowFn: RowFn[R],
                   cellTop: Option[CellCount],
-                  genePredicate: Option[(GeneIndex) => Boolean]): List[R] = {
+                  genePredicate: Option[GeneIndex => Boolean]): List[R] = {
 
     val (nrGenes, nrCells) = readDimensions(reader)
 
@@ -130,16 +134,19 @@ object MegacellReader extends DataReader {
         val colStart  = pointers(cellIndex)
         val colEnd    = pointers(cellIndex + 1)
 
-        val rowExpressionTuples = readRow(reader, colStart, colEnd)
+        val expressionTuples = readRow(reader, colStart, colEnd)
 
-        val filteredTuples =
-          genePredicate
-            .map(pred => rowExpressionTuples.filter{ case (i, v) => pred(i) })
-            .getOrElse(rowExpressionTuples)
+        val filteredTuples = filterTuples(genePredicate, expressionTuples)
 
         rowFn.apply(cellIndex, nrGenes, filteredTuples)
       }
   }
+
+  private[this] def filterTuples(genePredicate: Option[GeneIndex => Boolean], expressionTuples: ExpressionTuples) =
+    genePredicate
+      .map(pred => expressionTuples.filter{ case (i, v) => pred(i) })
+      .getOrElse(expressionTuples)
+
 
   private[this] def readRow(reader: IHDF5Reader, offset: Long, next: Long): ExpressionTuples = {
     val blockSize = (next - offset).toInt
@@ -154,38 +161,55 @@ object MegacellReader extends DataReader {
   /**
     * @param path The file path.
     * @param cellTop Optional limit on how many cells to read from the file - for testing purposes.
+    * @param onlyGeneIndices TODO
     * @return Returns a  CSCMatrix of Ints.
     */
-  def readCSCMatrix(path: String, cellTop: Option[Int] = None): Try[CSCMatrix[Int]] =
+  def readCSCMatrix(path: String,
+                    cellTop: Option[CellCount] = None,
+                    onlyGeneIndices: Option[Seq[GeneIndex]] = None): Try[CSCMatrix[ExpressionValue]] =
     managed(HDF5FactoryProvider.get.openForReading(path))
-      .map{ reader => readCSCMatrix(reader, cellTop) }
+      .map{ reader => readCSCMatrix(reader, cellTop, onlyGeneIndices) }
       .tried
 
   /**
     * @param reader The managed HDF5 Reader instance.
     * @param cellTop Optional limit on how many cells to read from the file - for testing purposes.
+    * @param onlyGeneIndices TODO
     * @return Returns a CSCMatrix of Ints.
     */
   def readCSCMatrix(reader: IHDF5Reader,
-                    cellTop: Option[Int]): CSCMatrix[Int] = {
+                    cellTop: Option[CellCount],
+                    onlyGeneIndices: Option[Seq[GeneIndex]]): CSCMatrix[ExpressionValue] = {
 
     val (nrGenes, nrCells) = readDimensions(reader)
 
     val pointers = reader.int64.readArray(INDPTR)
 
-    val take = cellTop.map(min(_, nrCells)).getOrElse(nrCells)
+    val cellDim = cellTop.map(min(_, nrCells)).getOrElse(nrCells)
+    val geneDim = onlyGeneIndices.map(_.size).getOrElse(nrGenes)
 
-    val matrixBuilder = new CSCMatrix.Builder[Int](rows = nrCells, cols = nrGenes)
+    val indexMap: (GeneIndex => GeneIndex) =
+      onlyGeneIndices.map(_.zipWithIndex.toMap).getOrElse(identity _)
 
-    Iterator
-      .tabulate(take){ cellIndex =>
-        val colStart  = pointers(cellIndex)
-        val colEnd    = pointers(cellIndex + 1)
-        val expressionTuples = readRow(reader, colStart, colEnd)
+    val matrixBuilder = new CSCMatrix.Builder[Int](rows = cellDim, cols = geneDim)
 
-        expressionTuples
-          .foreach{ case (geneIndex, expressionValue) => matrixBuilder.add(cellIndex, geneIndex, expressionValue) }
-      }
+    val genePredicate = onlyGeneIndices.map(_.toSet)
+
+    for (cellIndex <- 0 until cellDim) {
+      val colStart  = pointers(cellIndex)
+      val colEnd    = pointers(cellIndex + 1)
+
+      val expressionTuples = readRow(reader, colStart, colEnd)
+
+      val filteredTuples = filterTuples(genePredicate, expressionTuples)
+
+      filteredTuples
+        .foreach{ case (geneIndex, expressionValue) => {
+          val reIndexed = indexMap.apply(geneIndex)
+
+          matrixBuilder.add(cellIndex, reIndexed, expressionValue)
+        }}
+    }
 
     matrixBuilder.result
   }
@@ -194,7 +218,7 @@ object MegacellReader extends DataReader {
     * @param path The file path.
     * @return Returns tuple (nrGenes, nrCells).
     */
-  def readDimensions(path: String): Try[(Int, Int)] =
+  def readDimensions(path: String): Try[(GeneCount, CellCount)] =
     managed(HDF5FactoryProvider.get.openForReading(path))
       .map(readDimensions)
       .tried
@@ -222,5 +246,8 @@ object MegacellReader extends DataReader {
 
     spark.createDataFrame(rows, schema)
   }
+
+  def toXGBoostDMatrix(csc: CSCMatrix[Int]) =
+    new JDMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data.map(_.toFloat), CSC)
 
 }
