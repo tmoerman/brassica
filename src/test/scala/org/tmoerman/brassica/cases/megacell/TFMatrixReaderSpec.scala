@@ -11,7 +11,7 @@ class TFMatrixReaderSpec extends FlatSpec with Matchers {
   "reading the TF matrix" should "work" in {
     val limit = None // Some(10) // TODO test on full!
 
-    val (nrCells, _) = MegacellReader.readDimensions(megacell).get
+    val (_, nrCells) = MegacellReader.readDimensions(megacell).get
 
     val genes = MegacellReader.readGeneNames(megacell).get
 

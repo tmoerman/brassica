@@ -60,8 +60,6 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
   }
 
   it should "read CSC matrix, limit 1k" in {
-    val (nrCells, nrGenes) = MegacellReader.readDimensions(megacell).get
-
     val limit = Some(1000)
 
     val (csc, duration) = TimeUtils.profile {
