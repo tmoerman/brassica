@@ -47,9 +47,11 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
     col37.toArray shouldBe Array(1, 0, 2, 2, 0, 0, 0, 0, 0, 0)
   }
 
-  it should "read CSC matrix, limit 10" in {
-    val (nrCells, nrGenes) = MegacellReader.readDimensions(megacell).get
+  it should "read the matrix dimensions" in {
+    MegacellReader.readDimensions(megacell).get shouldBe (1300774,27998)
+  }
 
+  it should "read CSC matrix, limit 10" in {
     val limit = Some(10)
 
     val csc: CSCMatrix[Int] = MegacellReader.readCSCMatrix(megacell, cellTop = limit).get

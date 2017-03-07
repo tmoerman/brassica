@@ -2,20 +2,22 @@ package org.tmoerman.brassica.cases.megacell
 
 import java.lang.Math.min
 
-import breeze.linalg.{CSCMatrix, SparseVector, DenseMatrix => BDM, Vector => BVector}
+import breeze.linalg.{CSCMatrix, DenseMatrix => BDM, SparseVector => BSV, Vector => BVector}
+import breeze.storage.Zero
 import ch.systemsx.cisd.hdf5.{HDF5FactoryProvider, IHDF5Reader}
-import ml.dmlc.xgboost4j.java.DMatrix.SparseType
 import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
-import ml.dmlc.xgboost4j.scala.DMatrix
 import ml.dmlc.xgboost4j.java.{DMatrix => JDMatrix}
+import org.apache.spark.ml.attribute.AttributeGroup
 import org.apache.spark.ml.linalg.BreezeMLConversions._
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.ml.linalg.SparseVector
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.tmoerman.brassica.Gene
 import org.tmoerman.brassica.cases.DataReader
 import resource._
 
 import scala.collection.JavaConversions._
+import scala.reflect.ClassTag
 import scala.util.Try
 
 /**
@@ -67,30 +69,30 @@ object MegacellReader extends DataReader {
 
   type RowFn[T] = (CellIndex, GeneCount, ExpressionTuples) => T
 
-  class CandidateRegulatorVector(val candidateRegulatorIndices: Array[GeneIndex]) extends RowFn[SparseVector[Float]] {
+  class CandidateRegulatorVector(val candidateRegulatorIndices: Array[GeneIndex]) extends RowFn[BSV[Float]] {
     val indexMap = candidateRegulatorIndices.zipWithIndex.toMap
     val length = candidateRegulatorIndices.length
 
     def apply(cellIndex: CellIndex, geneCount: GeneCount, expressionTuples: ExpressionTuples) = {
       val reIndexedTuples = expressionTuples.map{ case (i, v) => (indexMap(i), v.toFloat) }
 
-      SparseVector(length)(reIndexedTuples: _*)
+      BSV(length)(reIndexedTuples: _*)
     }
   }
 
-  object IntSparseVector extends RowFn[SparseVector[Int]] {
+  object IntSparseVector extends RowFn[BSV[Int]] {
     def apply(cellIndex: CellIndex, geneCount: GeneCount, expressionTuples: ExpressionTuples) =
-      SparseVector(geneCount)(expressionTuples: _*)
+      BSV(geneCount)(expressionTuples: _*)
   }
 
-  object FloatSparseVector extends RowFn[SparseVector[Float]] {
+  object FloatSparseVector extends RowFn[BSV[Float]] {
     def apply(cellIndex: CellIndex, geneCount: GeneCount, expressionTuples: ExpressionTuples) =
-      SparseVector(geneCount)(expressionTuples.map { case (i, v) => (i, v.toFloat) }: _*)
+      BSV(geneCount)(expressionTuples.map { case (i, v) => (i, v.toFloat) }: _*)
   }
 
-  object DoubleSparseVector extends RowFn[SparseVector[Double]] {
+  object DoubleSparseVector extends RowFn[BSV[Double]] {
     def apply(cellIndex: CellIndex, geneCount: GeneCount, expressionTuples: ExpressionTuples) =
-      SparseVector(geneCount)(expressionTuples.map { case (i, v) => (i, v.toDouble) }: _*)
+      BSV(geneCount)(expressionTuples.map { case (i, v) => (i, v.toDouble) }: _*)
   }
 
   /**
@@ -216,19 +218,19 @@ object MegacellReader extends DataReader {
 
   /**
     * @param path The file path.
-    * @return Returns tuple (nrGenes, nrCells).
+    * @return Returns tuple (cell count, gene count).
     */
-  def readDimensions(path: String): Try[(GeneCount, CellCount)] =
+  def readDimensions(path: String): Try[(CellCount, GeneCount)] =
     managed(HDF5FactoryProvider.get.openForReading(path))
       .map(readDimensions)
       .tried
 
   /**
     * @param reader The managed HDF5 reader instance.
-    * @return Returns tuple (nrGenes, nrCells)
+    * @return Returns tuple (cell count, gene count).
     */
-  def readDimensions(reader: IHDF5Reader): (GeneCount, CellCount) = reader.int32.readArray(SHAPE) match {
-    case Array(nrGenes, nrCells) => (nrGenes, nrCells)
+  def readDimensions(reader: IHDF5Reader): (CellCount, GeneCount) = reader.int32.readArray(SHAPE) match {
+    case Array(nrGenes, nrCells) => (nrCells, nrGenes)
     case _ => throw new Exception("Could not read shape.")
   }
 
@@ -238,13 +240,25 @@ object MegacellReader extends DataReader {
       .tried
 
   def readGeneNames(reader: IHDF5Reader) = reader.string.readArray(GENE_NAMES).toList
-  
-  def toDataFrame(spark: SparkSession, csc: CSCMatrix[Double]): DataFrame = {
-    val rows = csc.ml.rowIter.map(v => Row(v)).toList
 
-    val schema = StructType(FEATURES_STRUCT_FIELD :: Nil)
+  private[this] def ml(v: BSV[Int]): SparseVector = {
+    if (v.index.length == v.used) {
+      new SparseVector(v.length, v.index, v.data.map(_.toDouble))
+    } else {
+      new SparseVector(v.length, v.index.slice(0, v.used), v.data.slice(0, v.used).map(_.toDouble))
+    }
+  }
 
-    spark.createDataFrame(rows, schema)
+  def toColumnDataFrame(spark: SparkSession, csc: CSCMatrix[Int], genes: List[Gene]): DataFrame = {
+    val rows =
+      (csc.columns zip genes.toIterator)
+        .map{ case (vector, gene) => Row.apply(ml(vector), gene) }
+
+    val schema = StructType(
+      new AttributeGroup("values").toStructField() ::
+      new StructField("gene", StringType) :: Nil)
+
+    spark.createDataFrame(rows.toSeq, schema)
   }
 
   def toXGBoostDMatrix(csc: CSCMatrix[Int]) =

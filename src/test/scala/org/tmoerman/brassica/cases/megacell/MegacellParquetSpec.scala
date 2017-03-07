@@ -1,7 +1,5 @@
 package org.tmoerman.brassica.cases.megacell
 
-import java.io.File
-
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -12,14 +10,16 @@ import org.scalatest.{FlatSpec, Matchers}
   */
 class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
-  it should "parse the data frame" in {
-    if (! new File(megacellParquet).exists) {
-      val (df, genes) = MegacellReader.apply(spark, megacell).get
+  it should "write the first 100 columns to Parquet" in {
+    val top = 100
 
-      df.show(20, truncate = true)
+    val csc = MegacellReader.readCSCMatrix(megacell, onlyGeneIndices = Some(0 until top)).get
 
-      df.write.parquet(megacellParquet)
-    }
+    val genes = MegacellReader.readGeneNames(megacell).get.take(top)
+
+    val df = MegacellReader.toColumnDataFrame(spark, csc, genes)
+
+    df.write.parquet(megacellParquet)
   }
 
 }
