@@ -2,7 +2,7 @@ package org.tmoerman.brassica.cases.megacell
 
 import java.lang.Math.min
 
-import breeze.linalg.{DenseMatrix => BDM, Vector => BVector, DenseVector, CSCMatrix, SparseVector}
+import breeze.linalg.{CSCMatrix, SparseVector, DenseMatrix => BDM, Vector => BVector}
 import ch.systemsx.cisd.hdf5.{HDF5FactoryProvider, IHDF5Reader}
 import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.apache.spark.sql.types.StructType
@@ -61,11 +61,10 @@ object MegacellReader extends DataReader {
   type ExpressionValue = Int
   type ExpressionTuples = Array[(GeneIndex, ExpressionValue)]
 
-  class ToCandidateRegulatorVector(val candidateRegulatorIndices: Array[GeneIndex])
-      extends ((CellIndex, GeneCount, ExpressionTuples) => SparseVector[Float]) {
+  type RowFn[T] = (CellIndex, GeneCount, ExpressionTuples) => T
 
+  class CandidateRegulatorVector(val candidateRegulatorIndices: Array[GeneIndex]) extends RowFn[SparseVector[Float]] {
     val indexMap = candidateRegulatorIndices.zipWithIndex.toMap
-
     val length = candidateRegulatorIndices.length
 
     def apply(cellIndex: CellIndex, geneCount: GeneCount, expressionTuples: ExpressionTuples) = {
@@ -73,21 +72,21 @@ object MegacellReader extends DataReader {
 
       SparseVector(length)(reIndexedTuples: _*)
     }
-
   }
 
-  object ToFloatSparseVector extends ((CellIndex, GeneCount, ExpressionTuples) => SparseVector[Float]) {
-
-    def apply(cellIndex: CellIndex, geneCount: GeneCount, expressionTuples: ExpressionTuples) =
-      SparseVector(geneCount)(expressionTuples.map { case (i, v) => (i, v.toFloat) }: _*)
-
-  }
-
-  object ToIntSparseVector extends ((CellIndex, GeneCount, ExpressionTuples) => SparseVector[Int]) {
-
+  object IntSparseVector extends RowFn[SparseVector[Int]] {
     def apply(cellIndex: CellIndex, geneCount: GeneCount, expressionTuples: ExpressionTuples) =
       SparseVector(geneCount)(expressionTuples: _*)
+  }
 
+  object FloatSparseVector extends RowFn[SparseVector[Float]] {
+    def apply(cellIndex: CellIndex, geneCount: GeneCount, expressionTuples: ExpressionTuples) =
+      SparseVector(geneCount)(expressionTuples.map { case (i, v) => (i, v.toFloat) }: _*)
+  }
+
+  object DoubleSparseVector extends RowFn[SparseVector[Double]] {
+    def apply(cellIndex: CellIndex, geneCount: GeneCount, expressionTuples: ExpressionTuples) =
+      SparseVector(geneCount)(expressionTuples.map { case (i, v) => (i, v.toDouble) }: _*)
   }
 
   /**
@@ -99,9 +98,9 @@ object MegacellReader extends DataReader {
     * @return
     */
   def readRows[R](path: String,
-                  rowFn: (CellIndex, GeneCount, ExpressionTuples) => R,
+                  rowFn: RowFn[R],
                   cellTop: Option[CellCount] = None,
-                  genePredicate: Option[(GeneIndex) => Boolean] = None): Try[Iterator[R]] =
+                  genePredicate: Option[(GeneIndex) => Boolean] = None): Try[List[R]] =
     managed(HDF5FactoryProvider.get.openForReading(path))
       .map{ reader => readRows(reader, rowFn, cellTop, genePredicate) }
       .tried
@@ -115,9 +114,9 @@ object MegacellReader extends DataReader {
     * @return
     */
   def readRows[R](reader: IHDF5Reader,
-                  rowFn: (CellIndex, GeneCount, ExpressionTuples) => R,
+                  rowFn: RowFn[R],
                   cellTop: Option[CellCount],
-                  genePredicate: Option[(GeneIndex) => Boolean]): Iterator[R] = {
+                  genePredicate: Option[(GeneIndex) => Boolean]): List[R] = {
 
     val (nrGenes, nrCells) = readDimensions(reader)
 
@@ -125,24 +124,24 @@ object MegacellReader extends DataReader {
 
     val take = cellTop.map(min(_, nrCells)).getOrElse(nrCells)
 
-    Iterator
+    List
       .tabulate(take){ cellIndex =>
 
         val colStart  = pointers(cellIndex)
         val colEnd    = pointers(cellIndex + 1)
 
-        val expressionTuples = readExpressionTuples(reader, colStart, colEnd)
+        val rowExpressionTuples = readRow(reader, colStart, colEnd)
 
         val filteredTuples =
           genePredicate
-            .map(pred => expressionTuples.filter{ case (i, v) => pred(i) })
-            .getOrElse(expressionTuples)
+            .map(pred => rowExpressionTuples.filter{ case (i, v) => pred(i) })
+            .getOrElse(rowExpressionTuples)
 
         rowFn.apply(cellIndex, nrGenes, filteredTuples)
       }
   }
 
-  private[this] def readExpressionTuples(reader: IHDF5Reader, offset: Long, next: Long): ExpressionTuples = {
+  private[this] def readRow(reader: IHDF5Reader, offset: Long, next: Long): ExpressionTuples = {
     val blockSize = (next - offset).toInt
 
     val geneIndices = reader.int32.readArrayBlockWithOffset(INDICES, blockSize, offset)
@@ -154,12 +153,12 @@ object MegacellReader extends DataReader {
 
   /**
     * @param path The file path.
-    * @param limit Optional limit on how many cells to read from the file - for testing purposes.
+    * @param cellTop Optional limit on how many cells to read from the file - for testing purposes.
     * @return Returns a  CSCMatrix of Ints.
     */
-  def readCSCMatrix(path: String, limit: Option[Int] = None): Try[CSCMatrix[Int]] =
+  def readCSCMatrix(path: String, cellTop: Option[Int] = None): Try[CSCMatrix[Int]] =
     managed(HDF5FactoryProvider.get.openForReading(path))
-      .map{ reader => readCSCMatrix(reader, limit) }
+      .map{ reader => readCSCMatrix(reader, cellTop) }
       .tried
 
   /**
@@ -182,50 +181,13 @@ object MegacellReader extends DataReader {
       .tabulate(take){ cellIndex =>
         val colStart  = pointers(cellIndex)
         val colEnd    = pointers(cellIndex + 1)
-        val expressionTuples = readExpressionTuples(reader, colStart, colEnd)
+        val expressionTuples = readRow(reader, colStart, colEnd)
 
         expressionTuples
           .foreach{ case (geneIndex, expressionValue) => matrixBuilder.add(cellIndex, geneIndex, expressionValue) }
       }
 
     matrixBuilder.result
-  }
-
-  def readSparseVectors(path: String, limit: Option[Int]): Try[List[SparseVector[Double]]] =
-    managed(HDF5FactoryProvider.get.openForReading(path))
-      .map(reader => readSparseVectors(reader, limit))
-      .tried
-
-  def readSparseVectors(reader: IHDF5Reader, limit: Option[Int]): List[SparseVector[Double]] = {
-    val (nrGenes, nrCells) = readDimensions(reader)
-
-    val pointers = reader.int64.readArray(INDPTR)
-
-    val blocks =
-      pointers
-        .sliding(2, 1)
-        .zipWithIndex
-        .toList
-
-    assert(blocks.size == nrCells)
-
-    val sparseVectors =
-      blocks
-        .take(limit.getOrElse(nrCells))
-        .map{ case (Array(offset, next), cellIndex) => {
-
-          val blockSize = (next - offset).toInt
-
-          val expressionValues = reader.int32.readArrayBlockWithOffset(DATA,    blockSize, offset).map(_.toDouble)
-          val geneIndices = reader.int32.readArrayBlockWithOffset(INDICES, blockSize, offset)
-          val tuples = geneIndices zip expressionValues
-
-          val vector = breeze.linalg.SparseVector.apply(nrGenes)(tuples: _*)
-
-          vector
-        }}
-
-    sparseVectors //.map(Row(_))
   }
 
   /**

@@ -1,5 +1,6 @@
 package org.tmoerman.brassica.cases.megacell
 
+import breeze.linalg.SparseVector
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.StructType
 import org.scalatest.{FlatSpec, Matchers}
@@ -26,7 +27,9 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
 
     val limit = Some(10000)
 
-    val vectors = MegacellReader.readSparseVectors(megacell, limit).get
+    // val vectors = MegacellReader.readSparseVectors(megacell, limit).get
+
+    val vectors = MegacellReader.readRows(megacell, DoubleSparseVector, cellTop = limit).get
 
     val rows = vectors.map(v => Row(v.ml))
 
