@@ -3,7 +3,6 @@ package org.tmoerman.brassica.cases.megacell
 import java.lang.Math.min
 
 import breeze.linalg.{CSCMatrix, DenseMatrix => BDM, SparseVector => BSV, Vector => BVector}
-import breeze.storage.Zero
 import ch.systemsx.cisd.hdf5.{HDF5FactoryProvider, IHDF5Reader}
 import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
 import ml.dmlc.xgboost4j.java.{DMatrix => JDMatrix}
@@ -17,7 +16,6 @@ import org.tmoerman.brassica.cases.DataReader
 import resource._
 
 import scala.collection.JavaConversions._
-import scala.reflect.ClassTag
 import scala.util.Try
 
 /**
@@ -157,13 +155,13 @@ object MegacellReader extends DataReader {
 
     val expressionValues = reader.int32.readArrayBlockWithOffset(DATA, blockSize, offset)
 
-    (geneIndices zip expressionValues)
+    geneIndices zip expressionValues
   }
 
   /**
     * @param path The file path.
     * @param cellTop Optional limit on how many cells to read from the file - for testing purposes.
-    * @param onlyGeneIndices TODO
+    * @param onlyGeneIndices Optional selection of gene indices to keep, like a preemptive slicing operation.
     * @return Returns a  CSCMatrix of Ints.
     */
   def readCSCMatrix(path: String,
@@ -176,34 +174,33 @@ object MegacellReader extends DataReader {
   /**
     * @param reader The managed HDF5 Reader instance.
     * @param cellTop Optional limit on how many cells to read from the file - for testing purposes.
-    * @param onlyGeneIndices TODO
+    * @param onlyGeneIndices Optional selection of gene indices to keep, like a preemptive slicing operation.
     * @return Returns a CSCMatrix of Ints.
     */
   def readCSCMatrix(reader: IHDF5Reader,
                     cellTop: Option[CellCount],
                     onlyGeneIndices: Option[Seq[GeneIndex]]): CSCMatrix[ExpressionValue] = {
 
-    val (nrGenes, nrCells) = readDimensions(reader)
+    val (nrCells, nrGenes) = readDimensions(reader)
 
     val pointers = reader.int64.readArray(INDPTR)
 
     val cellDim = cellTop.map(min(_, nrCells)).getOrElse(nrCells)
     val geneDim = onlyGeneIndices.map(_.size).getOrElse(nrGenes)
 
-    val indexMap: (GeneIndex => GeneIndex) =
-      onlyGeneIndices.map(_.zipWithIndex.toMap).getOrElse(identity _)
-
     val matrixBuilder = new CSCMatrix.Builder[Int](rows = cellDim, cols = geneDim)
 
     val genePredicate = onlyGeneIndices.map(_.toSet)
+    val indexMap: (GeneIndex => GeneIndex) = onlyGeneIndices.map(_.zipWithIndex.toMap).getOrElse(identity _)
 
     for (cellIndex <- 0 until cellDim) {
       val colStart  = pointers(cellIndex)
       val colEnd    = pointers(cellIndex + 1)
+      val rowTuples = readRow(reader, colStart, colEnd)
 
-      val expressionTuples = readRow(reader, colStart, colEnd)
+      val filteredTuples = filterTuples(genePredicate, rowTuples)
 
-      val filteredTuples = filterTuples(genePredicate, expressionTuples)
+      if (cellIndex % 10000 == 0) print(s"$cellIndex ")
 
       filteredTuples
         .foreach{ case (geneIndex, expressionValue) => {
