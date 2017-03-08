@@ -33,7 +33,7 @@ object ScenicPipeline {
             targets: List[Gene] = Nil,
             nrWorkers: Option[Int] = None) = {
     
-    val candidateRegulatorIndices = regulatorIndices(genes, candidateRegulators)
+    val regulatorIndices = regulatorIndexMap(genes, candidateRegulators).values.toSeq
 
     type ACC = (List[DataFrame], List[Duration])
 
@@ -54,7 +54,7 @@ object ScenicPipeline {
             repartitioned,
             genes,
             targetIndex,
-            candidateRegulatorIndices,
+            regulatorIndices,
             params,
             nrRounds = nrRounds,
             nrWorkers = nrWorkers) }}
@@ -71,7 +71,7 @@ object ScenicPipeline {
         "nr of cells"           -> expressionData.count,
         "nr of genes"           -> genes.size,
         "nr of target genes"    -> targets.size,
-        "nr of regulator genes" -> s"${candidateRegulatorIndices.size} (${candidateRegulators.size} specified)",
+        "nr of regulator genes" -> s"${regulatorIndices.size} (${candidateRegulators.size} specified)",
 
         "nr of rounds" -> nrRounds,
         "nr of workers" -> nrWorkers.map(_.toString).getOrElse(s"default parallelism ${spark.sparkContext.defaultParallelism}"),
@@ -88,18 +88,18 @@ object ScenicPipeline {
 
   /**
     * @param genes The List of all genes in the data set.
-    * @param candidateRegulators The Set of
-    * @return Returns the indices of the subset of genes in the DataFrame,
-    *         that also occur in the specified Set of transcription factors.
+    * @param candidateRegulators The Set of candidate regulator genes.
+    * @return Returns a Map[Gene -> GeneIndex], mapping the genes present in the List of
+    *         candidate regulators to their index in the complete gene List.
     */
-  def regulatorIndices(genes: List[Gene], candidateRegulators: List[Gene]): List[Int] = candidateRegulators match {
-    case Nil =>
-      genes.indices.toList
-    case _ =>
-      genes
-        .zipWithIndex
-        .filter { case (gene, _) => candidateRegulators.toSet.contains(gene) }
-        .map(_._2)
+  def regulatorIndexMap(genes: List[Gene], candidateRegulators: List[Gene]): Map[Gene, GeneIndex] = {
+    assert(candidateRegulators.nonEmpty)
+
+    val isRegulator = candidateRegulators.toSet.contains _
+
+    val tuples = genes.zipWithIndex.filter{ case (gene, _) => isRegulator(gene) }
+
+    ListMap(tuples: _*)
   }
 
 }

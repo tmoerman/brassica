@@ -6,10 +6,19 @@ package org.tmoerman
 package object brassica {
 
   // type aliases facilitate code interpretation
+
   type Count = Int
   type Index = Long
   type Gene  = String
   type BoosterParams = Map[String, Any]
+
+  type CellIndex = Int
+  type CellCount = Int
+  type GeneIndex = Int
+  type GeneCount = Int
+  type ExpressionValue = Int
+
+  type GeneIndexOperator = GeneIndex => GeneIndex
 
   val EXPRESSION_VECTOR    = "expression"
   val CANDIDATE_REGULATORS = "regulators"

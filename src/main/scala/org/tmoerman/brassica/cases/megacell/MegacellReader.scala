@@ -11,7 +11,7 @@ import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import org.tmoerman.brassica.Gene
+import org.tmoerman.brassica.{Gene, _}
 import org.tmoerman.brassica.cases.DataReader
 import resource._
 
@@ -37,6 +37,10 @@ object MegacellReader extends DataReader {
   private[this] val SHAPE      = "/mm10/shape"
   private[this] val GENE_NAMES = "/mm10/gene_names"
 
+  type ExpressionTuples = Array[(GeneIndex, ExpressionValue)]
+
+  type RowFn[T] = (CellIndex, GeneCount, ExpressionTuples) => T
+
   /**
     * @param spark The SparkSession.
     * @param path Path of the h5 file with CSC data structure.
@@ -57,15 +61,6 @@ object MegacellReader extends DataReader {
 
         (???, genes)
       }).tried
-
-  type CellIndex = Long
-  type CellCount = Int
-  type GeneIndex = Int
-  type GeneCount = Int
-  type ExpressionValue = Int
-  type ExpressionTuples = Array[(GeneIndex, ExpressionValue)]
-
-  type RowFn[T] = (CellIndex, GeneCount, ExpressionTuples) => T
 
   class CandidateRegulatorVector(val candidateRegulatorIndices: Array[GeneIndex]) extends RowFn[BSV[Float]] {
     val indexMap = candidateRegulatorIndices.zipWithIndex.toMap
@@ -167,7 +162,7 @@ object MegacellReader extends DataReader {
   def readCSCMatrix(path: String,
                     cellTop: Option[CellCount] = None,
                     onlyGeneIndices: Option[Seq[GeneIndex]] = None,
-                    reindex: Boolean = false): Try[CSCMatrix[ExpressionValue]] =
+                    reindex: Boolean = false): Try[(CSCMatrix[ExpressionValue], GeneIndexOperator)] =
     managed(HDF5FactoryProvider.get.openForReading(path))
       .map{ reader => readCSCMatrix(reader, cellTop, onlyGeneIndices, reindex) }
       .tried
@@ -176,12 +171,14 @@ object MegacellReader extends DataReader {
     * @param reader The managed HDF5 Reader instance.
     * @param cellTop Optional limit on how many cells to read from the file - for testing purposes.
     * @param onlyGeneIndices Optional selection of gene indices to keep, like a preemptive slicing operation.
-    * @return Returns a CSCMatrix of Ints.
+    * @return Returns tuple:
+    *         1. a CSCMatrix of ExpressionValues.
+    *         2. index map fn
     */
   def readCSCMatrix(reader: IHDF5Reader,
                     cellTop: Option[CellCount],
                     onlyGeneIndices: Option[Seq[GeneIndex]],
-                    reindex: Boolean): CSCMatrix[ExpressionValue] = {
+                    reindex: Boolean): (CSCMatrix[ExpressionValue], GeneIndexOperator) = {
 
     val (nrCells, nrGenes) = readDimensions(reader)
 
@@ -193,7 +190,7 @@ object MegacellReader extends DataReader {
     val matrixBuilder = new CSCMatrix.Builder[Int](rows = cellDim, cols = geneDim)
 
     val genePredicate = onlyGeneIndices.map(_.toSet)
-    val indexMap: (GeneIndex => GeneIndex) = onlyGeneIndices.map(_.zipWithIndex.toMap).getOrElse(identity _)
+    val indexOperator: GeneIndexOperator = onlyGeneIndices.map(_.zipWithIndex.toMap).getOrElse(identity _)
 
     for (cellIndex <- 0 until cellDim) {
       val colStart  = pointers(cellIndex)
@@ -206,13 +203,13 @@ object MegacellReader extends DataReader {
 
       filteredTuples
         .foreach{ case (geneIndex, expressionValue) => {
-          val reIndexed = indexMap.apply(geneIndex)
+          val reIndexed = indexOperator.apply(geneIndex)
 
           matrixBuilder.add(cellIndex, reIndexed, expressionValue)
         }}
     }
 
-    matrixBuilder.result
+    (matrixBuilder.result, indexOperator)
   }
 
   /**

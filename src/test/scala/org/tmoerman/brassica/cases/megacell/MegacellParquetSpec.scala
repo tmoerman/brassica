@@ -1,10 +1,7 @@
 package org.tmoerman.brassica.cases.megacell
 
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
-import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.SaveMode.Append
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.util.TimeUtils
 import org.tmoerman.brassica.util.TimeUtils.profile
 
 /**
@@ -14,10 +11,12 @@ import org.tmoerman.brassica.util.TimeUtils.profile
   */
 class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
-  it should "write the first 100 columns to Parquet" ignore {
+  behavior of "Megacell to parquet"
+
+  it should "write the first 100 columns to Parquet" in {
     val top = 100
 
-    val csc = MegacellReader.readCSCMatrix(megacell, onlyGeneIndices = Some(0 until top)).get
+    val (csc, _) = MegacellReader.readCSCMatrix(megacell, onlyGeneIndices = Some(0 until top)).get
 
     val genes = MegacellReader.readGeneNames(megacell).get.take(top)
 
@@ -26,7 +25,7 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
     df.write.parquet(megacellParquet)
   }
 
-  it should "write the entire matrix to Parquet" in {
+  it should "write the entire matrix to Parquet" ignore {
     val (nrCells, nrGenes) = MegacellReader.readDimensions(megacell).get
 
     val windowSize = 1000
@@ -39,7 +38,7 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
           println(s"reading csc matrix columns ${range.head} -> ${range.last} \n")
 
           val (df, duration) = profile {
-            val csc = MegacellReader.readCSCMatrix(megacell, onlyGeneIndices = Some(range)).get
+            val (csc, _) = MegacellReader.readCSCMatrix(megacell, onlyGeneIndices = Some(range)).get
 
             val genes = MegacellReader.readGeneNames(megacell).get.slice(range.head, range.size)
 

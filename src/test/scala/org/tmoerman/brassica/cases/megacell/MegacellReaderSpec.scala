@@ -1,12 +1,9 @@
 package org.tmoerman.brassica.cases.megacell
 
-import breeze.linalg._
-import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.cases.megacell.MegacellReader.{DoubleSparseVector, IntSparseVector}
-import org.tmoerman.brassica.util.TimeUtils
-import breeze.numerics._
-
 import org.apache.spark.ml.linalg.BreezeMLConversions._
+import org.scalatest.{FlatSpec, Matchers}
+import org.tmoerman.brassica.cases.megacell.MegacellReader.DoubleSparseVector
+import org.tmoerman.brassica.util.TimeUtils.profile
 
 /**
   * @author Thomas Moerman
@@ -56,7 +53,7 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
 
     val (_, nrGenes) = MegacellReader.readDimensions(megacell).get
 
-    val csc: CSCMatrix[Int] = MegacellReader.readCSCMatrix(megacell, cellTop = limit).get
+    val (csc, _) = MegacellReader.readCSCMatrix(megacell, cellTop = limit).get
 
     csc.rows shouldBe limit.get
     csc.cols shouldBe nrGenes
@@ -71,7 +68,7 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
 
     val (_, nrGenes) = MegacellReader.readDimensions(megacell).get
 
-    val (csc, duration) = TimeUtils.profile {
+    val ((csc, _), duration) = profile {
       MegacellReader.readCSCMatrix(megacell, cellTop = limit).get
     }
 
