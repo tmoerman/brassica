@@ -166,9 +166,10 @@ object MegacellReader extends DataReader {
     */
   def readCSCMatrix(path: String,
                     cellTop: Option[CellCount] = None,
-                    onlyGeneIndices: Option[Seq[GeneIndex]] = None): Try[CSCMatrix[ExpressionValue]] =
+                    onlyGeneIndices: Option[Seq[GeneIndex]] = None,
+                    reindex: Boolean = false): Try[CSCMatrix[ExpressionValue]] =
     managed(HDF5FactoryProvider.get.openForReading(path))
-      .map{ reader => readCSCMatrix(reader, cellTop, onlyGeneIndices) }
+      .map{ reader => readCSCMatrix(reader, cellTop, onlyGeneIndices, reindex) }
       .tried
 
   /**
@@ -179,7 +180,8 @@ object MegacellReader extends DataReader {
     */
   def readCSCMatrix(reader: IHDF5Reader,
                     cellTop: Option[CellCount],
-                    onlyGeneIndices: Option[Seq[GeneIndex]]): CSCMatrix[ExpressionValue] = {
+                    onlyGeneIndices: Option[Seq[GeneIndex]],
+                    reindex: Boolean): CSCMatrix[ExpressionValue] = {
 
     val (nrCells, nrGenes) = readDimensions(reader)
 
@@ -199,7 +201,7 @@ object MegacellReader extends DataReader {
       val rowTuples = readRow(reader, colStart, colEnd)
 
       val filteredTuples = filterTuples(genePredicate, rowTuples)
-
+      
       if (cellIndex % 10000 == 0) print(s"$cellIndex ")
 
       filteredTuples

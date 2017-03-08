@@ -25,7 +25,8 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
     df.write.parquet(megacellParquet)
   }
 
-  it should "write the entire matrix to Parquet" ignore {
+  it should "write the entire matrix to Parquet" in {
+
     val (nrCells, nrGenes) = MegacellReader.readDimensions(megacell).get
 
     val windowSize = 1000
@@ -61,8 +62,7 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
     println
   }
 
-  it should "read the dataframe from Parquet" in {
-
+  it should "read the dataframe from Parquet" ignore {
     val df = spark.read.parquet(megacellParquet)
 
     df.show(20)
