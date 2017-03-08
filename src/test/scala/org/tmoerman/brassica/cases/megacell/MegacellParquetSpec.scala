@@ -5,6 +5,7 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SaveMode.Append
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.TimeUtils
+import org.tmoerman.brassica.util.TimeUtils.profile
 
 /**
   * Save to Parquet, just to try out the Spark pipeline.
@@ -26,7 +27,6 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
   }
 
   it should "write the entire matrix to Parquet" in {
-
     val (nrCells, nrGenes) = MegacellReader.readDimensions(megacell).get
 
     val windowSize = 1000
@@ -36,13 +36,10 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
         .sliding(windowSize, windowSize)
         .map { range =>
 
-          println(s"reading csc matrix columns ${range.head} -> ${range.last}")
+          println(s"reading csc matrix columns ${range.head} -> ${range.last} \n")
 
-          val (df, duration) = TimeUtils.profile {
-
-            println
+          val (df, duration) = profile {
             val csc = MegacellReader.readCSCMatrix(megacell, onlyGeneIndices = Some(range)).get
-            println
 
             val genes = MegacellReader.readGeneNames(megacell).get.slice(range.head, range.size)
 
@@ -51,22 +48,21 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
             df
           }
 
-          println(s"reading csc matrix columns ${range.head} -> ${range.last} took ${duration.toMinutes} minutes")
+          println(s"\nreading csc matrix columns ${range.head} -> ${range.last} took ${duration.toMinutes} minutes")
 
           df }
         .reduce(_ union _)
 
-    println("appending dataframe to parquet file")
+    println("writing dataframe to parquet file")
     df.write.parquet(megacellParquet)
 
-    println
+    df.count shouldBe nrCells
   }
 
-  it should "read the dataframe from Parquet" ignore {
+  it should "read the dataframe from Parquet" in {
     val df = spark.read.parquet(megacellParquet)
 
     df.show(20)
-
     println(df.count)
   }
 

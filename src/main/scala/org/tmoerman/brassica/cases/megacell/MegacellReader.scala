@@ -202,7 +202,7 @@ object MegacellReader extends DataReader {
 
       val filteredTuples = filterTuples(genePredicate, rowTuples)
       
-      if (cellIndex % 10000 == 0) print(s"$cellIndex ")
+      if (cellIndex % 100000 == 0) print('.')
 
       filteredTuples
         .foreach{ case (geneIndex, expressionValue) => {
