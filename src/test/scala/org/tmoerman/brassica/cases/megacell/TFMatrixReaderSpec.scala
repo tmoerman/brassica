@@ -19,9 +19,9 @@ class TFMatrixReaderSpec extends FlatSpec with Matchers {
 
     val TFs = MegacellReader.readTFs(mouseTFs)
 
-    val candidateRegulatorIndices = regulatorIndexMap(genes, TFs).values.toSeq
+    val candidateRegulatorIndices = toRegulatorGlobalIndexMap(genes, TFs).values.toSeq
 
-    val (csc, _) =
+    val csc =
       MegacellReader
         .readCSCMatrix(megacell, cellTop = limit, onlyGeneIndices = Some(candidateRegulatorIndices))
         .get

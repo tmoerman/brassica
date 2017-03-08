@@ -53,7 +53,7 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
 
     val (_, nrGenes) = MegacellReader.readDimensions(megacell).get
 
-    val (csc, _) = MegacellReader.readCSCMatrix(megacell, cellTop = limit).get
+    val csc = MegacellReader.readCSCMatrix(megacell, cellTop = limit).get
 
     csc.rows shouldBe limit.get
     csc.cols shouldBe nrGenes
@@ -68,7 +68,7 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
 
     val (_, nrGenes) = MegacellReader.readDimensions(megacell).get
 
-    val ((csc, _), duration) = profile {
+    val (csc, duration) = profile {
       MegacellReader.readCSCMatrix(megacell, cellTop = limit).get
     }
 

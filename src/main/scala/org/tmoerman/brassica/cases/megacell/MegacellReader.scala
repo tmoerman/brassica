@@ -2,7 +2,7 @@ package org.tmoerman.brassica.cases.megacell
 
 import java.lang.Math.min
 
-import breeze.linalg.{CSCMatrix, DenseMatrix => BDM, SparseVector => BSV, Vector => BVector}
+import breeze.linalg.{CSCMatrix, SparseVector => BSV}
 import ch.systemsx.cisd.hdf5.{HDF5FactoryProvider, IHDF5Reader}
 import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
 import ml.dmlc.xgboost4j.java.{DMatrix => JDMatrix}
@@ -11,8 +11,8 @@ import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import org.tmoerman.brassica.{Gene, _}
 import org.tmoerman.brassica.cases.DataReader
+import org.tmoerman.brassica.{Gene, _}
 import resource._
 
 import scala.collection.JavaConversions._
@@ -162,7 +162,7 @@ object MegacellReader extends DataReader {
   def readCSCMatrix(path: String,
                     cellTop: Option[CellCount] = None,
                     onlyGeneIndices: Option[Seq[GeneIndex]] = None,
-                    reindex: Boolean = false): Try[(CSCMatrix[ExpressionValue], GeneIndexOperator)] =
+                    reindex: Boolean = false): Try[CSCMatrix[ExpressionValue]] =
     managed(HDF5FactoryProvider.get.openForReading(path))
       .map{ reader => readCSCMatrix(reader, cellTop, onlyGeneIndices, reindex) }
       .tried
@@ -171,14 +171,12 @@ object MegacellReader extends DataReader {
     * @param reader The managed HDF5 Reader instance.
     * @param cellTop Optional limit on how many cells to read from the file - for testing purposes.
     * @param onlyGeneIndices Optional selection of gene indices to keep, like a preemptive slicing operation.
-    * @return Returns tuple:
-    *         1. a CSCMatrix of ExpressionValues.
-    *         2. index map fn
+    * @return Returns a CSCMatrix of ExpressionValues.
     */
   def readCSCMatrix(reader: IHDF5Reader,
                     cellTop: Option[CellCount],
                     onlyGeneIndices: Option[Seq[GeneIndex]],
-                    reindex: Boolean): (CSCMatrix[ExpressionValue], GeneIndexOperator) = {
+                    reindex: Boolean): CSCMatrix[ExpressionValue] = {
 
     val (nrCells, nrGenes) = readDimensions(reader)
 
@@ -190,6 +188,7 @@ object MegacellReader extends DataReader {
     val matrixBuilder = new CSCMatrix.Builder[Int](rows = cellDim, cols = geneDim)
 
     val genePredicate = onlyGeneIndices.map(_.toSet)
+
     val indexOperator: GeneIndexOperator = onlyGeneIndices.map(_.zipWithIndex.toMap).getOrElse(identity _)
 
     for (cellIndex <- 0 until cellDim) {
@@ -209,7 +208,7 @@ object MegacellReader extends DataReader {
         }}
     }
 
-    (matrixBuilder.result, indexOperator)
+    matrixBuilder.result
   }
 
   /**

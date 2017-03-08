@@ -14,11 +14,11 @@ class ScenicPipelineSpec extends FlatSpec with Matchers {
   val allGenes = List("brca1", "brca2", "hox")
 
   it should "return indices of all genes when candidates are Nil" in {
-    an [AssertionError] shouldBe thrownBy { regulatorIndexMap(allGenes, Nil) }
+    an [AssertionError] shouldBe thrownBy { toRegulatorGlobalIndexMap(allGenes, Nil) }
   }
 
   it should "return the correct indices for specified candidates" in {
-    regulatorIndexMap(allGenes, List("brca1", "hox")).values shouldBe (0, 2)
+    toRegulatorGlobalIndexMap(allGenes, List("brca1", "hox")).values shouldBe (0, 2)
   }
 
 }

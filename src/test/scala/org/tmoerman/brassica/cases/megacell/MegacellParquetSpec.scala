@@ -16,7 +16,7 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
   it should "write the first 100 columns to Parquet" in {
     val top = 100
 
-    val (csc, _) = MegacellReader.readCSCMatrix(megacell, onlyGeneIndices = Some(0 until top)).get
+    val csc = MegacellReader.readCSCMatrix(megacell, onlyGeneIndices = Some(0 until top)).get
 
     val genes = MegacellReader.readGeneNames(megacell).get.take(top)
 
@@ -38,7 +38,7 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
           println(s"reading csc matrix columns ${range.head} -> ${range.last} \n")
 
           val (df, duration) = profile {
-            val (csc, _) = MegacellReader.readCSCMatrix(megacell, onlyGeneIndices = Some(range)).get
+            val csc = MegacellReader.readCSCMatrix(megacell, onlyGeneIndices = Some(range)).get
 
             val genes = MegacellReader.readGeneNames(megacell).get.slice(range.head, range.size)
 

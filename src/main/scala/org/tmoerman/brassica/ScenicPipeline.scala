@@ -32,8 +32,8 @@ object ScenicPipeline {
             params: BoosterParams = DEFAULT_BOOSTER_PARAMS,
             targets: List[Gene] = Nil,
             nrWorkers: Option[Int] = None) = {
-    
-    val regulatorIndices = regulatorIndexMap(genes, candidateRegulators).values.toSeq
+
+    val regulatorIndices = toRegulatorGlobalIndexMap(genes, candidateRegulators).values.toSeq
 
     type ACC = (List[DataFrame], List[Duration])
 
@@ -87,17 +87,17 @@ object ScenicPipeline {
   }
 
   /**
-    * @param genes The List of all genes in the data set.
+    * @param allGenes The List of all genes in the data set.
     * @param candidateRegulators The Set of candidate regulator genes.
     * @return Returns a Map[Gene -> GeneIndex], mapping the genes present in the List of
     *         candidate regulators to their index in the complete gene List.
     */
-  def regulatorIndexMap(genes: List[Gene], candidateRegulators: List[Gene]): Map[Gene, GeneIndex] = {
+  def toRegulatorGlobalIndexMap(allGenes: List[Gene], candidateRegulators: List[Gene]): Map[Gene, GeneIndex] = {
     assert(candidateRegulators.nonEmpty)
 
     val isRegulator = candidateRegulators.toSet.contains _
 
-    val tuples = genes.zipWithIndex.filter{ case (gene, _) => isRegulator(gene) }
+    val tuples = allGenes.zipWithIndex.filter{ case (gene, _) => isRegulator(gene) }
 
     ListMap(tuples: _*)
   }

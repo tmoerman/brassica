@@ -28,25 +28,26 @@ object MegacellScenicPipeline {
 
     val (nrCells, nrGenes) = readDimensions(hdf5Path).get
 
-    val genes = readGeneNames(hdf5Path).get
+    val allGenes = readGeneNames(hdf5Path).get
 
-    val candidateRegulatorIndexMap = regulatorIndexMap(genes, candidateRegulators)
+    // the regulators present in the dataset.
+    val regulatorGlobalIndexMap = toRegulatorGlobalIndexMap(allGenes, candidateRegulators)
 
-    val candidateRegulatorIndices = candidateRegulatorIndexMap.values.toSeq
+    val regulatorGlobalIndices = regulatorGlobalIndexMap.values.toSeq
 
-    val (csc, cscIndexMap) = readCSCMatrix(hdf5Path, onlyGeneIndices = Some(candidateRegulatorIndices)).get
+    val csc = readCSCMatrix(hdf5Path, onlyGeneIndices = Some(regulatorGlobalIndices)).get
 
-    val regulatorCSCIndexLookup = (gene: Gene) =>
-      candidateRegulatorIndexMap
-        .get(gene)
-        .map(cscIndexMap)
+//    val regulatorCSCIndexLookup = (gene: Gene) =>
+//      regulatorGlobalIndexMap
+//        .get(gene)
+//        .map(cscIndexMap)
 
     assert(csc.rows == nrCells)
-    assert(csc.cols == candidateRegulatorIndices.size)
+    assert(csc.cols == regulatorGlobalIndices.size)
 
     val cscBroadcast    = sc.broadcast(csc)
-    val lookupBroadcast = sc.broadcast(regulatorCSCIndexLookup)
-    val genesBroadcast  = sc.broadcast(genes)
+    // val lookupBroadcast = sc.broadcast(regulatorCSCIndexLookup)
+    val genesBroadcast  = sc.broadcast(allGenes)
 
     val isTarget = targets match {
       case Nil => (_: Gene) => true
@@ -78,17 +79,17 @@ object MegacellScenicPipeline {
 //
 //            )
 
-        val cleanCSC: Matrix[Int] =
-          lookupBroadcast
-            .value
-            .apply(rowGene)
-            .map(indexToRemove => {
-              val rowRange = 0 until csc.rows
-              val colRange = ListBuffer.range(0, csc.cols).remove(indexToRemove)
-
-              csc(rowRange, colRange)
-            })
-            .getOrElse(csc)
+        val cleanCSC: Matrix[Int] = ???
+//          lookupBroadcast
+//            .value
+//            .apply(rowGene)
+//            .map(indexToRemove => {
+//              val rowRange = 0 until csc.rows
+//              val colRange = ListBuffer.range(0, csc.cols).remove(indexToRemove)
+//
+//              csc(rowRange, colRange)
+//            })
+//            .getOrElse(csc)
 
         // transform the csc to an XGBoost DMatrix
         val dm: DMatrix = ??? // MegacellReader.toXGBoostDMatrix(cleanCSC)
