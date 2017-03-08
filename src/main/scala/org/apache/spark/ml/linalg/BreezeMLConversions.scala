@@ -1,6 +1,6 @@
 package org.apache.spark.ml.linalg
 
-import breeze.linalg.{CSCMatrix, Matrix => BreezeMatrix, SparseVector => BSV, Vector => BreezeVector}
+import breeze.linalg.{CSCMatrix, DenseMatrix => BDM, Matrix => BreezeMatrix, SparseVector => BSV, Vector => BreezeVector, DenseVector => BDV}
 import breeze.storage.Zero
 import org.apache.spark.ml.linalg.{Matrix => MLMatrix, Vector => MLVector}
 
@@ -25,6 +25,14 @@ object BreezeMLConversions {
 
   implicit class BreezeMatrixConversion(val matrix: BreezeMatrix[Double]) extends AnyVal {
     def ml: MLMatrix = Matrices.fromBreeze(matrix)
+  }
+
+  implicit class DenseMatrixFunctions[T:ClassTag:Zero](val dense: BDM[T]) {
+
+    def columns: Iterator[BDV[T]] = Iterator.tabulate(dense.cols) { j =>
+      new BDV(dense.data.slice(j * dense.rows, (j + 1) * dense.rows))
+    }
+
   }
 
   implicit class CSCMatrixFunctions[T:ClassTag:Zero](val csc: CSCMatrix[T]) {

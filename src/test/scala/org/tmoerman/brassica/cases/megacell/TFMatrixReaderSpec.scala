@@ -1,9 +1,8 @@
 package org.tmoerman.brassica.cases.megacell
 
+import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.ScenicPipeline._
-
-import org.apache.spark.ml.linalg.BreezeMLConversions._
 
 /**
   * @author Thomas Moerman
@@ -29,7 +28,11 @@ class TFMatrixReaderSpec extends FlatSpec with Matchers {
     csc.rows shouldBe limit.getOrElse(nrCells)
     csc.cols shouldBe candidateRegulatorIndices.size
 
-    val dm = MegacellReader.toXGBoostDMatrix(csc)
+//    val bla = csc(0 until limit.get, (0 until csc.cols).take(20))
+//    val dense = bla.toDenseMatrix
+//    val ddm = MegacellReader.toXGBoostDMatrix(dense)
+
+    val dm = MegacellReader.toDMatrix(csc)
 
     dm.rowNum shouldBe limit.getOrElse(nrCells)
 

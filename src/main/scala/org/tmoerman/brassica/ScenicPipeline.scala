@@ -92,7 +92,7 @@ object ScenicPipeline {
     * @return Returns a Map[Gene -> GeneIndex], mapping the genes present in the List of
     *         candidate regulators to their index in the complete gene List.
     */
-  def toRegulatorGlobalIndexMap(allGenes: List[Gene], candidateRegulators: List[Gene]): Map[Gene, GeneIndex] = {
+  def toRegulatorGlobalIndexMap(allGenes: List[Gene], candidateRegulators: List[Gene]): ListMap[Gene, GeneIndex] = {
     assert(candidateRegulators.nonEmpty)
 
     val isRegulator = candidateRegulators.toSet.contains _

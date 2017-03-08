@@ -1,14 +1,11 @@
 package org.tmoerman.brassica.cases.megacell
 
-import breeze.linalg.{CSCMatrix, Matrix, SparseVector}
+import breeze.linalg.{Matrix, SparseVector, _}
 import org.apache.spark.sql.SparkSession
 import org.tmoerman.brassica.ScenicPipeline._
 import org.tmoerman.brassica.cases.megacell.MegacellReader._
-import ml.dmlc.xgboost4j.scala.DMatrix
-import ml.dmlc.xgboost4j.scala.XGBoost
+import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
 import org.tmoerman.brassica.{ExpressionValue, Gene, XGBoostParams}
-
-import scala.collection.mutable.ListBuffer
 
 /**
   * @author Thomas Moerman
@@ -20,106 +17,74 @@ object MegacellScenicPipeline {
             parquetPath: String,
             candidateRegulators: List[Gene],
             targets: List[Gene] = Nil,
-            xgBoostParams: XGBoostParams = XGBoostParams()): Unit = {
+            params: XGBoostParams = XGBoostParams(),
+            normalize: Boolean = true): Unit = {
 
     val sc = spark.sparkContext
 
-    lazy val df = spark.read.parquet(parquetPath) // (gene, columnVector)
-
-    val (nrCells, nrGenes) = readDimensions(hdf5Path).get
-
     val allGenes = readGeneNames(hdf5Path).get
-
-    // the regulators present in the dataset.
     val regulatorGlobalIndexMap = toRegulatorGlobalIndexMap(allGenes, candidateRegulators)
 
-    val regulatorGlobalIndices = regulatorGlobalIndexMap.values.toSeq
+    val csc = readCSCMatrix(hdf5Path, onlyGeneIndices = Some(regulatorGlobalIndexMap.values.toSeq)).get
 
-    val csc = readCSCMatrix(hdf5Path, onlyGeneIndices = Some(regulatorGlobalIndices)).get
+    val cscBroadcast   = sc.broadcast(csc)
+    val indexBroadcast = sc.broadcast(regulatorGlobalIndexMap)
 
-//    val regulatorCSCIndexLookup = (gene: Gene) =>
-//      regulatorGlobalIndexMap
-//        .get(gene)
-//        .map(cscIndexMap)
+    val isTarget = toPredicate(targets)
 
-    assert(csc.rows == nrCells)
-    assert(csc.cols == regulatorGlobalIndices.size)
+    val grn =
+      spark
+        .read
+        .parquet(parquetPath)
+        .rdd
+        .filter(row => {
+          val rowGene: Gene = ???
+          isTarget(rowGene) })
+        .flatMap(row => {
+          val csc = cscBroadcast.value
 
-    val cscBroadcast    = sc.broadcast(csc)
-    // val lookupBroadcast = sc.broadcast(regulatorCSCIndexLookup)
-    val genesBroadcast  = sc.broadcast(allGenes)
+          val targetGene: Gene = ???
+          val responseVector: SparseVector[ExpressionValue] = ???
 
-    val isTarget = targets match {
-      case Nil => (_: Gene) => true
-      case _   => targets.toSet.contains _
-    }
+          val cleanCSCIndexTuples =
+            indexBroadcast
+              .value.keys.zipWithIndex
+              .filterNot{ case (gene, _) => gene == targetGene }
+              .toSeq
 
-    import xgBoostParams._
+          // prep training data
+          val predictorCSC = csc.apply(0 until csc.rows, cleanCSCIndexTuples.map(_._2)).toDenseMatrix
+          val trainingData = toDMatrix(predictorCSC)
+          val y = responseVector.toDenseVector.data.map(_.toFloat)
+          trainingData.setLabel(y)
 
-    df
-      .rdd
-      .filter(row => {
-        val rowGene   = ???
-        //TODO filter with isTarget
-        true })
-      .map(row => {
-        val csc = cscBroadcast.value
+          // train the model
+          val booster =
+            XGBoost
+              .train(
+                trainingData,
+                params.boosterParams,
+                params.nrRounds)
 
-        val rowGene: Gene = ???
-        val rowVector: SparseVector[ExpressionValue] = ???
+          // extract the importance scores.
+          val sum = booster.getFeatureScore().values.map(_.toInt).sum
 
-        // create a CSC with target removed, if it is present among the regulators.
-        //TODO decouple index computation and csc slicing
+          booster
+            .getFeatureScore()
+            .map{ case (feature, score) => {
+              val featureIndex = feature.substring(1).toInt
+              val (regulatorGene, _) = cleanCSCIndexTuples(featureIndex)
+              val importance = if (normalize) score.toFloat / sum else score.toFloat
 
-//        val cleanRegulatorIndices =
-//          lookupBroadcast
-//            .value
-//            .apply(rowGene)
-//            .map(index =>
-//
-//            )
-
-        val cleanCSC: Matrix[Int] = ???
-//          lookupBroadcast
-//            .value
-//            .apply(rowGene)
-//            .map(indexToRemove => {
-//              val rowRange = 0 until csc.rows
-//              val colRange = ListBuffer.range(0, csc.cols).remove(indexToRemove)
-//
-//              csc(rowRange, colRange)
-//            })
-//            .getOrElse(csc)
-
-        // transform the csc to an XGBoost DMatrix
-        val dm: DMatrix = ??? // MegacellReader.toXGBoostDMatrix(cleanCSC)
-
-        // set the response variable
-        val y: Array[Float] = ??? // rowVector to Array
-        dm.setLabel(y)
-
-        val booster =
-          XGBoost
-            .train(
-              dm,
-              boosterParams,
-              nrRounds)
-
-        booster
-          .getFeatureScore()
-          .map{ case (featureIndexString, importance) => {
-
-            val featureIndex = featureIndexString.substring(1).toInt
-
-            val candidateRegulatorIndex =
-
-              ???
-          }}
-
-        // extract explanation from booster
-
-
-        ??? })
+              (regulatorGene, targetGene, importance)
+            }}})
   }
+
+  private[this] def toPredicate(targets: List[Gene]) = targets match {
+    case Nil => (_: Gene) => true
+    case _ => targets.toSet.contains _
+  }
+
+  def toDMatrix(dm: DenseMatrix[Int]) = new DMatrix(dm.data.map(_.toFloat), dm.rows, dm.cols, 0f)
 
 }

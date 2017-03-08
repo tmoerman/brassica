@@ -16,7 +16,7 @@ object XGBoostSparkRegression {
     * @param trainingData The DataFrame to train the regression model with.
     * @param geneNames The list of gene names.
     * @param targetGeneIndex The index of the target gene.
-    * @param candidateRegulatorIndices The indices of the candidate regulators.
+    * @param regulatorIndices The indices of the regulators.
     * @param boosterParams The XGBoost parameters for this effort.
     * @param nrRounds The nr of training rounds.
     * @param normalize Divide the importances by the sum of importances.
@@ -27,7 +27,7 @@ object XGBoostSparkRegression {
             trainingData: DataFrame,
             geneNames: List[Gene],
             targetGeneIndex: Int,
-            candidateRegulatorIndices: Seq[Int],
+            regulatorIndices: Seq[Int],
             boosterParams: BoosterParams,
             nrRounds: Int,
             normalize: Boolean = false,
@@ -35,9 +35,9 @@ object XGBoostSparkRegression {
 
     // TODO slicer in an ML transformer
 
-    val cleanCandidateRegulatorIndices = candidateRegulatorIndices.filter(_ != targetGeneIndex)
+    val cleanRegulatorIndices = regulatorIndices.filter(_ != targetGeneIndex)
 
-    val sliced: DataFrame = sliceGenes(trainingData, targetGeneIndex, cleanCandidateRegulatorIndices)
+    val sliced: DataFrame = sliceGenes(trainingData, targetGeneIndex, cleanRegulatorIndices)
 
     val model =
       XGBoostSpark
@@ -57,12 +57,12 @@ object XGBoostSparkRegression {
         .booster
         .getFeatureScore()
         .map{ case (featureIndex, importance) => {
-          val candidateRegulatorIndex = cleanCandidateRegulatorIndices(featureIndex.substring(1).toInt)
-          val candidateRegulatorName  = geneNames.apply(candidateRegulatorIndex)
+          val regulatorIndex = cleanRegulatorIndices(featureIndex.substring(1).toInt)
+          val regulatorName  = geneNames.apply(regulatorIndex)
           val targetGeneName = geneNames.apply(targetGeneIndex)
-          val finalImportance = if (normalize) importance.toFloat / sum else importance.toFloat
+          val normalizedImportance = if (normalize) importance.toFloat / sum else importance.toFloat
 
-          (candidateRegulatorIndex, candidateRegulatorName, targetGeneIndex, targetGeneName, finalImportance) }}
+          (regulatorIndex, regulatorName, targetGeneIndex, targetGeneName, normalizedImportance) }}
         .toSeq
 
     spark

@@ -2,10 +2,10 @@ package org.tmoerman.brassica.cases.megacell
 
 import java.lang.Math.min
 
-import breeze.linalg.{CSCMatrix, SparseVector => BSV}
+import breeze.linalg.{CSCMatrix, DenseMatrix, Matrix => BM, SparseVector => BSV}
 import ch.systemsx.cisd.hdf5.{HDF5FactoryProvider, IHDF5Reader}
 import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
-import ml.dmlc.xgboost4j.java.{DMatrix => JDMatrix}
+import ml.dmlc.xgboost4j.scala.DMatrix
 import org.apache.spark.ml.attribute.AttributeGroup
 import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.apache.spark.ml.linalg.SparseVector
@@ -28,8 +28,6 @@ import scala.util.Try
   * @author Thomas Moerman
   */
 object MegacellReader extends DataReader {
-
-  // TODO override DataReader
 
   private[this] val INDPTR     = "/mm10/indptr"
   private[this] val DATA       = "/mm10/data"
@@ -188,8 +186,7 @@ object MegacellReader extends DataReader {
     val matrixBuilder = new CSCMatrix.Builder[Int](rows = cellDim, cols = geneDim)
 
     val genePredicate = onlyGeneIndices.map(_.toSet)
-
-    val indexOperator: GeneIndexOperator = onlyGeneIndices.map(_.zipWithIndex.toMap).getOrElse(identity _)
+    val reindex: GeneIndex => GeneIndex = onlyGeneIndices.map(_.zipWithIndex.toMap).getOrElse(identity _)
 
     for (cellIndex <- 0 until cellDim) {
       val colStart  = pointers(cellIndex)
@@ -201,11 +198,7 @@ object MegacellReader extends DataReader {
       if (cellIndex % 100000 == 0) print('.')
 
       filteredTuples
-        .foreach{ case (geneIndex, expressionValue) => {
-          val reIndexed = indexOperator.apply(geneIndex)
-
-          matrixBuilder.add(cellIndex, reIndexed, expressionValue)
-        }}
+        .foreach{ case (geneIndex, value) => matrixBuilder.add(cellIndex, reindex(geneIndex), value) }
     }
 
     matrixBuilder.result
@@ -256,7 +249,7 @@ object MegacellReader extends DataReader {
     spark.createDataFrame(rows.toSeq, schema)
   }
 
-  def toXGBoostDMatrix(csc: CSCMatrix[Int]) =
-    new JDMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data.map(_.toFloat), CSC)
+  def toDMatrix(csc: CSCMatrix[Int]) =
+    new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data.map(_.toFloat), CSC)
 
 }
