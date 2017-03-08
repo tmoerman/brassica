@@ -1,7 +1,7 @@
 package org.tmoerman.brassica.cases.megacell
 
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
-import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.{DataFrame, SaveMode}
 import org.apache.spark.sql.SaveMode.Append
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.TimeUtils
@@ -13,6 +13,8 @@ import org.tmoerman.brassica.util.TimeUtils.profile
   * @author Thomas Moerman
   */
 class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
+
+  behavior of "Megacell to Parquet"
 
   it should "write the first 100 columns to Parquet" ignore {
     val top = 100
@@ -29,34 +31,26 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
   it should "write the entire matrix to Parquet" in {
     val (nrCells, nrGenes) = MegacellReader.readDimensions(megacell).get
 
+    val genes = MegacellReader.readGeneNames(megacell).get
+
     val windowSize = 1000
 
-    val df =
-      (0 until nrGenes)
-        .sliding(windowSize, windowSize)
-        .map { range =>
+    (0 until nrGenes)
+      .sliding(windowSize, windowSize)
+      .foreach { range =>
+        println(s"reading csc matrix columns ${range.head} -> ${range.last}")
 
-          println(s"reading csc matrix columns ${range.head} -> ${range.last} \n")
+        val genesInRange = genes.slice(range.head, range.head + range.size)
 
-          val (df, duration) = profile {
-            val csc = MegacellReader.readCSCMatrix(megacell, onlyGeneIndices = Some(range)).get
+        val csc = MegacellReader.readCSCMatrix(megacell, onlyGeneIndices = Some(range), reindex = true).get
 
-            val genes = MegacellReader.readGeneNames(megacell).get.slice(range.head, range.size)
+        val df = MegacellReader.toColumnDataFrame(spark, csc, genesInRange)
 
-            val df = MegacellReader.toColumnDataFrame(spark, csc, genes)
-
-            df
-          }
-
-          println(s"\nreading csc matrix columns ${range.head} -> ${range.last} took ${duration.toMinutes} minutes")
-
-          df }
-        .reduce(_ union _)
-
-    println("writing dataframe to parquet file")
-    df.write.parquet(megacellParquet)
-
-    df.count shouldBe nrCells
+        println
+        df.show(5)
+        df.write.mode(Append).parquet(megacellParquet)
+        println
+      }
   }
 
   it should "read the dataframe from Parquet" in {
