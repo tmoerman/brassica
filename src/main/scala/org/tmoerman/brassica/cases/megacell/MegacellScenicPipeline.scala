@@ -3,8 +3,7 @@ package org.tmoerman.brassica.cases.megacell
 import _root_.ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
 import breeze.linalg.{CSCMatrix, DenseMatrix}
 import org.apache.spark.ml.linalg.SparseVector
-import org.apache.spark.sql.functions.desc
-import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.tmoerman.brassica.ScenicPipeline._
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.cases.megacell.MegacellReader._
@@ -16,14 +15,21 @@ import scala.collection.immutable.ListMap
   */
 object MegacellScenicPipeline {
 
+  /**
+    * @param spark
+    * @param hdf5Path
+    * @param parquetPath
+    * @param candidateRegulators
+    * @param targets
+    * @param params
+    */
   def apply(spark: SparkSession,
             hdf5Path: String,
             parquetPath: String,
             candidateRegulators: List[Gene],
             targets: List[Gene] = Nil,
-            params: RegressionParams = RegressionParams(),
-            normalize: Boolean = true): Unit = {
-
+            params: RegressionParams = RegressionParams()): DataFrame = {
+    
     val sc = spark.sparkContext
 
     val allGenes = readGeneNames(hdf5Path).get
@@ -34,20 +40,23 @@ object MegacellScenicPipeline {
     val cscBroadcast = sc.broadcast(csc)
     val globalRegulatorIndexBroadcast = sc.broadcast(globalRegulatorIndex)
 
-    val isTarget = containedIn(targets)
+    def isTarget(row: Row) = {
+      containedIn(targets)(row.gene)
+    }
+
+    def predictRegulators(row: Row) = {
+      importanceScores(row.gene, row.data, globalRegulatorIndexBroadcast.value, cscBroadcast.value, params)
+    }
 
     val GRN =
       spark
-        .read
-        .parquet(parquetPath)
-        .rdd
-        .filter(row => isTarget(row.gene))
-        .flatMap(row => importanceScores(row.gene, row.data, globalRegulatorIndexBroadcast.value, cscBroadcast.value, params))
+        .read.parquet(parquetPath).rdd
+        .filter(isTarget)
+        .flatMap(predictRegulators)
 
     spark
       .createDataFrame(GRN)
       .toDF(CANDIDATE_REGULATOR_NAME, TARGET_GENE_NAME, IMPORTANCE)
-      .sort(desc(IMPORTANCE))
   }
 
   /**
