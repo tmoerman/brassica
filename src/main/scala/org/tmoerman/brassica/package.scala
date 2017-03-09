@@ -16,7 +16,7 @@ package object brassica {
   type CellCount = Int
   type GeneIndex = Int
   type GeneCount = Int
-  type ExpressionValue = Int
+  type GeneExpression = Int
 
   val EXPRESSION_VECTOR    = "expression"
   val CANDIDATE_REGULATORS = "regulators"
@@ -32,8 +32,9 @@ package object brassica {
     "silent" -> 1
   )
 
-  case class XGBoostParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
-                           nrRounds: Int = 10,
-                           nrWorkers: Option[Int] = Some(1))
+  case class RegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
+                              nrRounds: Int = 10,
+                              normalize: Boolean = true,
+                              nrWorkers: Option[Int] = Some(1))
 
 }

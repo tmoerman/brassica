@@ -13,7 +13,7 @@ object ScenicPipeline2 {
             parquetPath: String,
             candidateRegulators: List[Gene] = Nil,
             targets: List[Gene] = Nil,
-            xgBoostParams: XGBoostParams = XGBoostParams()) = {
+            xgBoostParams: RegressionParams = RegressionParams()) = {
 
 //    val denseExpressionMatrix = expressionMatrix.toDense
 //

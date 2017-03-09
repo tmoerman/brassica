@@ -35,30 +35,9 @@ object MegacellReader extends DataReader {
   private[this] val SHAPE      = "/mm10/shape"
   private[this] val GENE_NAMES = "/mm10/gene_names"
 
-  type ExpressionTuples = Array[(GeneIndex, ExpressionValue)]
+  type ExpressionTuples = Array[(GeneIndex, GeneExpression)]
 
   type RowFn[T] = (CellIndex, GeneCount, ExpressionTuples) => T
-
-  /**
-    * @param spark The SparkSession.
-    * @param path Path of the h5 file with CSC data structure.
-    * @return
-    */
-  @deprecated def apply(spark: SparkSession, path: String): Try[(DataFrame, List[Gene])] =
-    managed(HDF5FactoryProvider.get.openForReading(path))
-      .map(reader => {
-
-        // TODO fix this
-
-        // val csc = readCSCMatrix(reader, None)
-
-        //val df    = toDataFrame(spark, csc)
-
-        println("reader genes")
-        val genes = readGeneNames(reader)
-
-        (???, genes)
-      }).tried
 
   class CandidateRegulatorVector(val candidateRegulatorIndices: Array[GeneIndex]) extends RowFn[BSV[Float]] {
     val indexMap = candidateRegulatorIndices.zipWithIndex.toMap
@@ -160,7 +139,7 @@ object MegacellReader extends DataReader {
   def readCSCMatrix(path: String,
                     cellTop: Option[CellCount] = None,
                     onlyGeneIndices: Option[Seq[GeneIndex]] = None,
-                    reindex: Boolean = false): Try[CSCMatrix[ExpressionValue]] =
+                    reindex: Boolean = false): Try[CSCMatrix[GeneExpression]] =
     managed(HDF5FactoryProvider.get.openForReading(path))
       .map{ reader => readCSCMatrix(reader, cellTop, onlyGeneIndices, reindex) }
       .tried
@@ -174,7 +153,7 @@ object MegacellReader extends DataReader {
   def readCSCMatrix(reader: IHDF5Reader,
                     cellTop: Option[CellCount],
                     onlyGeneIndices: Option[Seq[GeneIndex]],
-                    reindex: Boolean): CSCMatrix[ExpressionValue] = {
+                    reindex: Boolean): CSCMatrix[GeneExpression] = {
 
     val (nrCells, nrGenes) = readDimensions(reader)
 
@@ -237,14 +216,17 @@ object MegacellReader extends DataReader {
     }
   }
 
+  val VALUES = "values"
+  val GENE   = "gene"
+
   def toColumnDataFrame(spark: SparkSession, csc: CSCMatrix[Int], genes: List[Gene]): DataFrame = {
     val rows =
       (csc.columns zip genes.toIterator)
         .map{ case (vector, gene) => Row.apply(ml(vector), gene) }
 
     val schema = StructType(
-      new AttributeGroup("values").toStructField() ::
-      new StructField("gene", StringType) :: Nil)
+      new AttributeGroup(VALUES).toStructField() ::
+      new StructField(GENE, StringType) :: Nil)
 
     spark.createDataFrame(rows.toSeq, schema)
   }
