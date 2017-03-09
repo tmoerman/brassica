@@ -27,14 +27,14 @@ object MegacellScenicPipeline {
     val sc = spark.sparkContext
 
     val allGenes = readGeneNames(hdf5Path).get
-    val regulatorGlobalIndexMap = toRegulatorGlobalIndexMap(allGenes, candidateRegulators)
+    val globalRegulatorIndex = toRegulatorGlobalIndexMap(allGenes, candidateRegulators)
 
-    val csc = readCSCMatrix(hdf5Path, onlyGeneIndices = Some(regulatorGlobalIndexMap.values.toSeq)).get
+    val csc = readCSCMatrix(hdf5Path, onlyGeneIndices = Some(globalRegulatorIndex.values.toSeq)).get
 
-    val cscBroadcast   = sc.broadcast(csc)
-    val indexBroadcast = sc.broadcast(regulatorGlobalIndexMap)
+    val cscBroadcast = sc.broadcast(csc)
+    val globalRegulatorIndexBroadcast = sc.broadcast(globalRegulatorIndex)
 
-    val isTarget = toPredicate(targets)
+    val isTarget = containedIn(targets)
 
     val GRN =
       spark
@@ -42,7 +42,7 @@ object MegacellScenicPipeline {
         .parquet(parquetPath)
         .rdd
         .filter(row => isTarget(row.gene))
-        .flatMap(row => importanceScores(row.gene, row.data, indexBroadcast.value, cscBroadcast.value, params))
+        .flatMap(row => importanceScores(row.gene, row.data, globalRegulatorIndexBroadcast.value, cscBroadcast.value, params))
 
     spark
       .createDataFrame(GRN)
@@ -50,56 +50,69 @@ object MegacellScenicPipeline {
       .sort(desc(IMPORTANCE))
   }
 
+  /**
+    * @param targetGene The target gene.
+    * @param response The response vector of target gene.
+    * @param globalRegulatorIndex Global index of the regulator genes.
+    * @param csc The CSC matrix of gene expression values, only contains regulators.
+    * @param params Parameters for the regressions.
+    * @return Calculate the importance scores for the regulators of the target gene.
+    */
+  def importanceScores(targetGene: String,
+                       response: Array[Float],
+                       globalRegulatorIndex: ListMap[Gene, GeneIndex],
+                       csc: CSCMatrix[GeneExpression],
+                       params: RegressionParams): Iterable[(Gene, Gene, Importance)] = {
+
+    val regulatorCSCIndexTuples =
+      globalRegulatorIndex
+        .keys
+        .zipWithIndex
+        .filterNot { case (gene, _) => gene == targetGene } // remove the target from the predictors
+        .toSeq
+
+    val predictors = csc.apply(0 until csc.rows, regulatorCSCIndexTuples.map(_._2)).toDenseMatrix
+
+    def toTrainingData = {
+      val trainingData = toDMatrix(predictors)
+      trainingData.setLabel(response)
+      trainingData
+    }
+
+    def performXGBoost(trainingData: DMatrix) = {
+      import params._
+
+      val booster = XGBoost.train(trainingData, boosterParams, nrRounds)
+
+      val sum = booster.getFeatureScore().values.map(_.toInt).sum
+
+      booster
+        .getFeatureScore()
+        .map { case (feature, score) => {
+          val featureIndex = feature.substring(1).toInt
+          val (regulatorGene, _) = regulatorCSCIndexTuples(featureIndex)
+          val importance = if (normalize) score.toFloat / sum else score.toFloat
+
+          (regulatorGene, targetGene, importance)}}
+    }
+
+    resource
+      .makeManagedResource(toTrainingData)(_.delete)(Nil)
+      .map(performXGBoost)
+      .opt.get
+  }
+
+  private[megacell] def toDMatrix(dm: DenseMatrix[GeneExpression]) =
+    new DMatrix(dm.data.map(_.toFloat), dm.rows, dm.cols, 0f)
+
   private[megacell] implicit class PimpRow(row: Row) {
     def gene: String = row.getAs[String](GENE)
     def data: Array[Float] = row.getAs[SparseVector](VALUES).toArray.map(_.toFloat)
   }
 
-  private[megacell] def importanceScores(targetGene: String,
-                                     responseVector: Array[Float],
-                                     index: ListMap[Gene, GeneIndex],
-                                     csc: CSCMatrix[GeneExpression],
-                                     params: RegressionParams) = {
-    import params._
-
-    // prepare training data
-    val cleanCSCIndexTuples =
-      index
-        .keys
-        .zipWithIndex
-        .filterNot { case (gene, _) => gene == targetGene }
-        .toSeq
-
-    // compile training data
-    val predictorCSC = csc.apply(0 until csc.rows, cleanCSCIndexTuples.map(_._2)).toDenseMatrix
-    val trainingData = toDMatrix(predictorCSC)
-    trainingData.setLabel(responseVector)
-
-    // train the model
-    val booster = XGBoost.train(trainingData, boosterParams, nrRounds)
-
-    // extract the importance scores.
-    val sum = booster.getFeatureScore().values.map(_.toInt).sum
-    val importanceScores =
-      booster
-        .getFeatureScore()
-        .map { case (feature, score) => {
-          val featureIndex = feature.substring(1).toInt
-          val (regulatorGene, _) = cleanCSCIndexTuples(featureIndex)
-          val importance = if (normalize) score.toFloat / sum else score.toFloat
-
-          (regulatorGene, targetGene, importance)
-        }}
-
-    importanceScores
-  }
-
-  private[megacell] def toPredicate(targets: List[Gene]) = targets match {
+  private[megacell] def containedIn(targets: List[Gene]) = targets match {
     case Nil => (_: Gene) => true
     case _ => targets.toSet.contains _
   }
-
-  private[megacell] def toDMatrix(dm: DenseMatrix[GeneExpression]) =
-    new DMatrix(dm.data.map(_.toFloat), dm.rows, dm.cols, 0f)
 
 }

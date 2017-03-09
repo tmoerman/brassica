@@ -17,6 +17,7 @@ package object brassica {
   type GeneIndex = Int
   type GeneCount = Int
   type GeneExpression = Int
+  type Importance = Float
 
   val EXPRESSION_VECTOR    = "expression"
   val CANDIDATE_REGULATORS = "regulators"
