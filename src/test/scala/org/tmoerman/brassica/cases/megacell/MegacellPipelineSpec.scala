@@ -27,34 +27,7 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
 
     val limit = Some(10000)
 
-    // val vectors = MegacellReader.readSparseVectors(megacell, limit).get
-
-    val vectors = MegacellReader.readRows(megacell, DoubleSparseVector, cellTop = limit).get
-
-    val rows = vectors.map(v => Row(v.ml))
-
-    val df = spark.createDataFrame(rows, StructType(FEATURES_STRUCT_FIELD :: Nil))
-
-    val genes = MegacellReader.readGeneNames(megacell).get
-
-    val TFs = MegacellReader.readTFs(mouseTFs)
-
-    val (grn, info) =
-      ScenicPipeline.apply(
-        spark,
-        df,
-        genes,
-        params = params,
-        nrRounds = 10,
-        candidateRegulators = TFs,
-        //targets = List("Xkr4", "Rp1", "Sox17", "Lypla1", "Oprk1", "St18"),
-        targets = List("Gad1"),
-        nrWorkers = Some(1)
-      )
-
-    grn.show()
-
-    println(info.mkString("\n"))
+    // MegacellScenicPipeline.
   }
 
 }
