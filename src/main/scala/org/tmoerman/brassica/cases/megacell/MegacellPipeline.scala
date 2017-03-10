@@ -1,15 +1,13 @@
 package org.tmoerman.brassica.cases.megacell
 
-import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
+import _root_.ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
 import breeze.linalg.{CSCMatrix, SliceMatrix}
+import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
 import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.sql.{Row, SparkSession}
 import org.tmoerman.brassica.ScenicPipeline._
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.cases.megacell.MegacellReader._
-import org.tmoerman.brassica.util.TimeUtils.profile
-
-import scala.concurrent.duration.Duration
 
 /**
   * @author Thomas Moerman
@@ -52,16 +50,34 @@ object MegacellPipeline {
       containedIn(targets)(row.gene)
     }
 
-    def predictRegulators(row: Row) = {
-      importanceScores(row.gene, row.data, globalRegulatorIndexBroadcast.value, cscBroadcast.value, params)
-    }
+//    def predictRegulators(row: Row) = {
+//      importanceScores(
+//        row.gene,
+//        row.data,
+//        globalRegulatorIndexBroadcast.value,
+//        cscBroadcast.value, params)
+//    }
 
     val rdd = spark.read.parquet(parquetPath).rdd
 
     val GRN =
       nrPartitions.map(rdd.repartition(_)).getOrElse(rdd)
         .filter(isTarget)
-        .flatMap(predictRegulators)
+        .mapPartitions(it => {
+
+          val csc = cscBroadcast.value
+          val index = globalRegulatorIndexBroadcast.value
+
+          val unsliced = toDMatrix(csc)
+
+          val result = it.flatMap(row => importanceScores(row.gene, row.data, index, csc, unsliced, params))
+
+          // unsliced.delete()
+
+          result
+        })
+
+        //.flatMap(predictRegulators)
 
     spark
       .createDataFrame(GRN)
@@ -80,9 +96,12 @@ object MegacellPipeline {
                        response: Array[Float],
                        globalRegulatorIndex: List[(Gene, GeneIndex)],
                        csc: CSCMatrix[GeneExpression],
+                       unsliced: DMatrix,
                        params: RegressionParams): Iterable[(Gene, Gene, Importance)] = {
 
-    println(s"-> $targetGene")
+    val targetIsRegulator = globalRegulatorIndex.exists{ case (gene, _) => gene == targetGene }
+
+    println(s"-> $targetGene (regulator? $targetIsRegulator)")
 
     val regulatorCSCIndexTuples =
       globalRegulatorIndex
@@ -90,10 +109,9 @@ object MegacellPipeline {
         .zipWithIndex
         .filterNot { case (gene, _) => gene == targetGene } // remove the target from the predictors
 
-    val predictors = csc.apply(0 until csc.rows, regulatorCSCIndexTuples.map(_._2))
-
     def toTrainingData = {
-      val trainingData = toDMatrix(predictors)
+      lazy val sliced = toDMatrix(csc.apply(0 until csc.rows, regulatorCSCIndexTuples.map(_._2)))
+      val trainingData = if (targetIsRegulator) sliced else unsliced
       trainingData.setLabel(response)
       trainingData
     }
@@ -121,7 +139,7 @@ object MegacellPipeline {
     }
 
     resource
-      .makeManagedResource(toTrainingData)(_.delete)(Nil)
+      .makeManagedResource(toTrainingData)(m => if (targetIsRegulator) m.delete())(Nil)
       .map(performXGBoost)
       .opt
       .get
@@ -129,6 +147,9 @@ object MegacellPipeline {
 
   private[megacell] def toDMatrix(m: SliceMatrix[Int, Int, Int]) =
     new DMatrix(m.activeValuesIterator.map(_.toFloat).toArray, m.rows, m.cols, 0f)
+
+  private[megacell] def toDMatrix(csc: CSCMatrix[Int]) =
+    new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data.map(_.toFloat), CSC)
 
   private[megacell] implicit class PimpRow(row: Row) {
     def gene: String = row.getAs[String](GENE)

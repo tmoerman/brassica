@@ -25,10 +25,29 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
   it should "run embarassingly parallel pipeline" in {
     val cellTop = Some(10000)
 
-    val targetTop = 25
+    val result =
+      MegacellPipeline
+        .apply(
+          spark,
+          params = params,
+          hdf5Path = megacell,
+          parquetPath = megacellParquet + "_10k",
+          candidateRegulators = MegacellReader.readTFs(mouseTFs),
+          targets = List("Gad1"),
+          cellTop = cellTop,
+          nrPartitions = Some(1))
+
+    result.show()
+  }
+
+  it should "compare embarassingly parallel pipeline" in {
+    val cellTop = Some(10000)
+
+    val targetTop = 100
 
     val genes = MegacellReader.readGeneNames(megacell).get
 
+    /*
     val (_, duration1) = TimeUtils.profile {
       val result = MegacellPipeline
         .apply(
@@ -41,7 +60,7 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
           cellTop = cellTop,
           nrPartitions = Some(1))
         .collect()
-    }
+    }*/
 
     val (_, duration2) = TimeUtils.profile {
       val result = MegacellPipeline
@@ -53,11 +72,12 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
           candidateRegulators = MegacellReader.readTFs(mouseTFs),
           targets = genes.take(targetTop),
           cellTop = cellTop,
-          nrPartitions = Some(12))
+          nrPartitions = None)
         .collect()
     }
 
-    println(duration1.toSeconds, duration2.toSeconds)
+    // println(duration1.toSeconds, duration2.toSeconds)
+    println(duration2.toSeconds)
 
     println(params)
   }
