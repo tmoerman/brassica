@@ -56,7 +56,7 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
         .collect()
     }
 
-    println(duration1.toMinutes, duration2.toMinutes)
+    println(duration1.toSeconds, duration2.toSeconds)
 
     println(params)
   }
