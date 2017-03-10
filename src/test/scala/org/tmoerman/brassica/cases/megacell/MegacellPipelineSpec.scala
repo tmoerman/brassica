@@ -2,6 +2,7 @@ package org.tmoerman.brassica.cases.megacell
 
 import breeze.linalg.CSCMatrix
 import org.scalatest.{FlatSpec, Matchers}
+import org.tmoerman.brassica.util.TimeUtils
 import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, XGBoostSuiteBase}
 
 /**
@@ -16,23 +17,46 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
       normalize = false,
       nrRounds = 10,
       boosterParams = Map(
-        "seed" -> 777,
-        "silent" -> 1))
+        "seed" -> 777
+        //"silent" -> 1
+      ))
 
   it should "run embarassingly parallel pipeline" in {
     val cellTop = Some(10000)
 
-    val result = MegacellPipeline
-      .apply(
-        spark,
-        params = params,
-        hdf5Path = megacell,
-        parquetPath = megacellParquet + "_10k",
-        candidateRegulators = MegacellReader.readTFs(mouseTFs),
-        targets = List("Gad1", ""),
-        cellTop = cellTop)
+    val targetTop = 25
 
-    result.show()
+    val genes = MegacellReader.readGeneNames(megacell).get
+
+    val (_, duration1) = TimeUtils.profile {
+      val result = MegacellPipeline
+        .apply(
+          spark,
+          params = params,
+          hdf5Path = megacell,
+          parquetPath = megacellParquet + "_10k",
+          candidateRegulators = MegacellReader.readTFs(mouseTFs),
+          targets = genes.take(targetTop),
+          cellTop = cellTop,
+          nrPartitions = Some(1))
+        .collect()
+    }
+
+    val (_, duration2) = TimeUtils.profile {
+      val result = MegacellPipeline
+        .apply(
+          spark,
+          params = params,
+          hdf5Path = megacell,
+          parquetPath = megacellParquet + "_10k",
+          candidateRegulators = MegacellReader.readTFs(mouseTFs),
+          targets = genes.take(targetTop),
+          cellTop = cellTop,
+          nrPartitions = Some(12))
+        .collect()
+    }
+
+    println(duration1.toMinutes, duration2.toMinutes)
 
     println(params)
   }

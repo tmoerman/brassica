@@ -2,7 +2,7 @@ package org.tmoerman.brassica.cases.megacell
 
 import java.lang.Math.min
 
-import breeze.linalg.{CSCMatrix, DenseMatrix, Matrix => BM, SparseVector => BSV}
+import breeze.linalg.{CSCMatrix, SparseVector => BSV}
 import ch.systemsx.cisd.hdf5.{HDF5FactoryProvider, IHDF5Reader}
 import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
 import ml.dmlc.xgboost4j.scala.DMatrix
