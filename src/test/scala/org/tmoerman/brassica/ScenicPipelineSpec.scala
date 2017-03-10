@@ -18,7 +18,7 @@ class ScenicPipelineSpec extends FlatSpec with Matchers {
   }
 
   it should "return the correct indices for specified candidates" in {
-    toRegulatorGlobalIndexMap(allGenes, List("brca1", "hox")).values shouldBe (0, 2)
+    toRegulatorGlobalIndexMap(allGenes, List("brca1", "hox")).map(_._2) shouldBe (0, 2)
   }
 
 }

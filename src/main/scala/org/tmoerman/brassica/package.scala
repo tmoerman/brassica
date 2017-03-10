@@ -36,6 +36,7 @@ package object brassica {
   case class RegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                               nrRounds: Int = 10,
                               normalize: Boolean = true,
-                              nrWorkers: Option[Int] = Some(1))
+                              nrWorkers: Option[Int] = Some(1),
+                              verbose: Boolean = false)
 
 }

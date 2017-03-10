@@ -1,7 +1,7 @@
 package org.tmoerman.brassica.cases.megacell
 
 import _root_.ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
-import breeze.linalg.{CSCMatrix, DenseMatrix}
+import breeze.linalg.{CSCMatrix, DenseMatrix, SliceMatrix}
 import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.tmoerman.brassica.ScenicPipeline._
@@ -13,7 +13,7 @@ import scala.collection.immutable.ListMap
 /**
   * @author Thomas Moerman
   */
-object MegacellScenicPipeline {
+object MegacellPipeline {
 
   /**
     * @param spark
@@ -28,14 +28,19 @@ object MegacellScenicPipeline {
             parquetPath: String,
             candidateRegulators: List[Gene],
             targets: List[Gene] = Nil,
-            params: RegressionParams = RegressionParams()): DataFrame = {
+            params: RegressionParams = RegressionParams(),
+            cellTop: Option[CellCount] = None): DataFrame = {
     
     val sc = spark.sparkContext
 
     val allGenes = readGeneNames(hdf5Path).get
     val globalRegulatorIndex = toRegulatorGlobalIndexMap(allGenes, candidateRegulators)
 
-    val csc = readCSCMatrix(hdf5Path, onlyGeneIndices = Some(globalRegulatorIndex.values.toSeq)).get
+    val csc =
+      readCSCMatrix(
+        hdf5Path,
+        cellTop = cellTop,
+        onlyGeneIndices = Some(globalRegulatorIndex.map(_._2))).get
 
     val cscBroadcast = sc.broadcast(csc)
     val globalRegulatorIndexBroadcast = sc.broadcast(globalRegulatorIndex)
@@ -69,18 +74,22 @@ object MegacellScenicPipeline {
     */
   def importanceScores(targetGene: String,
                        response: Array[Float],
-                       globalRegulatorIndex: ListMap[Gene, GeneIndex],
+                       globalRegulatorIndex: List[(Gene, GeneIndex)],
                        csc: CSCMatrix[GeneExpression],
                        params: RegressionParams): Iterable[(Gene, Gene, Importance)] = {
 
+    println(response.toList)
+
     val regulatorCSCIndexTuples =
       globalRegulatorIndex
-        .keys
+        .map(_._1)
         .zipWithIndex
         .filterNot { case (gene, _) => gene == targetGene } // remove the target from the predictors
         .toSeq
 
-    val predictors = csc.apply(0 until csc.rows, regulatorCSCIndexTuples.map(_._2)).toDenseMatrix
+    val predictors = csc.apply(0 until csc.rows, regulatorCSCIndexTuples.map(_._2))
+
+    assert(regulatorCSCIndexTuples.size == 1607)
 
     def toTrainingData = {
       val trainingData = toDMatrix(predictors)
@@ -95,14 +104,18 @@ object MegacellScenicPipeline {
 
       val sum = booster.getFeatureScore().values.map(_.toInt).sum
 
-      booster
-        .getFeatureScore()
-        .map { case (feature, score) => {
-          val featureIndex = feature.substring(1).toInt
-          val (regulatorGene, _) = regulatorCSCIndexTuples(featureIndex)
-          val importance = if (normalize) score.toFloat / sum else score.toFloat
+      val scores =
+        booster
+          .getFeatureScore()
+          .map { case (feature, score) => {
+            val featureIndex = feature.substring(1).toInt
+            val (regulatorGene, _) = regulatorCSCIndexTuples(featureIndex)
+            val importance = if (normalize) score.toFloat / sum else score.toFloat
 
-          (regulatorGene, targetGene, importance)}}
+            (regulatorGene, targetGene, importance)}}
+          .toSeq
+
+      scores.sortBy(- _._3)
     }
 
     resource
@@ -111,8 +124,11 @@ object MegacellScenicPipeline {
       .opt.get
   }
 
-  private[megacell] def toDMatrix(dm: DenseMatrix[GeneExpression]) =
-    new DMatrix(dm.data.map(_.toFloat), dm.rows, dm.cols, 0f)
+  private[megacell] def toDMatrix(m: SliceMatrix[Int, Int, Int]) =
+    new DMatrix(m.activeValuesIterator.map(_.toFloat).toArray, m.rows, m.cols, 0f)
+
+  @deprecated private[megacell] def toDMatrix(dm: DenseMatrix[Int]) =
+    new DMatrix(dm.data.map(_.toFloat).toArray, dm.rows, dm.cols, 0f)
 
   private[megacell] implicit class PimpRow(row: Row) {
     def gene: String = row.getAs[String](GENE)
