@@ -1,12 +1,15 @@
 package org.tmoerman.brassica.cases.megacell
 
-import _root_.ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
+import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
 import breeze.linalg.{CSCMatrix, SliceMatrix}
 import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.sql.{Row, SparkSession}
 import org.tmoerman.brassica.ScenicPipeline._
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.cases.megacell.MegacellReader._
+import org.tmoerman.brassica.util.TimeUtils.profile
+
+import scala.concurrent.duration.Duration
 
 /**
   * @author Thomas Moerman
@@ -112,14 +115,16 @@ object MegacellPipeline {
 
             (regulatorGene, targetGene, importance)}}
           .toSeq
+          .sortBy(- _._3)
 
-      scores.sortBy(- _._3)
+      scores
     }
 
     resource
       .makeManagedResource(toTrainingData)(_.delete)(Nil)
       .map(performXGBoost)
-      .opt.get
+      .opt
+      .get
   }
 
   private[megacell] def toDMatrix(m: SliceMatrix[Int, Int, Int]) =

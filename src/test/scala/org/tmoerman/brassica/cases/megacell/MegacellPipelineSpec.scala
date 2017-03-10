@@ -17,8 +17,9 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
       normalize = false,
       nrRounds = 10,
       boosterParams = Map(
-        "seed" -> 777
-        //"silent" -> 1
+        "seed" -> 777,
+        "nthread" -> 1,
+        "silent" -> 1
       ))
 
   it should "run embarassingly parallel pipeline" in {
