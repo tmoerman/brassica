@@ -30,8 +30,8 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
         .apply(
           spark,
           params = params,
-          hdf5Path = megacell,
-          parquetPath = megacellParquet + "_10k",
+          hdf5 = megacell,
+          columnsParquet = megacellColumnsParquet + "_10k",
           candidateRegulators = MegacellReader.readTFs(mouseTFs),
           targets = List("Gad1"),
           cellTop = cellTop,
@@ -67,8 +67,8 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
         .apply(
           spark,
           params = params,
-          hdf5Path = megacell,
-          parquetPath = megacellParquet + "_10k",
+          hdf5 = megacell,
+          columnsParquet = megacellColumnsParquet + "_10k",
           candidateRegulators = MegacellReader.readTFs(mouseTFs),
           targets = genes.take(targetTop),
           cellTop = cellTop,

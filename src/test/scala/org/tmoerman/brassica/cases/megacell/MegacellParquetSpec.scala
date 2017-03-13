@@ -15,7 +15,7 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
 
   behavior of "Megacell to Parquet"
 
-  it should "write the first 100 columns to Parquet" ignore {
+  it should "write the first 100 columns to column vector Parquet" ignore {
     val top = 100
 
     val csc = readCSCMatrix(megacell, onlyGeneIndices = Some(0 until top)).get
@@ -24,17 +24,17 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
 
     val df = toColumnDataFrame(spark, csc, genes)
 
-    df.write.parquet(megacellParquet)
+    df.write.parquet(megacellColumnsParquet)
   }
 
-  it should "write the entire matrix to Parquet" ignore {
+  it should "write the entire matrix to column vector Parquet" ignore {
     val (_, nrGenes) = readDimensions(megacell).get
 
     val genes = readGeneNames(megacell).get
 
     val cellTop = None
 
-    val parquetFile = megacellParquet
+    val parquetFile = megacellColumnsParquet
 
     val blockWidth = 1000
 
@@ -49,7 +49,7 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
       }
   }
 
-  it should "write a top 10K cells matrix to Parquet" in {
+  it should "write a top 10K cells matrix to column vector Parquet" in {
     val (_, nrGenes) = readDimensions(megacell).get
 
     val genes = readGeneNames(megacell).get
@@ -58,7 +58,7 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
 
     val cellTop = Some(10000)
 
-    val parquetFile = megacellParquet + "_10k"
+    val parquetFile = megacellColumnsParquet + "_10k"
 
     (0 until nrGenes)
       .sliding(blockWidth, blockWidth)
@@ -85,8 +85,8 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
     toColumnDataFrame(spark, csc, genesInRange)
   }
 
-  it should "read the dataframe from Parquet" in {
-    val df = spark.read.parquet(megacellParquet + "_10k")
+  it should "read the dataframe from column vector Parquet" in {
+    val df = spark.read.parquet(megacellColumnsParquet + "_10k")
 
     df.show(20)
 
