@@ -46,38 +46,30 @@ object MegacellPipeline {
     val cscBroadcast = sc.broadcast(csc)
     val globalRegulatorIndexBroadcast = sc.broadcast(globalRegulatorIndex)
 
-    def isTarget(row: Row) = {
-      containedIn(targets)(row.gene)
-    }
-
-//    def predictRegulators(row: Row) = {
-//      importanceScores(
-//        row.gene,
-//        row.data,
-//        globalRegulatorIndexBroadcast.value,
-//        cscBroadcast.value, params)
-//    }
+    def isTarget(row: Row) = containedIn(targets)(row.gene)
 
     val rdd = spark.read.parquet(parquetPath).rdd
 
     val GRN =
-      nrPartitions.map(rdd.repartition(_)).getOrElse(rdd)
+      nrPartitions.map(rdd.repartition).getOrElse(rdd)
         .filter(isTarget)
         .mapPartitions(it => {
 
           val csc = cscBroadcast.value
           val index = globalRegulatorIndexBroadcast.value
-
           val unsliced = toDMatrix(csc)
 
-          val result = it.flatMap(row => importanceScores(row.gene, row.data, index, csc, unsliced, params))
+          it.flatMap(row => {
+            val scores = importanceScores(row.gene, row.data, index, csc, unsliced, params)
 
-          // unsliced.delete()
+            if (it.isEmpty) {
+              unsliced.delete()
+            }
 
-          result
+            scores
+          })
         })
 
-        //.flatMap(predictRegulators)
 
     spark
       .createDataFrame(GRN)
