@@ -12,7 +12,8 @@ zeiselParquet = src/test/resources/parquet/zeisel
 
 # source: TODO
 megacell = /media/tmo/data/work/datasets/megacell/1M_neurons_filtered_gene_bc_matrices_h5.h5
-megacellParquet = src/test/resources/parquet/megacell
+megacellRowsParquet    = src/test/resources/parquet/megacell_rows
+megacellColumnsParquet = src/test/resources/parquet/megacell
 
 # source:
 dream5Original = /media/tmo/data/work/datasets/dream5/original data/

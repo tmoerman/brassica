@@ -9,7 +9,8 @@ package object megacell {
 
   def megacell = props("megacell")
 
-  def megacellParquet = props("megacellParquet")
+  def megacellRowsParquet    = props("megacellRowsParquet")
+  def megacellColumnsParquet = props("megacellColumnsParquet")
 
   def mouseTFs = props("mouseTFs")
 
