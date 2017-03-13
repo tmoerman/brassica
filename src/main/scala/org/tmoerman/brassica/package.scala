@@ -7,6 +7,8 @@ package object brassica {
 
   // type aliases facilitate code interpretation
 
+  type Path = String
+
   type Count = Int
   type Index = Long
   type Gene  = String

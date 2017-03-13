@@ -16,30 +16,30 @@ object MegacellPipeline {
 
   /**
     * @param spark
-    * @param hdf5Path
-    * @param parquetPath
+    * @param hdf5
+    * @param columnsParquet
     * @param candidateRegulators
     * @param targets
     * @param params
     * @param cellTop
     */
   def apply(spark: SparkSession,
-            hdf5Path: String,
-            parquetPath: String,
+            hdf5: Path,
+            columnsParquet: Path,
             candidateRegulators: List[Gene],
             targets: List[Gene] = Nil,
             params: RegressionParams = RegressionParams(),
             cellTop: Option[CellCount] = None,
             nrPartitions: Option[Int] = None) = {
-    
+
     val sc = spark.sparkContext
 
-    val allGenes = readGeneNames(hdf5Path).get
+    val allGenes = readGeneNames(hdf5).get
     val globalRegulatorIndex = toRegulatorGlobalIndexMap(allGenes, candidateRegulators)
 
     val csc =
       readCSCMatrix(
-        hdf5Path,
+        hdf5,
         cellTop = cellTop,
         onlyGeneIndices = Some(globalRegulatorIndex.map(_._2))).get
 
@@ -47,13 +47,14 @@ object MegacellPipeline {
     val globalRegulatorIndexBroadcast = sc.broadcast(globalRegulatorIndex)
 
     def isTarget(row: Row) = containedIn(targets)(row.gene)
-
-    val rdd = spark.read.parquet(parquetPath).rdd
-
-    val GRN =
-      nrPartitions.map(rdd.repartition).getOrElse(rdd)
+    val columnVectorRDD = spark.read.parquet(columnsParquet).rdd
+    val rdd =
+      nrPartitions
+        .map(columnVectorRDD.repartition)
+        .getOrElse(columnVectorRDD)
         .filter(isTarget)
-        .mapPartitions(it => {
+
+    val GRN = rdd.mapPartitions(it => {
 
           val csc = cscBroadcast.value
           val index = globalRegulatorIndexBroadcast.value
@@ -69,7 +70,6 @@ object MegacellPipeline {
             scores
           })
         })
-
 
     spark
       .createDataFrame(GRN)

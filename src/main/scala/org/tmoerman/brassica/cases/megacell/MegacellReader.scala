@@ -66,18 +66,18 @@ object MegacellReader extends DataReader {
   }
 
   /**
-    * @param path
+    * @param hdf5
     * @param rowFn
     * @param cellTop
     * @param genePredicate
     * @tparam R
     * @return
     */
-  def readRows[R](path: String,
+  def readRows[R](hdf5: Path,
                   rowFn: RowFn[R],
                   cellTop: Option[CellCount] = None,
                   genePredicate: Option[GeneIndex => Boolean] = None): Try[List[R]] =
-    managed(HDF5FactoryProvider.get.openForReading(path))
+    managed(HDF5FactoryProvider.get.openForReading(hdf5))
       .map{ reader => readRows(reader, rowFn, cellTop, genePredicate) }
       .tried
 
@@ -131,16 +131,31 @@ object MegacellReader extends DataReader {
   }
 
   /**
-    * @param path The file path.
+    * @param rowsParquet
+    * @param cellTop
+    * @param onlyGeneIndices
+    * @param reindex
+    * @return
+    */
+  def readCSCMatrixFromParquet(rowsParquet: Path,
+                               cellTop: Option[CellCount] = None,
+                               onlyGeneIndices: Option[Seq[GeneIndex]] = None,
+                               reindex: Boolean = false): CSCMatrix[GeneExpression] = {
+
+    ??? // FIXME
+  }
+
+  /**
+    * @param hdf5 The file path.
     * @param cellTop Optional limit on how many cells to read from the file - for testing purposes.
     * @param onlyGeneIndices Optional selection of gene indices to keep, like a preemptive slicing operation.
-    * @return Returns a  CSCMatrix of Ints.
+    * @return Returns a CSCMatrix of Ints.
     */
-  def readCSCMatrix(path: String,
+  def readCSCMatrix(hdf5: Path,
                     cellTop: Option[CellCount] = None,
                     onlyGeneIndices: Option[Seq[GeneIndex]] = None,
                     reindex: Boolean = false): Try[CSCMatrix[GeneExpression]] =
-    managed(HDF5FactoryProvider.get.openForReading(path))
+    managed(HDF5FactoryProvider.get.openForReading(hdf5))
       .map{ reader => readCSCMatrix(reader, cellTop, onlyGeneIndices, reindex) }
       .tried
 
@@ -184,11 +199,11 @@ object MegacellReader extends DataReader {
   }
 
   /**
-    * @param path The file path.
+    * @param hdf5 The file path.
     * @return Returns tuple (cell count, gene count).
     */
-  def readDimensions(path: String): Try[(CellCount, GeneCount)] =
-    managed(HDF5FactoryProvider.get.openForReading(path))
+  def readDimensions(hdf5: Path): Try[(CellCount, GeneCount)] =
+    managed(HDF5FactoryProvider.get.openForReading(hdf5))
       .map(readDimensions)
       .tried
 
@@ -201,8 +216,8 @@ object MegacellReader extends DataReader {
     case _ => throw new Exception("Could not read shape.")
   }
 
-  def readGeneNames(path: String): Try[List[Gene]] =
-    managed(HDF5FactoryProvider.get.openForReading(path))
+  def readGeneNames(hdf5: Path): Try[List[Gene]] =
+    managed(HDF5FactoryProvider.get.openForReading(hdf5))
       .map(readGeneNames)
       .tried
 
