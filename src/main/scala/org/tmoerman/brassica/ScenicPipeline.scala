@@ -98,8 +98,6 @@ object ScenicPipeline {
 
     val targetIsRegulator = globalRegulatorIndex.exists{ case (gene, _) => gene == targetGene }
 
-    println(s"-> $targetGene (regulator? $targetIsRegulator)")
-
     val regulatorCSCIndexTuples =
       globalRegulatorIndex
         .map(_._1)
@@ -117,11 +115,6 @@ object ScenicPipeline {
       import params._
 
       val booster = XGBoost.train(trainingData, boosterParams, nrRounds)
-
-//      val nrFolds = 5
-//      val cv = XGBoost.crossValidation(trainingData, boosterParams, nrRounds, nrFolds)
-//
-//      println(cv.mkString("\n"))
 
       val sum = booster.getFeatureScore().values.map(_.toInt).sum
 
