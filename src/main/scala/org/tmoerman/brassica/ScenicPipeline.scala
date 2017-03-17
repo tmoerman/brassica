@@ -1,105 +1,156 @@
 package org.tmoerman.brassica
 
-import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.tmoerman.brassica.util.TimeUtils.{pretty, profile}
-
-import scala.collection.immutable.ListMap
-import scala.concurrent.duration._
+import breeze.linalg.{CSCMatrix, SliceMatrix}
+import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
+import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
+import org.apache.spark.ml.linalg.SparseVector
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{Row, SparkSession}
+import org.tmoerman.brassica.ScenicPipeline_OLD.toGlobalRegulatorIndex
+import org.tmoerman.brassica.cases.megacell.MegacellReader.VALUES
 
 /**
   * @author Thomas Moerman
   */
 object ScenicPipeline {
 
-  /**
-    * See XGBoost docs:
-    *   - https://github.com/dmlc/xgboost/blob/master/doc/parameter.md
-    *   - https://github.com/dmlc/xgboost/issues/332
-    *
-    * @param spark The SparkSession.
-    * @param expressionData The DataFrame containing the expression data.
-    * @param genes The List of all genes corresponding to the columns in the DataFrame.
-    * @param candidateRegulators The list of candidate regulators (transcription factors) or Nil,
-    *                            in which case all genes are considered as candidate regulators.
-    * @param params The XGBoost parameter Map.
-    * @param targets Optional limit for the nr of targets for which to compute regulators. Uses all genes if Nil.
-    */
   def apply(spark: SparkSession,
-            expressionData: DataFrame,
-            genes: List[Gene],
-            nrRounds: Int,
+            cscProducer: List[(Gene, GeneIndex)] => CSCMatrix[GeneExpression],
+            columnVectorRDD: RDD[Row],
+            allGenes: List[Gene],
             candidateRegulators: List[Gene],
-            params: BoosterParams = DEFAULT_BOOSTER_PARAMS,
             targets: List[Gene] = Nil,
-            nrWorkers: Option[Int] = None) = {
+            params: RegressionParams = RegressionParams(),
+            cellTop: Option[CellCount] = None,
+            nrPartitions: Option[Int] = None) = {
 
-    val regulatorIndices = toRegulatorGlobalIndexMap(genes, candidateRegulators).map(_._2)
+    val sc = spark.sparkContext
 
-    type ACC = (List[DataFrame], List[Duration])
+    val globalRegulatorIndex = toGlobalRegulatorIndex(allGenes, candidateRegulators)
 
-    val isTarget = targets match {
-      case Nil => (_: Gene) => true
-      case _   => targets.toSet.contains _
-    }
+    //    val csc =
+    //      readCSCMatrix(
+    //        hdf5,
+    //        cellTop = cellTop,
+    //        onlyGeneIndices = Some(globalRegulatorIndex.map(_._2))).get
 
-    val repartitioned = expressionData.repartition(nrWorkers.getOrElse(spark.sparkContext.defaultParallelism)).cache()
+    val csc = cscProducer.apply(globalRegulatorIndex)
+    val cscBroadcast = sc.broadcast(csc)
 
-    val (regulations, timings) =
-      genes
-        .zipWithIndex
-        .filter{ case (gene, _) => isTarget(gene) }
-        .map { case (targetGene, targetIndex) => profile {
-          XGBoostSparkRegression(
-            spark,
-            repartitioned,
-            genes,
-            targetIndex,
-            regulatorIndices,
-            params,
-            nrRounds = nrRounds,
-            nrWorkers = nrWorkers) }}
-        .foldLeft((Nil, Nil): ACC) { case (acc, (reg, dur)) => (reg :: acc._1, dur :: acc._2) }
+    val globalRegulatorIndexBroadcast = sc.broadcast(globalRegulatorIndex)
 
-    val grn = regulations.reduce(_ union _)
+    def isTarget(row: Row) = containedIn(targets)(row.gene)
 
-    val total    = timings.reduce(_ plus _)
-    val average  = total / timings.length
-    val estimate = average * genes.length
+    // val columnVectorRDD = spark.read.parquet(columnsParquet).rdd
 
-    val stats =
-      ListMap(
-        "nr of cells"           -> expressionData.count,
-        "nr of genes"           -> genes.size,
-        "nr of target genes"    -> targets.size,
-        "nr of regulator genes" -> s"${regulatorIndices.size} (${candidateRegulators.size} specified)",
+    val rdd =
+      nrPartitions
+        .map(columnVectorRDD.repartition)
+        .getOrElse(columnVectorRDD)
+        .filter(isTarget)
 
-        "nr of rounds" -> nrRounds,
-        "nr of workers" -> nrWorkers.map(_.toString).getOrElse(s"default parallelism ${spark.sparkContext.defaultParallelism}"),
+    val GRN = rdd.mapPartitions(it => {
 
-        "edge count" -> grn.count,
+      val csc = cscBroadcast.value
+      val index = globalRegulatorIndexBroadcast.value
+      val unsliced = toDMatrix(csc)
 
-        s"total time on ${targets.size} targets"       -> pretty(total),
-        "average time on 1 target"                     -> pretty(average),
-        s"estimated time on all ${genes.size} targets" -> pretty(estimate)
-      )
+      it.flatMap(row => {
+        val scores = importanceScores(row.gene, row.data, index, csc, unsliced, params)
 
-    (grn, stats ++ params)
+        if (it.isEmpty) {
+          unsliced.delete()
+        }
+
+        scores
+      })
+    })
+
+    spark
+      .createDataFrame(GRN)
+      .toDF(CANDIDATE_REGULATOR_NAME, TARGET_GENE_NAME, IMPORTANCE)
   }
 
   /**
-    * @param allGenes The List of all genes in the data set.
-    * @param candidateRegulators The Set of candidate regulator genes.
-    * @return Returns a List[(Gene -> GeneIndex)], mapping the genes present in the List of
-    *         candidate regulators to their index in the complete gene List.
+    * @param targetGene The target gene.
+    * @param response The response vector of target gene.
+    * @param globalRegulatorIndex Global index of the regulator genes.
+    * @param csc The CSC matrix of gene expression values, only contains regulators.
+    * @param params Parameters for the regressions.
+    * @return Calculate the importance scores for the regulators of the target gene.
     */
-  def toRegulatorGlobalIndexMap(allGenes: List[Gene], candidateRegulators: List[Gene]): List[(Gene, GeneIndex)] = {
-    assert(candidateRegulators.nonEmpty)
+  def importanceScores(targetGene: String,
+                       response: Array[Float],
+                       globalRegulatorIndex: List[(Gene, GeneIndex)],
+                       csc: CSCMatrix[GeneExpression],
+                       unsliced: DMatrix,
+                       params: RegressionParams): Iterable[(Gene, Gene, Importance)] = {
 
-    val isRegulator = candidateRegulators.toSet.contains _
+    val targetIsRegulator = globalRegulatorIndex.exists{ case (gene, _) => gene == targetGene }
 
-    allGenes
-      .zipWithIndex
-      .filter{ case (gene, _) => isRegulator(gene) }
+    println(s"-> $targetGene (regulator? $targetIsRegulator)")
+
+    val regulatorCSCIndexTuples =
+      globalRegulatorIndex
+        .map(_._1)
+        .zipWithIndex
+        .filterNot { case (gene, _) => gene == targetGene } // remove the target from the predictors
+
+    def toTrainingData = {
+      lazy val sliced = toDMatrix(csc.apply(0 until csc.rows, regulatorCSCIndexTuples.map(_._2)))
+      val trainingData = if (targetIsRegulator) sliced else unsliced
+      trainingData.setLabel(response)
+      trainingData
+    }
+
+    def performXGBoost(trainingData: DMatrix) = {
+      import params._
+
+      val booster = XGBoost.train(trainingData, boosterParams, nrRounds)
+
+      val nrFolds = 5
+      val cv = XGBoost.crossValidation(trainingData, boosterParams, nrRounds, nrFolds)
+
+      println(cv.mkString("\n"))
+
+      val sum = booster.getFeatureScore().values.map(_.toInt).sum
+
+      val scores =
+        booster
+          .getFeatureScore()
+          .map { case (feature, score) => {
+            val featureIndex = feature.substring(1).toInt
+            val (regulatorGene, _) = regulatorCSCIndexTuples(featureIndex)
+            val importance = if (normalize) score.toFloat / sum else score.toFloat
+
+            (regulatorGene, targetGene, importance)}}
+          .toSeq
+          .sortBy(- _._3)
+
+      scores
+    }
+
+    resource
+      .makeManagedResource(toTrainingData)(m => if (targetIsRegulator) m.delete())(Nil)
+      .map(performXGBoost)
+      .opt
+      .get
+  }
+
+  def toDMatrix(m: SliceMatrix[Int, Int, Int]) =
+    new DMatrix(m.activeValuesIterator.map(_.toFloat).toArray, m.rows, m.cols, 0f)
+
+  def toDMatrix(csc: CSCMatrix[Int]) =
+    new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data.map(_.toFloat), CSC)
+
+  private implicit class PimpRow(row: Row) {
+    def gene: String = row.getAs[String](GENE)
+    def data: Array[Float] = row.getAs[SparseVector](VALUES).toArray.map(_.toFloat)
+  }
+
+  private def containedIn(targets: List[Gene]) = targets match {
+    case Nil => (_: Gene) => true
+    case _ => targets.toSet.contains _
   }
 
 }
