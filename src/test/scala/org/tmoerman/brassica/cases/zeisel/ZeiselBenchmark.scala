@@ -5,7 +5,7 @@ import java.io.File
 import org.apache.commons.io.FileUtils.deleteDirectory
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.{RegressionParams, XGBoostSuiteBase}
-import org.tmoerman.brassica.util.TimeUtils
+import org.tmoerman.brassica.util.{PropsReader, TimeUtils}
 import org.tmoerman.brassica.util.TimeUtils.pretty
 
 /**
@@ -27,9 +27,9 @@ class ZeiselBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     val genes = ZeiselReader.readGenes(spark, zeiselMrna)
 
-    val nrTargets = Seq(1, 5, 10, 25, 100, 250, 1000, 2500, 10000, genes.size)
+    val nrTargets = Seq(1, 5, 10, 25, 100, 250, 1000, 2500, 10000, genes.size).take(5)
 
-    val machine = "giorgio"
+    val machine = PropsReader.currentProfile
 
     val durations =
       nrTargets.map { nr =>
@@ -51,19 +51,19 @@ class ZeiselBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
                 targets = targets.toSet,
                 params = params,
                 cellTop = None,
-                nrPartitions = None)
+                nrPartitions = Some(spark.sparkContext.defaultParallelism))
 
           result.write.parquet(out)
 
           result
         }
 
-        s"| $machine | ${targets.size} | ${pretty(duration)} |"
+        s"| $machine | ${targets.size} | ${params.nrRounds} | ${pretty(duration)} | $params |"
       }
 
     val table =
-      "| machine | # targets | duration seconds |" ::
-      "| ---     | ---       | ---:             |" ::
+      "| machine | # targets | # boosting rounds | duration seconds | params |" ::
+      "| ---     | ---:      | ---:              | ---:             | ---    |" ::
       durations.toList
 
     println(table.mkString("\n"))
