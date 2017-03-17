@@ -4,35 +4,44 @@ import breeze.linalg.{CSCMatrix, SliceMatrix}
 import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
 import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
 import org.apache.spark.ml.linalg.SparseVector
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Row, SparkSession}
-import org.tmoerman.brassica.ScenicPipeline_OLD.toGlobalRegulatorIndex
-import org.tmoerman.brassica.cases.megacell.MegacellReader.VALUES
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
 /**
   * @author Thomas Moerman
   */
 object ScenicPipeline {
 
+  /**
+    * @param spark The SparkSession.
+    * @param cscProducer Function that constructs a CSCMatrix[Expression] in (rows = cells, cols = genes).
+    * @param expressionByGene A DataFrame containing the expression values by gene.
+    *                         | gene | value |
+    * @param allGenes The ordered List of all genes.
+    * @param candidateRegulators The Set of candidate regulators (TF).
+    *                            The term "candidate" is used to imply that not all these regulators are expected
+    *                            to be present in the specified List of all genes.
+    * @param targets A Set of target genes for which we wish to infer the important regulators.
+    *                If empty Set is specified, this is interpreted as: target genes = all genes.
+    * @param params The XGBoost regression parameters.
+    * @param cellTop Optional nr of top cells to consider for the regression.
+    *                All cells are used if None is specified.
+    * @param nrPartitions Optional technical parameter for defining the nr. of Spark partitions to use.
+    * @return Returns a DataFrame with schema:
+    *         | regulator_name | target_name | importance |
+    */
   def apply(spark: SparkSession,
-            cscProducer: List[(Gene, GeneIndex)] => CSCMatrix[GeneExpression],
-            columnVectorRDD: RDD[Row],
+            cscProducer: List[(Gene, GeneIndex)] => CSCMatrix[Expression],
+            expressionByGene: DataFrame,
             allGenes: List[Gene],
-            candidateRegulators: List[Gene],
-            targets: List[Gene] = Nil,
+            candidateRegulators: Set[Gene],
+            targets: Set[Gene] = Set.empty,
             params: RegressionParams = RegressionParams(),
             cellTop: Option[CellCount] = None,
-            nrPartitions: Option[Int] = None) = {
+            nrPartitions: Option[Int] = None): DataFrame = {
 
     val sc = spark.sparkContext
 
     val globalRegulatorIndex = toGlobalRegulatorIndex(allGenes, candidateRegulators)
-
-    //    val csc =
-    //      readCSCMatrix(
-    //        hdf5,
-    //        cellTop = cellTop,
-    //        onlyGeneIndices = Some(globalRegulatorIndex.map(_._2))).get
 
     val csc = cscProducer.apply(globalRegulatorIndex)
     val cscBroadcast = sc.broadcast(csc)
@@ -41,13 +50,14 @@ object ScenicPipeline {
 
     def isTarget(row: Row) = containedIn(targets)(row.gene)
 
-    // val columnVectorRDD = spark.read.parquet(columnsParquet).rdd
-
     val rdd =
       nrPartitions
-        .map(columnVectorRDD.repartition)
-        .getOrElse(columnVectorRDD)
+        .map(expressionByGene.rdd.repartition)
+        .getOrElse(expressionByGene.rdd)
         .filter(isTarget)
+        .cache
+
+    assert(rdd.count == targets.size, "kloewete!")
 
     val GRN = rdd.mapPartitions(it => {
 
@@ -68,7 +78,7 @@ object ScenicPipeline {
 
     spark
       .createDataFrame(GRN)
-      .toDF(CANDIDATE_REGULATOR_NAME, TARGET_GENE_NAME, IMPORTANCE)
+      .toDF(REGULATOR_NAME, TARGET_NAME, IMPORTANCE)
   }
 
   /**
@@ -82,7 +92,7 @@ object ScenicPipeline {
   def importanceScores(targetGene: String,
                        response: Array[Float],
                        globalRegulatorIndex: List[(Gene, GeneIndex)],
-                       csc: CSCMatrix[GeneExpression],
+                       csc: CSCMatrix[Expression],
                        unsliced: DMatrix,
                        params: RegressionParams): Iterable[(Gene, Gene, Importance)] = {
 
@@ -108,10 +118,10 @@ object ScenicPipeline {
 
       val booster = XGBoost.train(trainingData, boosterParams, nrRounds)
 
-      val nrFolds = 5
-      val cv = XGBoost.crossValidation(trainingData, boosterParams, nrRounds, nrFolds)
-
-      println(cv.mkString("\n"))
+//      val nrFolds = 5
+//      val cv = XGBoost.crossValidation(trainingData, boosterParams, nrRounds, nrFolds)
+//
+//      println(cv.mkString("\n"))
 
       val sum = booster.getFeatureScore().values.map(_.toInt).sum
 
@@ -148,9 +158,26 @@ object ScenicPipeline {
     def data: Array[Float] = row.getAs[SparseVector](VALUES).toArray.map(_.toFloat)
   }
 
-  private def containedIn(targets: List[Gene]) = targets match {
-    case Nil => (_: Gene) => true
-    case _ => targets.toSet.contains _
+  private def containedIn(targets: Set[Gene]): Gene => Boolean =
+    if (targets.isEmpty)
+      (_ => true)
+    else
+      targets.contains _
+
+  /**
+    * @param allGenes The List of all genes in the data set.
+    * @param candidateRegulators The Set of candidate regulator genes.
+    * @return Returns a List[(Gene -> GeneIndex)], mapping the genes present in the List of
+    *         candidate regulators to their index in the complete gene List.
+    */
+  def toGlobalRegulatorIndex(allGenes: List[Gene], candidateRegulators: Set[Gene]): List[(Gene, GeneIndex)] = {
+    assert(candidateRegulators.nonEmpty)
+
+    val isRegulator = candidateRegulators.contains _
+
+    allGenes
+      .zipWithIndex
+      .filter{ case (gene, _) => isRegulator(gene) }
   }
 
 }

@@ -1,6 +1,7 @@
 package org.tmoerman.brassica
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.tmoerman.brassica.ScenicPipeline.toGlobalRegulatorIndex
 import org.tmoerman.brassica.util.TimeUtils.{pretty, profile}
 
 import scala.collection.immutable.ListMap
@@ -28,19 +29,16 @@ object ScenicPipeline_OLD {
             expressionData: DataFrame,
             genes: List[Gene],
             nrRounds: Int,
-            candidateRegulators: List[Gene],
+            candidateRegulators: Set[Gene],
             params: BoosterParams = DEFAULT_BOOSTER_PARAMS,
-            targets: List[Gene] = Nil,
+            targets: Set[Gene] = Set.empty,
             nrWorkers: Option[Int] = None) = {
 
     val regulatorIndices = toGlobalRegulatorIndex(genes, candidateRegulators).map(_._2)
 
     type ACC = (List[DataFrame], List[Duration])
 
-    val isTarget = targets match {
-      case Nil => (_: Gene) => true
-      case _   => targets.toSet.contains _
-    }
+    val isTarget = if (targets.isEmpty) (_: Gene) => true else targets.contains _
 
     val repartitioned = expressionData.repartition(nrWorkers.getOrElse(spark.sparkContext.defaultParallelism)).cache()
 
@@ -48,7 +46,7 @@ object ScenicPipeline_OLD {
       genes
         .zipWithIndex
         .filter{ case (gene, _) => isTarget(gene) }
-        .map { case (targetGene, targetIndex) => profile {
+        .map { case (_, targetIndex) => profile {
           XGBoostSparkRegression(
             spark,
             repartitioned,
@@ -84,22 +82,6 @@ object ScenicPipeline_OLD {
       )
 
     (grn, stats ++ params)
-  }
-
-  /**
-    * @param allGenes The List of all genes in the data set.
-    * @param candidateRegulators The Set of candidate regulator genes.
-    * @return Returns a List[(Gene -> GeneIndex)], mapping the genes present in the List of
-    *         candidate regulators to their index in the complete gene List.
-    */
-  def toGlobalRegulatorIndex(allGenes: List[Gene], candidateRegulators: List[Gene]): List[(Gene, GeneIndex)] = {
-    assert(candidateRegulators.nonEmpty)
-
-    val isRegulator = candidateRegulators.toSet.contains _
-
-    allGenes
-      .zipWithIndex
-      .filter{ case (gene, _) => isRegulator(gene) }
   }
 
 }

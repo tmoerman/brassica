@@ -1,14 +1,17 @@
 package org.tmoerman.brassica.cases.zeisel
 
-import breeze.linalg.{SparseVector => BreezeSparseVector}
-import org.apache.spark.ml.linalg.BreezeMLConversions._
-import org.apache.spark.ml.linalg.SparseVector
+import java.lang.Math.min
+
+import breeze.linalg.{CSCMatrix, SparseVector => BSV}
+import org.apache.spark.ml.attribute.AttributeGroup
+import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.Row.fromTuple
 import org.apache.spark.sql.types.{StructField, _}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.cases.DataReader
+import org.apache.spark.ml.linalg.BreezeMLConversions._
+import org.apache.spark.ml.linalg.SparseVector
 
 import scala.reflect.ClassTag
 
@@ -44,13 +47,26 @@ object ZeiselReader extends DataReader {
 
   /**
     * @param spark The SparkSession.
+    * @param raw The raw Zeisel file path.
+    * @return Returns the raw lines without the empty line between meta and expression data.
+    */
+  private[zeisel] def rawLines(spark: SparkSession, raw: Path): RDD[Line] =
+    spark
+      .sparkContext
+      .textFile(raw)
+      .map(_.split("\t").map(_.trim).toList)
+      .zipWithIndex
+      .filter(_._2 != EMPTY_LINE_INDEX)
+
+  /**
+    * @param spark The SparkSession.
     * @param lines The (cached) lines parsed from the raw Zeisel file.
     * @return Returns a tuple:
     *         - DataFrame of the Zeisel expression mRNA data with schema
     *         - Gene list
     */
   def apply(spark: SparkSession, lines: RDD[Line]): (DataFrame, List[Gene]) = {
-    val genes = parseGenes(lines)
+    val genes = readGenes(lines)
 
     val schema = parseSchema(lines)
 
@@ -67,6 +83,17 @@ object ZeiselReader extends DataReader {
   }
 
   /**
+    * @param lines The RDD of lines.
+    * @return Returns the List of Gene names.
+    */
+  private[zeisel] def readGenes(lines: RDD[Line]): List[Gene] =
+    lines
+      .filter(_._2 >= FEAT_INDEX_OFFSET)
+      .map(_._1.head)
+      .collect
+      .toList
+
+  /**
     * @param spark The SparkSession.
     * @param parquetFile The Zeisel parquet file.
     * @param rawFile The raw Zeisel data file.
@@ -75,38 +102,32 @@ object ZeiselReader extends DataReader {
   def fromParquet(spark: SparkSession, parquetFile: String, rawFile: String): (DataFrame, List[Gene]) = {
     val df = spark.read.parquet(parquetFile).cache
 
-    val genes = parseGenes(rawLines(spark, rawFile))
+    val genes = readGenes(spark, rawFile)
 
     (df, genes)
   }
 
   /**
-    * @param spark The Spark session.
-    * @param file The file path.
-    * @return Returns the raw lines without the empty line between meta and expression data.
-    */
-  private[zeisel] def rawLines(spark: SparkSession, file: String): RDD[Line] =
-    spark
-      .sparkContext
-      .textFile(file)
-      .map(_.split("\t").map(_.trim).toList)
-      .zipWithIndex
-      .filter(_._2 != EMPTY_LINE_INDEX)
-
-  /**
-    * @param lines The RDD of lines.
+    * @param spark The SparkSession.
+    * @param raw The raw Zeisel file path.
     * @return Returns the List of Gene names.
     */
-  private[zeisel] def parseGenes(lines: RDD[Line]): List[Gene] =
-    lines
-      .filter(_._2 >= FEAT_INDEX_OFFSET)
-      .map(_._1.head)
+  private[zeisel] def readGenes(spark: SparkSession, raw: Path): List[Gene] = {
+
+    // left of the separator Char
+    def leftOf(c: Char)(s: String) = s.splitAt(s.indexOf(c))._1
+
+    spark
+      .sparkContext
+      .textFile(raw)
+      .zipWithIndex
+      .filter{ case (_, idx) => idx >= FEAT_INDEX_OFFSET }
+      .map{ case (s, _) => leftOf('\t')(s)}
       .collect
       .toList
+  }
 
   /**
-    * Parse the Zeisel DataFrame schema.
-    *
     * @param lines The RDD of raw lines.
     * @return Returns the schema StructType.
     */
@@ -140,11 +161,11 @@ object ZeiselReader extends DataReader {
                                 na: Option[Int] = Some(0), // TODO necessary?
                                 nrCells: Option[Int] = None): RDD[Row] = {
 
-    type ACC = (Array[Any], BreezeSparseVector[Double])
+    type ACC = (Array[Any], BSV[Double])
 
     def init(entry: (Any, Index)): ACC = {
       val meta     = Array.ofDim[Any](NR_META_FEATURES)
-      val features = BreezeSparseVector.zeros[Double](expressionVectorLength)
+      val features = BSV.zeros[Double](expressionVectorLength)
       val acc      = (meta, features)
 
       update(acc, entry)
@@ -198,40 +219,135 @@ object ZeiselReader extends DataReader {
   }
 
   /**
-    * @param spark
-    * @param raw
-    * @return
+    * @param spark The SparkSession.
+    * @param raw The raw Zeisel file.
+    * @return Returns a DataFrame:
+    *
+    *         | gene | expression |
     */
-  def readColumnVectors(spark: SparkSession, raw: Path): DataFrame =
-    readColumnVectors(spark, rawLines(spark, raw))
+  def readExpressionByGene(spark: SparkSession, raw: Path): DataFrame =
+    readExpressionByGene(spark, rawLines(spark, raw))
 
   /**
     * @param spark
     * @param lines
-    * @return
+    * @return Returns a DataFrame:
+    *         | gene | expression |
     */
-  def readColumnVectors(spark: SparkSession, lines: RDD[Line]): DataFrame = {
-    val geneColumnVectorTuples = parseExpressionVectorsByGene(lines).map(fromTuple)
+  def readExpressionByGene(spark: SparkSession, lines: RDD[Line]): DataFrame = {
+    val geneColumnVectorTuples =
+      parseExpressionByGene(lines)
+        .map{ case (gene, values) => Row(gene, values.ml) }
 
-    val gene = StructField(GENE, StringType, nullable = false)
-    val schema = StructType(gene :: EXPRESSION_STRUCT_FIELD :: Nil)
+    val schema =
+      StructType(
+        StructField(GENE, StringType) ::
+        new AttributeGroup(VALUES).toStructField :: Nil)
 
     spark.createDataFrame(geneColumnVectorTuples, schema)
   }
 
-  private[zeisel] def parseExpressionVectorsByGene(lines: RDD[Line]) =
+  /**
+    * @param df
+    * @param cellTop
+    * @param onlyGeneIndices
+    * @return Returns a CSCMatrix parsed from the Zeisel DataFrame.
+    */
+  def toCSCMatrix(df: DataFrame,
+                  cellTop: Option[CellCount] = None,
+                  onlyGeneIndices: Seq[GeneIndex],
+                  nrCells: CellCount = ZEISEL_CELL_COUNT,
+                  nrGenes: GeneCount = ZEISEL_GENE_COUNT): CSCMatrix[Expression] = {
+
+    val predictorSlicer =
+      new VectorSlicer()
+        .setInputCol(EXPRESSION)
+        .setOutputCol(REGULATORS)
+        .setIndices(onlyGeneIndices.toArray)
+
+    val regulators =
+      Some(df)
+        .map(predictorSlicer.transform)
+        .map(_.select(REGULATORS))
+        .get
+
+    val cellDim = cellTop.map(min(_, nrCells)).getOrElse(nrCells)
+    val geneDim = onlyGeneIndices.size
+
+    regulators
+      .rdd
+      .zipWithIndex // order of cell observations might be different...
+      .mapPartitions { it =>
+        val matrixBuilder = new CSCMatrix.Builder[Expression](rows = cellDim, cols = geneDim)
+
+        it.foreach{ case (row, cellIdx) =>
+          row
+            .getAs[SparseVector](0)
+            .br
+            .activeIterator
+            .foreach { case (geneIdx, value) => matrixBuilder.add(cellIdx.toInt, geneIdx, value.toInt) }
+        }
+
+        Iterator(matrixBuilder.result) }
+      .reduce(_ += _)
+  }
+
+  def readCSCMatrix(lines: RDD[Line],
+                    cellTop: Option[CellCount] = None,
+                    onlyGeneIndices: Option[Seq[GeneIndex]] = None,
+                    nrCells: CellCount = ZEISEL_CELL_COUNT,
+                    nrGenes: GeneCount = ZEISEL_GENE_COUNT): CSCMatrix[Expression] = {
+
+    val cellDim = cellTop.map(min(_, nrCells)).getOrElse(nrCells)
+    val geneDim = onlyGeneIndices.map(_.size).getOrElse(nrGenes)
+
+    // TODO finish me
+//    val genePredicate = onlyGeneIndices.map(_.toSet)
+//    val reindex: GeneIndex => GeneIndex = onlyGeneIndices.map(_.zipWithIndex.toMap).getOrElse(identity)
+
     lines
-      .filter{ case (_, index) => index >= NR_META_FEATURES } // get rid of meta field values
-      .map{ case (gene :: _ :: values, _) => { // 2nd column is not part of the expression vector
+      .filter{ case (_, lineIdx) => lineIdx >= NR_META_FEATURES } // get rid of meta field values
+      .map{ case (v, lineIdx) => (v, lineIdx - NR_META_FEATURES)} // remap to GeneIndex
 
-      val tuples =
-        values
-          .zipWithIndex
-          .flatMap{ case (value, idx) => if (value.isEmpty) Nil else (idx, value.toDouble) :: Nil }
+      .mapPartitions{ it =>
+        val matrixBuilder = new CSCMatrix.Builder[Expression](rows = cellDim, cols = geneDim)
 
-      val columnVector = BreezeSparseVector(values.length)(tuples: _*)
+        it.foreach {
+          case (_ :: _ :: expressionByGene, geneIdx) =>
 
-      (gene, columnVector.ml)
-    }}
+            expressionByGene
+              .zipWithIndex
+              .foreach { case (value, cellIdx) =>
+                matrixBuilder.add(cellIdx, geneIdx.toInt, value.toInt)
+              }
+
+          case _ => Unit
+        }
+
+        Iterator(matrixBuilder.result) }
+      .reduce(_ += _)
+  }
+
+
+  /**
+    * @param lines RDD of raw lines.
+    * @return Returns an RDD of (gene, expressionVectorByGene)
+    */
+  private[zeisel] def parseExpressionByGene(lines: RDD[Line]): RDD[(Gene, BSV[Double])] =
+    lines
+      .filter{ case (_, lineIdx) => lineIdx >= NR_META_FEATURES } // get rid of meta field values
+      .map {
+        case (gene :: _ :: values, _) => (gene, expressionByGene(values))
+        case _ => ???
+      }
+
+  private[zeisel] def expressionByGene(values: List[String]): BSV[Double] = {
+    val tuples =
+      values
+        .zipWithIndex
+        .flatMap { case (value, cellIdx) => if (value == "0") Nil else (cellIdx, value.toDouble) :: Nil }
+
+    BSV(values.length)(tuples: _*)
+  }
 
 }
