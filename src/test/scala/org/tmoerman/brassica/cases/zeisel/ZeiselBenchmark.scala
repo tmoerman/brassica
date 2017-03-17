@@ -16,7 +16,7 @@ class ZeiselBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
   val params =
     RegressionParams(
       normalize = false,
-      nrRounds = 10,
+      nrRounds = 100,
       boosterParams = Map(
         "seed" -> 777,
         "silent" -> 1
@@ -27,9 +27,9 @@ class ZeiselBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     val genes = ZeiselReader.readGenes(spark, zeiselMrna)
 
-    val nrTargets = Seq(1, 5, 10, 25, 100, 250, 1000, 2500, 10000, genes.size).take(5)
+    val nrTargets = Seq(1, 5, 10, 25, 100, 250, 1000, 2500, 10000, genes.size)
 
-    val machine = PropsReader.currentProfile
+    val machine = PropsReader.currentProfile.get
 
     val durations =
       nrTargets.map { nr =>
@@ -53,7 +53,7 @@ class ZeiselBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
                 cellTop = None,
                 nrPartitions = Some(spark.sparkContext.defaultParallelism))
 
-          result.write.parquet(out)
+          result.repartition(4).write.parquet(out)
 
           result
         }
