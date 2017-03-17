@@ -4,7 +4,7 @@ import java.io.File
 
 import org.apache.commons.io.FileUtils.deleteDirectory
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.{ScenicPipeline, Gene, XGBoostSuiteBase}
+import org.tmoerman.brassica.{ScenicPipeline_OLD, Gene, XGBoostSuiteBase}
 import org.tmoerman.brassica.util.PropsReader.props
 
 /**
@@ -22,13 +22,26 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
     "silent" -> 1
   )
 
-  it should "run on target subset of the Zeisel data set" in {
+  it should "run the embarrassingly parallel pipeline" in {
+
+    // FIXME finish this !!!
+
+//    val result =
+//      ZeiselPipeline
+//        .apply(
+//          spark,
+//          params,
+//        )
+
+  }
+
+  it should "run the old Spark scenic pipeline" in {
     val (df, genes) = ZeiselReader.fromParquet(spark, zeiselParquet, zeiselMrna)
 
     val TFs: List[Gene] = ZeiselReader.readTFs(mouseTFs)
 
     val (grn, info) =
-      ScenicPipeline.apply(
+      ScenicPipeline_OLD.apply(
         spark,
         df,
         genes,

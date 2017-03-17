@@ -1,15 +1,15 @@
 package org.tmoerman.brassica.cases.zeisel
 
 import breeze.linalg.{SparseVector => BreezeSparseVector}
-import org.apache.spark.ml.attribute.AttributeGroup
 import org.apache.spark.ml.linalg.BreezeMLConversions._
+import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Row.fromTuple
 import org.apache.spark.sql.types.{StructField, _}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.cases.DataReader
 
-import scala.io.Source
 import scala.reflect.ClassTag
 
 /**
@@ -23,6 +23,10 @@ object ZeiselReader extends DataReader {
 
   type Line = (List[String], Index)
 
+  // use these for test purposes, not to be hard coded in parser logic
+  private[zeisel] val ZEISEL_CELL_COUNT = 3005
+  private[zeisel] val ZEISEL_GENE_COUNT = 19972
+
   private[zeisel] val NR_META_FEATURES  = 10
   private[zeisel] val EMPTY_LINE_INDEX  = NR_META_FEATURES
   private[zeisel] val FEAT_INDEX_OFFSET = NR_META_FEATURES + 1
@@ -30,14 +34,22 @@ object ZeiselReader extends DataReader {
 
   /**
     * @param spark The SparkSession.
-    * @param rawFile The raw Zeisel file.
+    * @param raw The raw Zeisel file.
     * @return Returns a tuple:
     *         - DataFrame of the Zeisel expression mRNA data with schema
     *         - Gene list
     */
-  def apply(spark: SparkSession, rawFile: String): (DataFrame, List[Gene]) = {
-    val lines = rawLines(spark, rawFile).cache
+  def apply(spark: SparkSession, raw: Path): (DataFrame, List[Gene]) =
+    apply(spark, rawLines(spark, raw).cache)
 
+  /**
+    * @param spark The SparkSession.
+    * @param lines The (cached) lines parsed from the raw Zeisel file.
+    * @return Returns a tuple:
+    *         - DataFrame of the Zeisel expression mRNA data with schema
+    *         - Gene list
+    */
+  def apply(spark: SparkSession, lines: RDD[Line]): (DataFrame, List[Gene]) = {
     val genes = parseGenes(lines)
 
     val schema = parseSchema(lines)
@@ -113,7 +125,7 @@ object ZeiselReader extends DataReader {
         }
         .toList
 
-    StructType(FEATURES_STRUCT_FIELD :: meta)
+    StructType(EXPRESSION_STRUCT_FIELD :: meta)
   }
 
   /**
@@ -184,5 +196,42 @@ object ZeiselReader extends DataReader {
       .values
       .map { case (meta, features) => Row.fromSeq(features.ml :: meta.toList) }
   }
+
+  /**
+    * @param spark
+    * @param raw
+    * @return
+    */
+  def readColumnVectors(spark: SparkSession, raw: Path): DataFrame =
+    readColumnVectors(spark, rawLines(spark, raw))
+
+  /**
+    * @param spark
+    * @param lines
+    * @return
+    */
+  def readColumnVectors(spark: SparkSession, lines: RDD[Line]): DataFrame = {
+    val geneColumnVectorTuples = parseExpressionVectorsByGene(lines).map(fromTuple)
+
+    val gene = StructField(GENE, StringType, nullable = false)
+    val schema = StructType(gene :: EXPRESSION_STRUCT_FIELD :: Nil)
+
+    spark.createDataFrame(geneColumnVectorTuples, schema)
+  }
+
+  private[zeisel] def parseExpressionVectorsByGene(lines: RDD[Line]) =
+    lines
+      .filter{ case (_, index) => index >= NR_META_FEATURES } // get rid of meta field values
+      .map{ case (gene :: _ :: values, _) => { // 2nd column is not part of the expression vector
+
+      val tuples =
+        values
+          .zipWithIndex
+          .flatMap{ case (value, idx) => if (value.isEmpty) Nil else (idx, value.toDouble) :: Nil }
+
+      val columnVector = BreezeSparseVector(values.length)(tuples: _*)
+
+      (gene, columnVector.ml)
+    }}
 
 }

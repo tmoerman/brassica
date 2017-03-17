@@ -24,11 +24,11 @@ class ZeiselParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
   it should "read the gene expression DF from .parquet" in {
     val (df, genes) = fromParquet(spark, zeiselParquet, zeiselMrna)
 
-    df.show(5, truncate = true)
+    df.show(5)
 
-    df.count shouldBe 3005
+    df.count shouldBe ZEISEL_CELL_COUNT
 
-    genes.size shouldBe 10
+    genes.size shouldBe ZEISEL_GENE_COUNT
   }
 
 }
