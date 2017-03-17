@@ -2,7 +2,7 @@ package org.tmoerman.brassica.cases.megacell
 
 import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.ScenicPipeline._
+import org.tmoerman.brassica.ScenicPipeline_OLD._
 
 /**
   * @author Thomas Moerman
@@ -18,7 +18,7 @@ class TFMatrixReaderSpec extends FlatSpec with Matchers {
 
     val TFs = MegacellReader.readTFs(mouseTFs)
 
-    val candidateRegulatorIndices = toRegulatorGlobalIndexMap(genes, TFs).map(_._2)
+    val candidateRegulatorIndices = toGlobalRegulatorIndex(genes, TFs).map(_._2)
 
     val csc =
       MegacellReader

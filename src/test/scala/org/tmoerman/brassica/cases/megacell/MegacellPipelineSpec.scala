@@ -3,7 +3,7 @@ package org.tmoerman.brassica.cases.megacell
 import breeze.linalg.CSCMatrix
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.TimeUtils
-import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, XGBoostSuiteBase}
+import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, ScenicPipeline_OLD, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -15,15 +15,21 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
   val params =
     RegressionParams(
       normalize = false,
-      nrRounds = 10,
+      nrRounds = 25,
       boosterParams = Map(
+        "objective" -> "reg:linear",
+        "eta" -> 0.2f,
         "seed" -> 777,
         "nthread" -> 1,
-        "silent" -> 1
+        "silent" -> 1,
+        "subsample" -> 0.8,
+        "max_depth" -> 5
       ))
 
-  it should "run embarassingly parallel pipeline" in {
+  it should "run the embarrassingly parallel pipeline" in {
     val cellTop = Some(10000)
+
+    val TFs = MegacellReader.readTFs(mouseTFs)
 
     val result =
       MegacellPipeline
@@ -32,7 +38,7 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
           params = params,
           hdf5 = megacell,
           columnsParquet = megacellColumnsParquet + "_10k",
-          candidateRegulators = MegacellReader.readTFs(mouseTFs),
+          candidateRegulators = TFs,
           targets = List("Gad1"),
           cellTop = cellTop,
           nrPartitions = Some(1))
@@ -70,10 +76,12 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
           hdf5 = megacell,
           columnsParquet = megacellColumnsParquet + "_10k",
           candidateRegulators = MegacellReader.readTFs(mouseTFs),
-          targets = genes.take(targetTop),
+          //targets = genes.take(targetTop),
+          targets = List("Gad1"),
           cellTop = cellTop,
           nrPartitions = None)
-        .collect()
+
+      result.show()
     }
 
     // println(duration1.toSeconds, duration2.toSeconds)
@@ -140,7 +148,7 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
     println(sliced.rows, sliced.cols, sliced.activeValuesIterator.toList)
     println(dense.rows, dense.cols, dense.data.toList)
 
-    val dm = MegacellPipeline.toDMatrix(sliced)
+    val dm = ScenicPipeline.toDMatrix(sliced)
     //dm.setLabel(Array(1, 1, 1, 1, 0, 0, 0, 0, 0, 0))
 
     println(dm.toString)
@@ -153,7 +161,7 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
 
     val candidateRegulators = MegacellReader.readTFs(mouseTFs)
 
-    val regulators = ScenicPipeline.toRegulatorGlobalIndexMap(genes, candidateRegulators)
+    val regulators = ScenicPipeline_OLD.toGlobalRegulatorIndex(genes, candidateRegulators)
 
     regulators.size shouldBe 1607
   }

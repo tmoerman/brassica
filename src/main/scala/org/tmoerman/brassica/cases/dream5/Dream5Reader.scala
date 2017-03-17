@@ -51,7 +51,7 @@ object Dream5Reader extends DataReader {
   private[this] def toDF(spark: SparkSession, data: DenseMatrix[Double]): DataFrame = {
     val rows = data.ml.rowIter.map(Row(_)).toList
 
-    val schema = StructType(FEATURES_STRUCT_FIELD :: Nil)
+    val schema = StructType(EXPRESSION_STRUCT_FIELD :: Nil)
 
     spark.createDataFrame(rows, schema)
   }

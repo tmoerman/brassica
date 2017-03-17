@@ -134,15 +134,13 @@ object MegacellReader extends DataReader {
     * @param rowsParquet
     * @param cellTop
     * @param onlyGeneIndices
-    * @param reindex
     * @return
     */
   def readCSCMatrixFromParquet(rowsParquet: Path,
                                cellTop: Option[CellCount] = None,
-                               onlyGeneIndices: Option[Seq[GeneIndex]] = None,
-                               reindex: Boolean = false): CSCMatrix[GeneExpression] = {
+                               onlyGeneIndices: Option[Seq[GeneIndex]] = None): CSCMatrix[GeneExpression] = {
 
-    ??? // FIXME
+    ??? // FIXME implement reading the CSC matrix from Parquet row vectors.
   }
 
   /**
@@ -153,10 +151,9 @@ object MegacellReader extends DataReader {
     */
   def readCSCMatrix(hdf5: Path,
                     cellTop: Option[CellCount] = None,
-                    onlyGeneIndices: Option[Seq[GeneIndex]] = None,
-                    reindex: Boolean = false): Try[CSCMatrix[GeneExpression]] =
+                    onlyGeneIndices: Option[Seq[GeneIndex]] = None): Try[CSCMatrix[GeneExpression]] =
     managed(HDF5FactoryProvider.get.openForReading(hdf5))
-      .map{ reader => readCSCMatrix(reader, cellTop, onlyGeneIndices, reindex) }
+      .map{ reader => readCSCMatrix(reader, cellTop, onlyGeneIndices) }
       .tried
 
   /**
@@ -167,8 +164,7 @@ object MegacellReader extends DataReader {
     */
   def readCSCMatrix(reader: IHDF5Reader,
                     cellTop: Option[CellCount],
-                    onlyGeneIndices: Option[Seq[GeneIndex]],
-                    reindex: Boolean): CSCMatrix[GeneExpression] = {
+                    onlyGeneIndices: Option[Seq[GeneIndex]]): CSCMatrix[GeneExpression] = {
 
     val (nrCells, nrGenes) = readDimensions(reader)
 
@@ -232,7 +228,6 @@ object MegacellReader extends DataReader {
   }
 
   val VALUES = "values"
-  val GENE   = "gene"
 
   def toColumnDataFrame(spark: SparkSession, csc: CSCMatrix[Int], genes: List[Gene]): DataFrame = {
     val rows =

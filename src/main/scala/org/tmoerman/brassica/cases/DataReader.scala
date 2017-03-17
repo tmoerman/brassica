@@ -16,7 +16,7 @@ trait DataReader {
   /**
     * The StructField for data Vectors.
     */
-  val FEATURES_STRUCT_FIELD = new AttributeGroup(EXPRESSION_VECTOR).toStructField()
+  val EXPRESSION_STRUCT_FIELD = new AttributeGroup(EXPRESSION_VECTOR).toStructField()
 
   /**
     * Convenience implicit conversion String -> File.

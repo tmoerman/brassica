@@ -75,11 +75,11 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
     val genesInRange = genes.slice(range.head, range.head + range.size)
 
     val csc =
-      readCSCMatrix(
-        megacell,
-        cellTop = cellTop,
-        onlyGeneIndices = Some(range),
-        reindex = true)
+      MegacellReader
+        .readCSCMatrix(
+          megacell,
+          cellTop = cellTop,
+          onlyGeneIndices = Some(range))
         .get
 
     toColumnDataFrame(spark, csc, genesInRange)
