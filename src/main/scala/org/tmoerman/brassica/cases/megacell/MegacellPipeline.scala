@@ -22,28 +22,29 @@ object MegacellPipeline {
             // TODO rows parquet
             hdf5: Path,
             columnsParquet: Path,
-            candidateRegulators: List[Gene],
-            targets: List[Gene] = Nil,
+            candidateRegulators: Set[Gene],
+            targets: Set[Gene] = Set.empty,
             params: RegressionParams = RegressionParams(),
             cellTop: Option[CellCount] = None,
             nrPartitions: Option[Int] = None) = {
 
-    val allGenes = readGeneNames(hdf5).get
+    val allGenes = MegacellReader.readGeneNames(hdf5).get
 
     val cscProducer = (globalRegulatorIndex: List[(Gene, GeneIndex)]) =>
-      readCSCMatrix(
-        hdf5,
-        cellTop,
-        Some(globalRegulatorIndex.map(_._2)))
-      .get
+      MegacellReader
+        .readCSCMatrix(
+          hdf5,
+          cellTop,
+          Some(globalRegulatorIndex.map(_._2)))
+        .get
 
-    val columnVectorRDD = spark.read.parquet(columnsParquet).rdd
+    val expressionByGene = spark.read.parquet(columnsParquet)
 
     ScenicPipeline
       .apply(
         spark,
         cscProducer,
-        columnVectorRDD,
+        expressionByGene,
         allGenes,
         candidateRegulators,
         targets,

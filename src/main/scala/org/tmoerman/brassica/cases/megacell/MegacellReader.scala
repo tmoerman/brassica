@@ -35,7 +35,7 @@ object MegacellReader extends DataReader {
   private[this] val SHAPE      = "/mm10/shape"
   private[this] val GENE_NAMES = "/mm10/gene_names"
 
-  type ExpressionTuples = Array[(GeneIndex, GeneExpression)]
+  type ExpressionTuples = Array[(GeneIndex, Expression)]
 
   type RowFn[T] = (CellIndex, GeneCount, ExpressionTuples) => T
 
@@ -138,7 +138,9 @@ object MegacellReader extends DataReader {
     */
   def readCSCMatrixFromParquet(rowsParquet: Path,
                                cellTop: Option[CellCount] = None,
-                               onlyGeneIndices: Option[Seq[GeneIndex]] = None): CSCMatrix[GeneExpression] = {
+                               onlyGeneIndices: Option[Seq[GeneIndex]] = None): CSCMatrix[Expression] = {
+
+    // TODO can we not also read from the column parquet file?
 
     ??? // FIXME implement reading the CSC matrix from Parquet row vectors.
   }
@@ -151,7 +153,7 @@ object MegacellReader extends DataReader {
     */
   def readCSCMatrix(hdf5: Path,
                     cellTop: Option[CellCount] = None,
-                    onlyGeneIndices: Option[Seq[GeneIndex]] = None): Try[CSCMatrix[GeneExpression]] =
+                    onlyGeneIndices: Option[Seq[GeneIndex]] = None): Try[CSCMatrix[Expression]] =
     managed(HDF5FactoryProvider.get.openForReading(hdf5))
       .map{ reader => readCSCMatrix(reader, cellTop, onlyGeneIndices) }
       .tried
@@ -164,7 +166,7 @@ object MegacellReader extends DataReader {
     */
   def readCSCMatrix(reader: IHDF5Reader,
                     cellTop: Option[CellCount],
-                    onlyGeneIndices: Option[Seq[GeneIndex]]): CSCMatrix[GeneExpression] = {
+                    onlyGeneIndices: Option[Seq[GeneIndex]]): CSCMatrix[Expression] = {
 
     val (nrCells, nrGenes) = readDimensions(reader)
 
@@ -173,10 +175,10 @@ object MegacellReader extends DataReader {
     val cellDim = cellTop.map(min(_, nrCells)).getOrElse(nrCells)
     val geneDim = onlyGeneIndices.map(_.size).getOrElse(nrGenes)
 
-    val matrixBuilder = new CSCMatrix.Builder[Int](rows = cellDim, cols = geneDim)
+    val matrixBuilder = new CSCMatrix.Builder[Expression](rows = cellDim, cols = geneDim)
 
     val genePredicate = onlyGeneIndices.map(_.toSet)
-    val reindex: GeneIndex => GeneIndex = onlyGeneIndices.map(_.zipWithIndex.toMap).getOrElse(identity _)
+    val reindex: GeneIndex => GeneIndex = onlyGeneIndices.map(_.zipWithIndex.toMap).getOrElse(identity)
 
     for (cellIndex <- 0 until cellDim) {
       val colStart  = pointers(cellIndex)
@@ -227,15 +229,13 @@ object MegacellReader extends DataReader {
     }
   }
 
-  val VALUES = "values"
-
   def toColumnDataFrame(spark: SparkSession, csc: CSCMatrix[Int], genes: List[Gene]): DataFrame = {
     val rows =
       (csc.columns zip genes.toIterator)
         .map{ case (vector, gene) => Row.apply(ml(vector), gene) }
 
     val schema = StructType(
-      new AttributeGroup(VALUES).toStructField() ::
+      new AttributeGroup(VALUES).toStructField ::
       new StructField(GENE, StringType) :: Nil)
 
     spark.createDataFrame(rows.toSeq, schema)

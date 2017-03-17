@@ -10,7 +10,7 @@ import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, ScenicPipeline_O
   */
 class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
-  behavior of "Scenic pipeline"
+  behavior of "Scenic pipeline on Megacell"
 
   val params =
     RegressionParams(
@@ -29,17 +29,17 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
   it should "run the embarrassingly parallel pipeline" in {
     val cellTop = Some(10000)
 
-    val TFs = MegacellReader.readTFs(mouseTFs)
+    val TFs = MegacellReader.readTFs(mouseTFs).toSet
 
     val result =
       MegacellPipeline
         .apply(
           spark,
-          params = params,
           hdf5 = megacell,
           columnsParquet = megacellColumnsParquet + "_10k",
           candidateRegulators = TFs,
-          targets = List("Gad1"),
+          targets = Set("Gad1"),
+          params = params,
           cellTop = cellTop,
           nrPartitions = Some(1))
 
@@ -68,16 +68,17 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
         .collect()
     }*/
 
+    val TFs = MegacellReader.readTFs(mouseTFs).toSet
+
     val (_, duration2) = TimeUtils.profile {
       val result = MegacellPipeline
         .apply(
           spark,
-          params = params,
           hdf5 = megacell,
           columnsParquet = megacellColumnsParquet + "_10k",
-          candidateRegulators = MegacellReader.readTFs(mouseTFs),
-          //targets = genes.take(targetTop),
-          targets = List("Gad1"),
+          candidateRegulators = TFs,
+          targets = Set("Gad1"),
+          params = params,
           cellTop = cellTop,
           nrPartitions = None)
 
@@ -159,9 +160,9 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
   "calculating the regulator genes" should "work correctly" in {
     val genes = MegacellReader.readGeneNames(megacell).get
 
-    val candidateRegulators = MegacellReader.readTFs(mouseTFs)
+    val candidateRegulators = MegacellReader.readTFs(mouseTFs).toSet
 
-    val regulators = ScenicPipeline_OLD.toGlobalRegulatorIndex(genes, candidateRegulators)
+    val regulators = ScenicPipeline.toGlobalRegulatorIndex(genes, candidateRegulators)
 
     regulators.size shouldBe 1607
   }

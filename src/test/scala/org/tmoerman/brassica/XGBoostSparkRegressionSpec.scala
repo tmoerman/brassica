@@ -25,7 +25,7 @@ class XGBoostSparkRegressionSpec extends FlatSpec with XGBoostSuiteBase with Mat
       Row(Vectors.dense(-2.2, 2.2, 22.22))
     )
 
-    val features = new AttributeGroup(EXPRESSION_VECTOR).toStructField()
+    val features = new AttributeGroup(EXPRESSION).toStructField()
 
     val schema = StructType(features :: Nil)
 

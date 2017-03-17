@@ -17,7 +17,7 @@ class Genie3ReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
     genes.size shouldBe 10
 
-    df.columns shouldBe Array(EXPRESSION_VECTOR)
+    df.columns shouldBe Array(EXPRESSION)
 
     df.count shouldBe 136
 

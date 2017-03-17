@@ -47,7 +47,7 @@ object XGBoostSparkRegression {
           round = nrRounds,
           nWorkers = nrWorkers.getOrElse(spark.sparkContext.defaultParallelism),
           useExternalMemory = false,
-          featureCol = CANDIDATE_REGULATORS,
+          featureCol = REGULATORS,
           labelCol = TARGET_GENE)
 
     val sum = model.booster.getFeatureScore().map(_._2.toInt).sum
@@ -67,7 +67,7 @@ object XGBoostSparkRegression {
 
     spark
       .createDataFrame(geneRegulations)
-      .toDF(CANDIDATE_REGULATOR_INDEX, CANDIDATE_REGULATOR_NAME, TARGET_GENE_INDEX, TARGET_GENE_NAME, IMPORTANCE)
+      .toDF(REGULATOR_INDEX, REGULATOR_NAME, TARGET_INDEX, TARGET_NAME, IMPORTANCE)
       .sort(desc(IMPORTANCE))
   }
 
@@ -80,17 +80,17 @@ object XGBoostSparkRegression {
     * @return Returns a DataFrame with two attribute groups: "regulators" and "target",
     *         to be used as input to XGBoost.
     */
-  def sliceGenes(trainingData: DataFrame, targetGene: Int, candidateRegulators: Seq[Int]): DataFrame = {
+  def sliceGenes(trainingData: DataFrame, targetGene: GeneIndex, candidateRegulators: Seq[GeneIndex]): DataFrame = {
     val targetSlicer =
       new VectorSlicer()
-        .setInputCol(EXPRESSION_VECTOR)
+        .setInputCol(EXPRESSION)
         .setOutputCol(TARGET_GENE)
         .setIndices(Array(targetGene))
 
     val predictorSlicer =
       new VectorSlicer()
-        .setInputCol(EXPRESSION_VECTOR)
-        .setOutputCol(CANDIDATE_REGULATORS)
+        .setInputCol(EXPRESSION)
+        .setOutputCol(REGULATORS)
         .setIndices(candidateRegulators.toArray)
 
     val toScalar = udf[Double, MLVector](_.apply(0)) // transform vector of length 1 to scalar.
@@ -99,7 +99,7 @@ object XGBoostSparkRegression {
       .map(targetSlicer.transform)
       .map(predictorSlicer.transform)
       .map(df => df.withColumn(TARGET_GENE, toScalar(df.apply(TARGET_GENE))))
-      .map(df => df.select(CANDIDATE_REGULATORS, TARGET_GENE))
+      .map(df => df.select(REGULATORS, TARGET_GENE))
       .get
   }
 

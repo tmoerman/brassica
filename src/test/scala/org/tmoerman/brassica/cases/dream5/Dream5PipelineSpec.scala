@@ -17,7 +17,7 @@ class Dream5PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
   it should "run on 5 targets of the ecoli data set" in {
     val (df, genes) = Dream5Reader.readOriginalData(spark, ecoliData, ecoliGenes)
 
-    val TFs: List[Gene] = Dream5Reader.readTFs(ecoliTFs)
+    val TFs = Dream5Reader.readTFs(ecoliTFs).toSet
 
     val (grn, info) =
       ScenicPipeline_OLD.apply(
@@ -26,7 +26,7 @@ class Dream5PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
         genes,
         nrRounds =  10,
         candidateRegulators = TFs,
-        targets = genes.take(5))
+        targets = genes.take(5).toSet)
 
     grn.show(5)
 

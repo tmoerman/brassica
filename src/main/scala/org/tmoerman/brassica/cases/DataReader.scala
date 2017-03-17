@@ -13,10 +13,12 @@ import scala.io.Source
   */
 trait DataReader {
 
+  private[brassica] val MOUSE_TF_COUNT = 1623
+
   /**
     * The StructField for data Vectors.
     */
-  val EXPRESSION_STRUCT_FIELD = new AttributeGroup(EXPRESSION_VECTOR).toStructField()
+  val EXPRESSION_STRUCT_FIELD = new AttributeGroup(EXPRESSION).toStructField()
 
   /**
     * Convenience implicit conversion String -> File.
@@ -24,12 +26,12 @@ trait DataReader {
     * @param path The file path as a String.
     * @return Returns java.io.File(path)
     */
-  implicit def pimp(path: String): File = new File(path)
+  implicit def pimp(path: String) = new File(path)
 
   /**
     * @param file
     * @return Returns the list of transcription factors.
     */
-  def readTFs(file: String): List[Gene] = Source.fromFile(file).getLines.toList
+  def readTFs(file: String) = Source.fromFile(file).getLines.toList
 
 }

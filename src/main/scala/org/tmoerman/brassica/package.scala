@@ -18,19 +18,20 @@ package object brassica {
   type CellCount = Int
   type GeneIndex = Int
   type GeneCount = Int
-  type GeneExpression = Int
+  type Expression = Int
   type Importance = Float
 
-  val GENE                 = "gene"
-  val EXPRESSION_VECTOR    = "expression"
-  val CANDIDATE_REGULATORS = "regulators"
-  val TARGET_GENE          = "target_gene"
+  val VALUES      = "values"
+  val GENE        = "gene"
+  val EXPRESSION  = "expression"
+  val REGULATORS  = "regulators"
+  val TARGET_GENE = "target_gene"
 
-  val TARGET_GENE_INDEX         = "target_index"
-  val TARGET_GENE_NAME          = "target_name"
-  val CANDIDATE_REGULATOR_INDEX = "regulator_index"
-  val CANDIDATE_REGULATOR_NAME  = "regulator_name"
-  val IMPORTANCE                = "importance"
+  val TARGET_INDEX    = "target_index"
+  val TARGET_NAME     = "target_name"
+  val REGULATOR_INDEX = "regulator_index"
+  val REGULATOR_NAME  = "regulator_name"
+  val IMPORTANCE      = "importance"
 
   val DEFAULT_BOOSTER_PARAMS: BoosterParams = Map(
     "silent" -> 1

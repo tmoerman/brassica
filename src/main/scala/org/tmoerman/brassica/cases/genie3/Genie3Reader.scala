@@ -30,9 +30,9 @@ object Genie3Reader extends DataReader {
     val assembler =
       new VectorAssembler()
         .setInputCols(csv.columns)
-        .setOutputCol(EXPRESSION_VECTOR)
+        .setOutputCol(EXPRESSION)
 
-    val df = assembler.transform(csv).select(EXPRESSION_VECTOR)
+    val df = assembler.transform(csv).select(EXPRESSION)
 
     (df, csv.columns.toList)
   }

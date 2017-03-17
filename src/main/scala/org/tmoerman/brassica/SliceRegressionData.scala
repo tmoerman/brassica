@@ -28,7 +28,7 @@ class SliceRegressionData(override val uid: String)
   override def transform(data: Dataset[_]): DataFrame = {
     val targetSlicer =
       new VectorSlicer()
-        .setInputCol(EXPRESSION_VECTOR)
+        .setInputCol(EXPRESSION)
         .setOutputCol(TARGET_GENE)
         .setIndices(Array($(targetGene)))
 
@@ -36,8 +36,8 @@ class SliceRegressionData(override val uid: String)
 
     val predictorSlicer =
       new VectorSlicer()
-        .setInputCol(EXPRESSION_VECTOR)
-        .setOutputCol(CANDIDATE_REGULATORS)
+        .setInputCol(EXPRESSION)
+        .setOutputCol(REGULATORS)
         .setIndices(actualRegulators)
 
     val toScalar = udf[Double, MLVector](_.apply(0))
@@ -46,18 +46,18 @@ class SliceRegressionData(override val uid: String)
       .map(targetSlicer.transform)
       .map(predictorSlicer.transform)
       .map(df => df.withColumn(TARGET_GENE, toScalar(df.apply(TARGET_GENE))))
-      .map(df => df.select(CANDIDATE_REGULATORS, TARGET_GENE))
+      .map(df => df.select(REGULATORS, TARGET_GENE))
       .get
   }
 
   override def transformSchema(schema: StructType): StructType = {
     require($(candidateRegulators).length > 0, "specify at least one candidate regulator")
 
-    if (! schema.fieldNames.contains(EXPRESSION_VECTOR)) {
-      throw new IllegalArgumentException(s"Input schema should contain $EXPRESSION_VECTOR")
+    if (! schema.fieldNames.contains(EXPRESSION)) {
+      throw new IllegalArgumentException(s"Input schema should contain $EXPRESSION")
     }
 
-    val regulators = new AttributeGroup(CANDIDATE_REGULATORS).toStructField()
+    val regulators = new AttributeGroup(REGULATORS).toStructField()
 
     val target = StructField(TARGET_GENE, DoubleType, nullable = false)
 
