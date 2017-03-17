@@ -5,7 +5,7 @@ import java.io.File
 import org.apache.commons.io.FileUtils.deleteDirectory
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.PropsReader.props
-import org.tmoerman.brassica.{Gene, ScenicPipeline, XGBoostSuiteBase}
+import org.tmoerman.brassica.{Gene, ScenicPipeline_OLD, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -20,7 +20,7 @@ class Dream5PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
     val TFs: List[Gene] = Dream5Reader.readTFs(ecoliTFs)
 
     val (grn, info) =
-      ScenicPipeline.apply(
+      ScenicPipeline_OLD.apply(
         spark,
         df,
         genes,

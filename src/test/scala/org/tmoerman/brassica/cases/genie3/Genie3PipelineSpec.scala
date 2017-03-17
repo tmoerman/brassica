@@ -2,7 +2,7 @@ package org.tmoerman.brassica.cases.genie3
 
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.PropsReader.props
-import org.tmoerman.brassica.{ScenicPipeline, XGBoostSuiteBase}
+import org.tmoerman.brassica.{ScenicPipeline_OLD, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -18,7 +18,7 @@ class Genie3PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
     val (expression, genes) = Genie3Reader.apply(spark, props("genie3"))
 
     val (grn, stats) =
-      ScenicPipeline(
+      ScenicPipeline_OLD(
         spark,
         expression,
         genes,
