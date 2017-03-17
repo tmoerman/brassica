@@ -27,10 +27,8 @@ class ZeiselBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     val genes = ZeiselReader.readGenes(spark, zeiselMrna)
 
-    // val nrTargets = Seq(1, 5, 10, 25, 100, 250, 1000, 2500, 10000, genes.size)
-    // val nrTargets = Seq(2500, 10000, genes.size)
-    val nrTargets = Seq(2500)
-
+    val nrTargets = Seq(1, 5, 10, 25, 100, 250, 1000, 2500, 10000, genes.size)
+    
     val machine = "giorgio"
 
     val durations =
