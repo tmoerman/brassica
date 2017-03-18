@@ -54,8 +54,10 @@ object ZeiselReader extends DataReader {
     spark
       .sparkContext
       .textFile(raw)
-      .map(_.split("\t").map(_.trim).toList)
       .zipWithIndex
+      .map{ case (string, idx) =>
+        val split = string.split("\t").map(_.trim).toList
+        (split, idx) }
       .filter(_._2 != EMPTY_LINE_INDEX)
 
   /**
@@ -293,32 +295,34 @@ object ZeiselReader extends DataReader {
   }
 
   def readCSCMatrix(lines: RDD[Line],
-                    cellTop: Option[CellCount] = None,
-                    onlyGeneIndices: Option[Seq[GeneIndex]] = None,
-                    nrCells: CellCount = ZEISEL_CELL_COUNT,
-                    nrGenes: GeneCount = ZEISEL_GENE_COUNT): CSCMatrix[Expression] = {
+                    onlyGeneIndices: Seq[GeneIndex],
+                    nrCells: CellCount = ZEISEL_CELL_COUNT): CSCMatrix[Expression] = {
 
-    val cellDim = cellTop.map(min(_, nrCells)).getOrElse(nrCells)
-    val geneDim = onlyGeneIndices.map(_.size).getOrElse(nrGenes)
+    val cellDim = nrCells
+    val geneDim = onlyGeneIndices.size
 
-    // TODO finish me
-//    val genePredicate = onlyGeneIndices.map(_.toSet)
-//    val reindex: GeneIndex => GeneIndex = onlyGeneIndices.map(_.zipWithIndex.toMap).getOrElse(identity)
+    val geneIndexMap = onlyGeneIndices.zipWithIndex.toMap
+
+    def genePredicate(i: GeneIndex) = geneIndexMap.contains(i)
+    def reindex(i: GeneIndex) = geneIndexMap.getOrElse(i, i)
 
     lines
-      .filter{ case (_, lineIdx) => lineIdx >= NR_META_FEATURES } // get rid of meta field values
-      .map{ case (v, lineIdx) => (v, lineIdx - NR_META_FEATURES)} // remap to GeneIndex
-
+      .filter{ case (_, lineIdx) => lineIdx >= NR_META_FEATURES }         // get rid of meta field values
+      .map{ case (v, lineIdx) => (v, (lineIdx - FEAT_INDEX_OFFSET).toInt)} // remap to GeneIndex
+      .filter{ case (_, geneIdx) => genePredicate(geneIdx) }
       .mapPartitions{ it =>
         val matrixBuilder = new CSCMatrix.Builder[Expression](rows = cellDim, cols = geneDim)
 
         it.foreach {
-          case (_ :: _ :: expressionByGene, geneIdx) =>
+          case (gene :: _ :: expression, geneIdx) =>
 
-            expressionByGene
+            val geneIdxInMatrix = reindex(geneIdx)
+
+            expression
               .zipWithIndex
+              .filterNot { case (value, _) => value == "0" }
               .foreach { case (value, cellIdx) =>
-                matrixBuilder.add(cellIdx, geneIdx.toInt, value.toInt)
+                matrixBuilder.add(cellIdx, geneIdxInMatrix, value.toInt)
               }
 
           case _ => Unit

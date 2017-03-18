@@ -178,7 +178,7 @@ object MegacellReader extends DataReader {
     val matrixBuilder = new CSCMatrix.Builder[Expression](rows = cellDim, cols = geneDim)
 
     val genePredicate = onlyGeneIndices.map(_.toSet)
-    val reindex: GeneIndex => GeneIndex = onlyGeneIndices.map(_.zipWithIndex.toMap).getOrElse(identity)
+    val reindex: GeneIndex => GeneIndex = onlyGeneIndices.map(_.zipWithIndex.toMap).getOrElse(identity _)
 
     for (cellIndex <- 0 until cellDim) {
       val colStart  = pointers(cellIndex)

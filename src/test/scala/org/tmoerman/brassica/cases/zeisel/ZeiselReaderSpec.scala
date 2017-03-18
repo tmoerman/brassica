@@ -3,6 +3,7 @@ package org.tmoerman.brassica.cases.zeisel
 import java.io.File
 
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
+import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.SparseVector
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica._
@@ -58,11 +59,13 @@ class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
   }
 
   it should "read column vectors correctly" in {
-    val lines = ZeiselReader.rawLines(spark, zeiselMrna).cache
+    import spark.implicits._
+
+    val lines = ZeiselReader.rawLines(spark, zeiselMrna)
 
     val columnsDF = ZeiselReader.readExpressionByGene(spark, lines)
 
-    columnsDF.show(5)
+    columnsDF.filter($"gene" === "Dlx1").show()
 
     columnsDF.head.getAs[SparseVector](VALUES).size shouldBe ZEISEL_CELL_COUNT
 
@@ -72,12 +75,14 @@ class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
   it should "read CSC matrix (cells * genes)" in {
     val lines = ZeiselReader.rawLines(spark, zeiselMrna)
 
+    val onlyGenes = Seq(3, 4, 5)
+
     val csc = ZeiselReader.readCSCMatrix(
       lines,
-      nrCells = ZEISEL_CELL_COUNT,
-      nrGenes = ZEISEL_GENE_COUNT)
+      onlyGenes,
+      nrCells = ZEISEL_CELL_COUNT)
 
-    csc.cols shouldBe ZEISEL_GENE_COUNT
+    csc.cols shouldBe onlyGenes.size
 
     csc.rows shouldBe ZEISEL_CELL_COUNT
   }

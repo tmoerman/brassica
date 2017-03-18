@@ -1,12 +1,7 @@
 package org.tmoerman.brassica.cases.zeisel
 
-import java.io.File
-
-import org.apache.commons.io.FileUtils.deleteDirectory
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica._
-import org.tmoerman.brassica.util.PropsReader.props
-import org.tmoerman.brassica.util.TimeUtils
 
 /**
   * @author Thomas Moerman
@@ -23,7 +18,7 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
   val params =
     RegressionParams(
       normalize = false,
-      nrRounds = 100,
+      nrRounds = 10,
       boosterParams = boosterParams)
 
   it should "run the embarrassingly parallel pipeline from raw" in {
@@ -35,27 +30,7 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
           spark,
           zeiselMrna,
           candidateRegulators = TFs,
-          targets = Set("Hapln2"),
-          params = params,
-          cellTop = None,
-          nrPartitions = None)
-
-    println(params)
-
-    result.show
-  }
-
-  it should "run the emb.par pipeline from parquet" in {
-    val TFs = ZeiselReader.readTFs(mouseTFs).toSet
-
-    val result =
-      ZeiselPipeline
-        .fromParquet(
-          spark,
-          zeiselParquet,
-          zeiselMrna,
-          candidateRegulators = TFs,
-          targets = Set("Hapln2"),
+          targets = Set("Gad1"),
           params = params,
           cellTop = None,
           nrPartitions = None)
@@ -92,12 +67,6 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
     grn.show()
 
     println(info.mkString("\n"))
-
-    // val out = props("out") + "zeisel"
-
-    // deleteDirectory(new File(out))
-
-    // grn.coalesce(1).write.csv(out)
   }
 
 }
