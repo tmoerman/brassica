@@ -56,9 +56,7 @@ object ScenicPipeline {
         .getOrElse(expressionByGene.rdd)
         .filter(isTarget)
         .cache
-
-    assert(rdd.count == targets.size, "kloewete!")
-
+    
     val GRN = rdd.mapPartitions(it => {
 
       val csc = cscBroadcast.value
@@ -106,10 +104,11 @@ object ScenicPipeline {
         .zipWithIndex
         .filterNot { case (gene, _) => gene == targetGene } // remove the target from the predictors
 
-    def toTrainingData = {
+    def toTrainingDMatrix = {
       lazy val sliced = toDMatrix(csc.apply(0 until csc.rows, regulatorCSCIndexTuples.map(_._2)))
       val trainingData = if (targetIsRegulator) sliced else unsliced
       trainingData.setLabel(response)
+
       trainingData
     }
 
@@ -136,7 +135,7 @@ object ScenicPipeline {
     }
 
     resource
-      .makeManagedResource(toTrainingData)(m => if (targetIsRegulator) m.delete())(Nil)
+      .makeManagedResource(toTrainingDMatrix)(m => if (targetIsRegulator) m.delete())(Nil)
       .map(performXGBoost)
       .opt
       .get
@@ -155,9 +154,9 @@ object ScenicPipeline {
 
   private def containedIn(targets: Set[Gene]): Gene => Boolean =
     if (targets.isEmpty)
-      (_ => true)
+      _ => true
     else
-      targets.contains _
+      targets.contains
 
   /**
     * @param allGenes The List of all genes in the data set.
