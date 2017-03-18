@@ -35,12 +35,12 @@ class ZeiselBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
       nrTargets.map { nr =>
 
         val targets = genes.take(nr)
-        val suffix = s"${targets.head}_${targets.size}"
-        val out = s"src/test/resources/out/zeisel_GRN_$suffix"
+        val suffix = s"t${targets.size}_r${params.nrRounds}"
+        val out = s"src/test/resources/out/zeisel_$suffix"
 
         deleteDirectory(new File(out))
 
-        val (df, duration) = TimeUtils.profile {
+        val (_, duration) = TimeUtils.profile {
           val result =
             ZeiselPipeline
               .fromParquet(
@@ -54,8 +54,6 @@ class ZeiselBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
                 nrPartitions = Some(spark.sparkContext.defaultParallelism))
 
           result.repartition(4).write.parquet(out)
-
-          result
         }
 
         s"| $machine | ${targets.size} | ${params.nrRounds} | ${pretty(duration)} | $params |"

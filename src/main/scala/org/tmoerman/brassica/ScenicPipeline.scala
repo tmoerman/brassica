@@ -98,6 +98,8 @@ object ScenicPipeline {
 
     val targetIsRegulator = globalRegulatorIndex.exists{ case (gene, _) => gene == targetGene }
 
+    println(s"-> $targetGene (regulator? $targetIsRegulator)")
+
     val regulatorCSCIndexTuples =
       globalRegulatorIndex
         .map(_._1)
