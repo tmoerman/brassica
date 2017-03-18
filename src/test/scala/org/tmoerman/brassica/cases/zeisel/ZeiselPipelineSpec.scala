@@ -16,9 +16,6 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
   behavior of "Scenic pipeline on Zeisel"
 
   val boosterParams = Map(
-    // "alpha" -> 10, // L1 regularization, cfr. Lasso
-    // "colsample_bytree" -> 0.5f,
-    // "subsample" -> 0.5f,
     "seed" -> 777,
     "silent" -> 1
   )
@@ -26,7 +23,7 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
   val params =
     RegressionParams(
       normalize = false,
-      nrRounds = 10,
+      nrRounds = 100,
       boosterParams = boosterParams)
 
   it should "run the embarrassingly parallel pipeline from raw" in {
@@ -38,10 +35,12 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
           spark,
           zeiselMrna,
           candidateRegulators = TFs,
-          targets = Set("Gad1"),
+          targets = Set("Hapln2"),
           params = params,
           cellTop = None,
           nrPartitions = None)
+
+    println(params)
 
     result.show
   }
@@ -49,43 +48,21 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
   it should "run the emb.par pipeline from parquet" in {
     val TFs = ZeiselReader.readTFs(mouseTFs).toSet
 
-    val genes = ZeiselReader.readGenes(spark, zeiselMrna)
+    val result =
+      ZeiselPipeline
+        .fromParquet(
+          spark,
+          zeiselParquet,
+          zeiselMrna,
+          candidateRegulators = TFs,
+          targets = Set("Hapln2"),
+          params = params,
+          cellTop = None,
+          nrPartitions = None)
 
-    val nrTargets = Seq(1, 10, 100, 500, 1000, 2500, 10000, genes.size)
+    println(params)
 
-    val machine = "giorgio"
-
-    nrTargets
-      .foreach { nr =>
-
-        val targets = genes.take(nr)
-        val suffix = s"${targets.head}_${targets.size}"
-        val out = s"src/test/resources/out/zeisel_GRN_$suffix"
-
-        deleteDirectory(new File(out))
-
-        val (df, duration) = TimeUtils.profile {
-          val result =
-            ZeiselPipeline
-              .fromParquet(
-                spark,
-                zeiselParquet,
-                zeiselMrna,
-                candidateRegulators = TFs,
-                targets = targets.toSet,
-                params = params,
-                cellTop = None,
-                nrPartitions = None)
-
-          result.write.parquet(out)
-
-          result
-        }
-
-        println(s"| $machine | ${targets.size} ")
-
-        println(s"nr targets: ${targets.size}, duration: ${duration.toSeconds} seconds")
-      }
+    result.show
   }
 
   it should "inspect the written GRN" in {
@@ -106,21 +83,21 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
         spark,
         df,
         genes,
-        nrRounds = 10,
+        nrRounds = 100,
         candidateRegulators = TFs,
         params = boosterParams,
-        targets = Set("Gad1"),
+        targets = Set("Hapln2"),
         nrWorkers = Some(8))
 
     grn.show()
 
     println(info.mkString("\n"))
 
-    val out = props("out") + "zeisel"
+    // val out = props("out") + "zeisel"
 
-    deleteDirectory(new File(out))
+    // deleteDirectory(new File(out))
 
-    grn.coalesce(1).write.csv(out)
+    // grn.coalesce(1).write.csv(out)
   }
 
 }
