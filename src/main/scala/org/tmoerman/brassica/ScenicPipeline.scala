@@ -4,6 +4,7 @@ import breeze.linalg.{CSCMatrix, SliceMatrix}
 import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
 import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.tmoerman.brassica.util.TimeUtils.{pretty, profile}
 
 /**
   * @author Thomas Moerman
@@ -42,7 +43,12 @@ object ScenicPipeline {
 
     val globalRegulatorIndex = toGlobalRegulatorIndex(allGenes, candidateRegulators)
 
-    val csc = cscProducer.apply(globalRegulatorIndex)
+    val (csc, duration) = profile {
+      cscProducer.apply(globalRegulatorIndex)
+    }
+
+    println(s"constructing CSC matrix took ${pretty(duration)}")
+
     val cscBroadcast = sc.broadcast(csc)
     val globalRegulatorIndexBroadcast = sc.broadcast(globalRegulatorIndex)
 

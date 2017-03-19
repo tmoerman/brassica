@@ -8,6 +8,8 @@ import org.apache.spark.sql.types.{StructField, _}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.cases.DataReader
+import org.tmoerman.brassica.util.BreezeUtils
+import org.tmoerman.brassica.util.BreezeUtils.asCSCMatrix
 
 import scala.reflect.ClassTag
 
@@ -247,6 +249,7 @@ object ZeiselReader extends DataReader {
 
     geneExpressionLines
       .filter{ case (_, geneIdx) => genePredicate(geneIdx) }
+
       .mapPartitions{ it =>
         val matrixBuilder = new CSCMatrix.Builder[Expression](rows = cellDim, cols = geneDim)
 
@@ -266,7 +269,40 @@ object ZeiselReader extends DataReader {
 
         Iterator(matrixBuilder.result)
       }
+
       .reduce(_ += _)
+  }
+
+  @deprecated("slow")
+  def toCSCMatrixAlt(lines: RDD[Line],
+                     onlyGeneIndices: Seq[GeneIndex], // TODO perhaps better to provide the entire index Gene->Idx
+                     nrCells: CellCount = ZEISEL_CELL_COUNT): CSCMatrix[Expression] = {
+
+    val cellDim = nrCells
+    val geneDim = onlyGeneIndices.size
+
+    val geneIndexMap = onlyGeneIndices.zipWithIndex.toMap
+    def genePredicate(i: GeneIndex) = geneIndexMap.contains(i)
+    def reindex(i: GeneIndex) = geneIndexMap(i)
+
+    val geneExpressionLines =
+      lines
+        .filter{ case (_, lineIdx) => lineIdx >= NR_META_FEATURES }          // get rid of meta field values
+        .map{ case (v, lineIdx) => (v, (lineIdx - FEAT_INDEX_OFFSET).toInt)} // remap to GeneIndex
+
+    geneExpressionLines
+      .filter{ case (_, geneIdx) => genePredicate(geneIdx) }
+      .map{ case (gene :: _ :: values, geneIdx) =>
+
+        val tuples = values.map(_.toInt).zipWithIndex.filterNot(_._1 == 0).map{ case(value, i) => (i, value) }
+
+        val column = BSV(cellDim)(tuples: _*)
+
+        val csc = asCSCMatrix(geneDim, reindex(geneIdx), column)
+
+        csc
+      }
+      .reduce(_ + _)
   }
 
   private[zeisel] def toExpressionByGene(line: Line): Option[ExpressionByGene] =
