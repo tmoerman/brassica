@@ -1,8 +1,7 @@
 package org.tmoerman.brassica.cases.megacell
 
-import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.tmoerman.brassica._
-import org.tmoerman.brassica.cases.megacell.MegacellReader._
 
 /**
   * @author Thomas Moerman
@@ -33,12 +32,10 @@ object MegacellPipeline {
     import spark.implicits._
 
     val allGenes = MegacellReader.readGeneNames(hdf5).get
-    val ds = spark.read.parquet(parquet).as[ExpressionByGene]
+    val expressionByGene = spark.read.parquet(parquet).as[ExpressionByGene]
 
     val cscProducer = (globalRegulatorIndex: List[(Gene, GeneIndex)]) =>
-      MegacellReader.toCSCMatrix(ds, globalRegulatorIndex)
-
-    val expressionByGene = spark.read.parquet(parquet).as[ExpressionByGene]
+      MegacellReader.toCSCMatrix(expressionByGene, globalRegulatorIndex)
 
     ScenicPipeline
       .apply(
