@@ -9,6 +9,7 @@ import org.tmoerman.brassica.{RegressionParams, XGBoostSuiteBase}
 class MegacellBenchmark extends FlatSpec with XGBoostSuiteBase {
 
   val path = "/media/tmo/data/work/datasets/megacell_parquet_full"
+  //val path = megacellColumnsParquet + "_10k"
 
   val boosterParams = Map(
     "seed" -> 777,
@@ -16,7 +17,8 @@ class MegacellBenchmark extends FlatSpec with XGBoostSuiteBase {
     "eta" -> 0.2,
     "subsample" -> 0.8,
     "colsample_bytree" -> 0.7,
-    "gamma" -> 2
+    "gamma" -> 2,
+    "nthread" -> 1
   )
 
   val params =
@@ -28,6 +30,8 @@ class MegacellBenchmark extends FlatSpec with XGBoostSuiteBase {
   "the Megacell emb.par pipeline from parquet" should "run" in {
     val TFs = MegacellReader.readTFs(mouseTFs).toSet
 
+    val limit = Some(10000)
+
     val result =
       MegacellPipeline
         .apply(
@@ -36,6 +40,7 @@ class MegacellBenchmark extends FlatSpec with XGBoostSuiteBase {
           parquet = path,
           candidateRegulators = TFs,
           targets = Set("Gad1"),
+          cellTop = limit,
           params = params)
 
     println(params)
