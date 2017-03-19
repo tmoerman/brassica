@@ -183,34 +183,6 @@ object MegacellReader extends DataReader {
       .reduce(_ += _)
   }
 
-  @deprecated("slow")
-  def toCSCMatrixAlt(ds: Dataset[ExpressionByGene],
-                     genesByGlobalIndex: List[(Gene, GeneIndex)],
-                     cellTop: Option[CellCount] = None,
-                     nrCells: CellCount = MEGACELL_CELL_COUNT,
-                     nrGenes: GeneCount = MEGACELL_GENE_COUNT): CSCMatrix[Expression] = {
-
-    val cellDim = cellTop.map(min(_, nrCells)).getOrElse(nrCells)
-    val geneDim = genesByGlobalIndex.size
-
-    val geneIndexMap = genesByGlobalIndex.map(_._1).zipWithIndex.toMap
-
-    def allowed(gene: Gene) = geneIndexMap.contains(gene)
-    def reindex(gene: Gene) = geneIndexMap(gene)
-
-    ds.rdd
-      .filter{ case ExpressionByGene(gene, v) => allowed(gene) }
-      .map{ case ExpressionByGene(gene, expression) =>
-
-        val sparse = expression.toSparse
-        val tuples = sparse.indices zip sparse.values.map(_.toInt)
-        val column = BSV(expression.size)(tuples: _*)
-
-        asCSCMatrix(geneDim, reindex(gene), column)
-      }
-      .reduce(_ += _)
-  }
-
   /**
     * @param hdf5 The file path.
     * @param cellTop Optional limit on how many cells to read from the file - for testing purposes.

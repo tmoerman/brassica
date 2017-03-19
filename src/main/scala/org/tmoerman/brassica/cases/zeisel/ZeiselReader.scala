@@ -273,38 +273,6 @@ object ZeiselReader extends DataReader {
       .reduce(_ += _)
   }
 
-  @deprecated("slow")
-  def toCSCMatrixAlt(lines: RDD[Line],
-                     onlyGeneIndices: Seq[GeneIndex], // TODO perhaps better to provide the entire index Gene->Idx
-                     nrCells: CellCount = ZEISEL_CELL_COUNT): CSCMatrix[Expression] = {
-
-    val cellDim = nrCells
-    val geneDim = onlyGeneIndices.size
-
-    val geneIndexMap = onlyGeneIndices.zipWithIndex.toMap
-    def genePredicate(i: GeneIndex) = geneIndexMap.contains(i)
-    def reindex(i: GeneIndex) = geneIndexMap(i)
-
-    val geneExpressionLines =
-      lines
-        .filter{ case (_, lineIdx) => lineIdx >= NR_META_FEATURES }          // get rid of meta field values
-        .map{ case (v, lineIdx) => (v, (lineIdx - FEAT_INDEX_OFFSET).toInt)} // remap to GeneIndex
-
-    geneExpressionLines
-      .filter{ case (_, geneIdx) => genePredicate(geneIdx) }
-      .map{ case (gene :: _ :: values, geneIdx) =>
-
-        val tuples = values.map(_.toInt).zipWithIndex.filterNot(_._1 == 0).map{ case(value, i) => (i, value) }
-
-        val column = BSV(cellDim)(tuples: _*)
-
-        val csc = asCSCMatrix(geneDim, reindex(geneIdx), column)
-
-        csc
-      }
-      .reduce(_ + _)
-  }
-
   private[zeisel] def toExpressionByGene(line: Line): Option[ExpressionByGene] =
     Some(line)
       .filter(_._2 >= NR_META_FEATURES)
