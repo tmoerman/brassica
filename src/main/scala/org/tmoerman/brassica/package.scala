@@ -56,7 +56,6 @@ package object brassica {
                               nrRounds: Int = 10,
                               normalize: Boolean = true,
                               nrWorkers: Option[Int] = Some(1),
-                              verbose: Boolean = false,
                               showCV: Boolean = false)
 
 }
