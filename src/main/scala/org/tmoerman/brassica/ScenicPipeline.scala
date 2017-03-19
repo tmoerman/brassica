@@ -3,8 +3,7 @@ package org.tmoerman.brassica
 import breeze.linalg.{CSCMatrix, SliceMatrix}
 import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
 import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
-import org.apache.spark.ml.linalg.SparseVector
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 /**
   * @author Thomas Moerman
@@ -31,7 +30,7 @@ object ScenicPipeline {
     */
   def apply(spark: SparkSession,
             cscProducer: List[(Gene, GeneIndex)] => CSCMatrix[Expression],
-            expressionByGene: DataFrame,
+            expressionByGene: Dataset[ExpressionByGene],
             allGenes: List[Gene],
             candidateRegulators: Set[Gene],
             targets: Set[Gene] = Set.empty,
@@ -45,29 +44,30 @@ object ScenicPipeline {
 
     val csc = cscProducer.apply(globalRegulatorIndex)
     val cscBroadcast = sc.broadcast(csc)
-
     val globalRegulatorIndexBroadcast = sc.broadcast(globalRegulatorIndex)
 
-    def isTarget(row: Row) = containedIn(targets)(row.gene)
-
+    def isTarget(e: ExpressionByGene) = containedIn(targets)(e.gene)
+    
     val rdd =
       nrPartitions
         .map(expressionByGene.rdd.repartition)
         .getOrElse(expressionByGene.rdd)
         .filter(isTarget)
         .cache
-    
+
     val GRN = rdd.mapPartitions(it => {
 
       val csc = cscBroadcast.value
-      val index = globalRegulatorIndexBroadcast.value
-      val unsliced = toDMatrix(csc)
+      val globalRegulatorIndex = globalRegulatorIndexBroadcast.value
+      val full = toDMatrix(csc)
 
       it.flatMap(row => {
-        val scores = importanceScores(row.gene, row.data, index, csc, unsliced, params)
+        val input = XGboostInput(row.gene, row.values.toArray.map(_.toFloat), globalRegulatorIndex, csc, full, params)
+
+        val scores = importanceScores(input)
 
         if (it.isEmpty) {
-          unsliced.delete()
+          full.delete()
         }
 
         scores
@@ -81,18 +81,28 @@ object ScenicPipeline {
 
   /**
     * @param targetGene The target gene.
-    * @param response The response vector of target gene.
+    * @param targetResponse The response vector of target gene.
     * @param globalRegulatorIndex Global index of the regulator genes.
     * @param csc The CSC matrix of gene expression values, only contains regulators.
-    * @param params Parameters for the regressions.
-    * @return Calculate the importance scores for the regulators of the target gene.
+    * @param fullDMatrix DMatrix built from the CSC Matrix.
+    * @param params RegressionParams
     */
-  def importanceScores(targetGene: String,
-                       response: Array[Float],
-                       globalRegulatorIndex: List[(Gene, GeneIndex)],
-                       csc: CSCMatrix[Expression],
-                       unsliced: DMatrix,
-                       params: RegressionParams): Iterable[(Gene, Gene, Importance)] = {
+  case class XGboostInput(targetGene: String,
+                          targetResponse: Array[Float],
+                          globalRegulatorIndex: List[(Gene, GeneIndex)],
+                          csc: CSCMatrix[Expression],
+                          fullDMatrix: DMatrix,
+                          params: RegressionParams)
+
+  /**
+    * @param input Input value object.
+    * @return @return Calculate the importance scores for the regulators of the target gene.
+    */
+  def importanceScores(input: XGboostInput): Iterable[(Gene, Gene, Importance)] = {
+
+    // TODO take this apart like hell
+
+    import input._
 
     val targetIsRegulator = globalRegulatorIndex.exists{ case (gene, _) => gene == targetGene }
 
@@ -105,17 +115,28 @@ object ScenicPipeline {
         .filterNot { case (gene, _) => gene == targetGene } // remove the target from the predictors
 
     def toTrainingDMatrix = {
-      lazy val sliced = toDMatrix(csc.apply(0 until csc.rows, regulatorCSCIndexTuples.map(_._2)))
-      val trainingData = if (targetIsRegulator) sliced else unsliced
-      trainingData.setLabel(response)
+      lazy val withoutTargetDMatrix = toDMatrix(csc.apply(0 until csc.rows, regulatorCSCIndexTuples.map(_._2)))
+      val trainingDMatrix = if (targetIsRegulator) withoutTargetDMatrix else fullDMatrix
+      trainingDMatrix.setLabel(targetResponse)
 
-      trainingData
+      trainingDMatrix
     }
 
     def performXGBoost(trainingData: DMatrix) = {
-      import params._
+      import params.{boosterParams, normalize, nrRounds}
 
       val booster = XGBoost.train(trainingData, boosterParams, nrRounds)
+
+      // TODO refactor CV
+
+      /*
+      val cv = XGBoost.crossValidation(trainingData, boosterParams, nrRounds, 10)
+      val tuples =
+        cv
+          .map(_.split("\t").drop(1).map(_.split(":")(1).toFloat))
+          .map{ case Array(train, test) => (train, test) }
+      println(tuples.mkString(",\n"))
+      */
 
       val sum = booster.getFeatureScore().values.map(_.toInt).sum
 
@@ -147,11 +168,6 @@ object ScenicPipeline {
   def toDMatrix(csc: CSCMatrix[Int]) =
     new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data.map(_.toFloat), CSC)
 
-  private implicit class PimpRow(row: Row) {
-    def gene: String = row.getAs[String](GENE)
-    def data: Array[Float] = row.getAs[SparseVector](VALUES).toArray.map(_.toFloat)
-  }
-
   private def containedIn(targets: Set[Gene]): Gene => Boolean =
     if (targets.isEmpty)
       _ => true
@@ -159,19 +175,14 @@ object ScenicPipeline {
       targets.contains
 
   /**
-    * @param allGenes The List of all genes in the data set.
+    * @param allGenes The ordered List of all genes.
     * @param candidateRegulators The Set of candidate regulator genes.
     * @return Returns a List[(Gene -> GeneIndex)], mapping the genes present in the List of
     *         candidate regulators to their index in the complete gene List.
     */
-  def toGlobalRegulatorIndex(allGenes: List[Gene], candidateRegulators: Set[Gene]): List[(Gene, GeneIndex)] = {
-    assert(candidateRegulators.nonEmpty)
-
-    val isRegulator = candidateRegulators.contains _
-
+  def toGlobalRegulatorIndex(allGenes: List[Gene], candidateRegulators: Set[Gene]): List[(Gene, GeneIndex)] =
     allGenes
       .zipWithIndex
-      .filter{ case (gene, _) => isRegulator(gene) }
-  }
+      .filter{ case (gene, _) => candidateRegulators.contains(gene) }
 
 }

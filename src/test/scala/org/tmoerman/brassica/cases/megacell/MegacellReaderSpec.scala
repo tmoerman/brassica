@@ -2,7 +2,7 @@ package org.tmoerman.brassica.cases.megacell
 
 import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.cases.megacell.MegacellReader.DoubleSparseVector
+import org.tmoerman.brassica.cases.megacell.MegacellReader._
 import org.tmoerman.brassica.util.TimeUtils.profile
 
 /**
@@ -45,7 +45,7 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
   }
 
   it should "read the matrix dimensions" in {
-    MegacellReader.readDimensions(megacell).get shouldBe (1300774,27998)
+    MegacellReader.readDimensions(megacell).get shouldBe (MEGACELL_CELL_COUNT, MEGACELL_GENE_COUNT)
   }
 
   it should "read CSC matrix, limit 10" in {

@@ -12,13 +12,17 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   val boosterParams = Map(
     "seed" -> 777,
-    "silent" -> 1
+    "silent" -> 1,
+    "eta" -> 0.2,
+    "subsample" -> 0.8,
+    "colsample_bytree" -> 0.7,
+    "gamma" -> 2
   )
 
   val params =
     RegressionParams(
-      normalize = false,
-      nrRounds = 10,
+      normalize = true,
+      nrRounds = 25,
       boosterParams = boosterParams)
 
   it should "run the embarrassingly parallel pipeline from raw" in {
@@ -28,24 +32,14 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
       ZeiselPipeline
         .apply(
           spark,
-          zeiselMrna,
+          file = zeiselMrna,
           candidateRegulators = TFs,
           targets = Set("Gad1"),
-          params = params,
-          cellTop = None,
-          nrPartitions = None)
+          params = params)
 
     println(params)
 
     result.show
-  }
-
-  it should "inspect the written GRN" in {
-    val df = spark.read.parquet("src/test/resources/out/zeisel_GRN_Tspan12_100")
-
-    println(df.count)
-
-    df.repartition(1).write.csv("src/test/resources/out/zeisel_GRN_Tspan12_100_CSV")
   }
 
   it should "run the old Spark scenic pipeline" in {
@@ -58,10 +52,10 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
         spark,
         df,
         genes,
-        nrRounds = 100,
+        nrRounds = 25,
         candidateRegulators = TFs,
         params = boosterParams,
-        targets = Set("Hapln2"),
+        targets = Set("Gad1"),
         nrWorkers = Some(8))
 
     grn.show()

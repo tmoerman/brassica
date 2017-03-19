@@ -10,7 +10,7 @@ import org.apache.spark.ml.attribute.AttributeGroup
 import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.sql.{Dataset, DataFrame, Row, SparkSession}
 import org.tmoerman.brassica.cases.DataReader
 import org.tmoerman.brassica.{Gene, _}
 import resource._
@@ -29,11 +29,14 @@ import scala.util.Try
   */
 object MegacellReader extends DataReader {
 
-  private[this] val INDPTR     = "/mm10/indptr"
-  private[this] val DATA       = "/mm10/data"
-  private[this] val INDICES    = "/mm10/indices"
-  private[this] val SHAPE      = "/mm10/shape"
-  private[this] val GENE_NAMES = "/mm10/gene_names"
+  private[megacell] val MEGACELL_CELL_COUNT = 1300774
+  private[megacell] val MEGACELL_GENE_COUNT = 27998
+
+  private[megacell] val INDPTR     = "/mm10/indptr"
+  private[megacell] val DATA       = "/mm10/data"
+  private[megacell] val INDICES    = "/mm10/indices"
+  private[megacell] val SHAPE      = "/mm10/shape"
+  private[megacell] val GENE_NAMES = "/mm10/gene_names"
 
   type ExpressionTuples = Array[(GeneIndex, Expression)]
 
@@ -131,18 +134,51 @@ object MegacellReader extends DataReader {
   }
 
   /**
-    * @param rowsParquet
-    * @param cellTop
-    * @param onlyGeneIndices
-    * @return
+    * @param ds The Dataset of ExpressionByGene
+    * @param genesByGlobalIndex The ordered list of genes and their global index.
+    * @param cellTop Optional limit on the top nr of cells to read into the CSCMatrix.
+    * @param nrCells The nr of cells in the Megacell file.
+    * @param nrGenes the nr of genes in the Megacell file.
+    * @return Returns a CSCMatrix[Expression].
     */
-  def readCSCMatrixFromParquet(rowsParquet: Path,
-                               cellTop: Option[CellCount] = None,
-                               onlyGeneIndices: Option[Seq[GeneIndex]] = None): CSCMatrix[Expression] = {
+  def toCSCMatrix(ds: Dataset[ExpressionByGene],
+                  genesByGlobalIndex: List[(Gene, GeneIndex)],
+                  cellTop: Option[CellCount] = None,
+                  nrCells: CellCount = MEGACELL_CELL_COUNT,
+                  nrGenes: GeneCount = MEGACELL_GENE_COUNT): CSCMatrix[Expression] = {
 
-    // TODO can we not also read from the column parquet file?
+    val cellDim = cellTop.map(min(_, nrCells)).getOrElse(nrCells)
+    val geneDim = genesByGlobalIndex.size
 
-    ??? // FIXME implement reading the CSC matrix from Parquet row vectors.
+    val geneIndexMap = genesByGlobalIndex.map(_._1).zipWithIndex.toMap
+    def genePredicate(gene: Gene) = geneIndexMap.contains(gene)
+    def reindex(gene: Gene) = geneIndexMap(gene)
+
+    ds.rdd
+      .filter(e => genePredicate(e.gene))
+      .mapPartitions{ it =>
+        val matrixBuilder = new CSCMatrix.Builder[Expression](rows = cellDim, cols = geneDim)
+
+        it.foreach{ case ExpressionByGene(gene, expression) =>
+
+          print(s"+$gene")
+
+          val geneIdxInMatrix = reindex(gene)
+
+          val sliced =
+            cellTop
+              .map(top => expression.br.apply(0 to top))
+              .getOrElse(expression.br)
+
+          sliced
+            .foreachPair { (cellIdx, value) =>
+              matrixBuilder.add(cellIdx, geneIdxInMatrix, value.toInt)
+            }
+        }
+
+        Iterator(matrixBuilder.result)
+      }
+      .reduce(_ += _)
   }
 
   /**
@@ -229,9 +265,23 @@ object MegacellReader extends DataReader {
     }
   }
 
-  def toColumnDataFrame(spark: SparkSession, csc: CSCMatrix[Int], genes: List[Gene]): DataFrame = {
+  def toExpressionByGeneDataset(spark: SparkSession,
+                                cscBlock: CSCMatrix[Expression],
+                                genes: List[Gene]) = {
+    import spark.implicits._
+
+    (cscBlock.columns zip genes.toIterator)
+      .map{ case (vector, gene) => ExpressionByGene(gene, ml(vector)) }
+      .toSeq
+      .toDS
+  }
+
+  @deprecated("prefer statically typed dataset")
+  def toColumnDataFrame(spark: SparkSession,
+                        cscBlock: CSCMatrix[Expression],
+                        genes: List[Gene]): DataFrame = {
     val rows =
-      (csc.columns zip genes.toIterator)
+      (cscBlock.columns zip genes.toIterator)
         .map{ case (vector, gene) => Row.apply(ml(vector), gene) }
 
     val schema = StructType(

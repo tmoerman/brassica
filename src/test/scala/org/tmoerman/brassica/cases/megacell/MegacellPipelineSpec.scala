@@ -12,21 +12,22 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
 
   behavior of "Scenic pipeline on Megacell"
 
+  val boosterParams = Map(
+    "seed" -> 777,
+    "silent" -> 1,
+    "eta" -> 0.2,
+    "subsample" -> 0.8,
+    "colsample_bytree" -> 0.7,
+    "gamma" -> 2
+  )
+
   val params =
     RegressionParams(
       normalize = false,
       nrRounds = 25,
-      boosterParams = Map(
-        "objective" -> "reg:linear",
-        "eta" -> 0.2f,
-        "seed" -> 777,
-        "nthread" -> 1,
-        "silent" -> 1,
-        "subsample" -> 0.8,
-        "max_depth" -> 5
-      ))
+      boosterParams = boosterParams)
 
-  it should "run the embarrassingly parallel pipeline" in {
+  it should "run the embarrassingly parallel pipeline on top 10k" in {
     val cellTop = Some(10000)
 
     val TFs = MegacellReader.readTFs(mouseTFs).toSet
@@ -36,12 +37,31 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
         .apply(
           spark,
           hdf5 = megacell,
-          columnsParquet = megacellColumnsParquet + "_10k",
+          parquet = megacellColumnsParquet + "_10k",
           candidateRegulators = TFs,
           targets = Set("Gad1"),
           params = params,
-          cellTop = cellTop,
-          nrPartitions = Some(1))
+          cellTop = cellTop)
+
+    println(params)
+
+    result.show()
+  }
+
+  it should "run the emembarrassingly parallel pipeline on top 1.3m" in {
+    val TFs = MegacellReader.readTFs(mouseTFs).toSet
+
+    val result =
+      MegacellPipeline
+        .apply(
+          spark,
+          hdf5 = megacell,
+          parquet = megacellColumnsParquet + "_full",
+          candidateRegulators = TFs,
+          targets = Set("Gad1"),
+          params = params)
+
+    println(params)
 
     result.show()
   }
@@ -75,7 +95,7 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
         .apply(
           spark,
           hdf5 = megacell,
-          columnsParquet = megacellColumnsParquet + "_10k",
+          parquet = megacellColumnsParquet + "_10k",
           candidateRegulators = TFs,
           targets = Set("Gad1"),
           params = params,

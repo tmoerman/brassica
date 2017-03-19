@@ -1,17 +1,13 @@
 package org.tmoerman.brassica.cases.zeisel
 
-import java.lang.Math.min
-
 import breeze.linalg.{CSCMatrix, SparseVector => BSV}
-import org.apache.spark.ml.attribute.AttributeGroup
-import org.apache.spark.ml.feature.VectorSlicer
+import org.apache.spark.ml.linalg.BreezeMLConversions._
+import org.apache.spark.ml.linalg.{Vector => MLVector, Vectors}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.{StructField, _}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.cases.DataReader
-import org.apache.spark.ml.linalg.BreezeMLConversions._
-import org.apache.spark.ml.linalg.SparseVector
 
 import scala.reflect.ClassTag
 
@@ -24,9 +20,16 @@ import scala.reflect.ClassTag
   */
 object ZeiselReader extends DataReader {
 
-  type Line = (List[String], Index)
+  // TODO remove all the obsolete crap
 
-  // use these for test purposes, not to be hard coded in parser logic
+  /**
+    * Type representing a Line of the Zeisel mRNA expression file.
+    * The raw file has row ~ features, and cols ~ values per cell
+    *
+    * A Line consists of a feature and the values for that feature across cells.
+    */
+  private[zeisel] type Line = (List[String], Index)
+
   private[zeisel] val ZEISEL_CELL_COUNT = 3005
   private[zeisel] val ZEISEL_GENE_COUNT = 19972
 
@@ -221,137 +224,67 @@ object ZeiselReader extends DataReader {
   }
 
   /**
-    * @param spark The SparkSession.
-    * @param raw The raw Zeisel file.
-    * @return Returns a DataFrame:
-    *
-    *         | gene | expression |
-    */
-  def readExpressionByGene(spark: SparkSession, raw: Path): DataFrame =
-    readExpressionByGene(spark, rawLines(spark, raw))
-
-  /**
-    * @param spark
     * @param lines
-    * @return Returns a DataFrame:
-    *         | gene | expression |
-    */
-  def readExpressionByGene(spark: SparkSession, lines: RDD[Line]): DataFrame = {
-    val geneColumnVectorTuples =
-      parseExpressionByGene(lines)
-        .map{ case (gene, values) => Row(gene, values.ml) }
-
-    val schema =
-      StructType(
-        StructField(GENE, StringType) ::
-        new AttributeGroup(VALUES).toStructField :: Nil)
-
-    spark.createDataFrame(geneColumnVectorTuples, schema)
-  }
-
-  /**
-    * @param df
-    * @param cellTop
     * @param onlyGeneIndices
-    * @return Returns a CSCMatrix parsed from the Zeisel DataFrame.
+    * @param nrCells
+    * @return
     */
-  def toCSCMatrix(df: DataFrame,
-                  cellTop: Option[CellCount] = None,
-                  onlyGeneIndices: Seq[GeneIndex],
-                  nrCells: CellCount = ZEISEL_CELL_COUNT,
-                  nrGenes: GeneCount = ZEISEL_GENE_COUNT): CSCMatrix[Expression] = {
-
-    val predictorSlicer =
-      new VectorSlicer()
-        .setInputCol(EXPRESSION)
-        .setOutputCol(REGULATORS)
-        .setIndices(onlyGeneIndices.toArray)
-
-    val regulators =
-      Some(df)
-        .map(predictorSlicer.transform)
-        .map(_.select(REGULATORS))
-        .get
-
-    val cellDim = cellTop.map(min(_, nrCells)).getOrElse(nrCells)
-    val geneDim = onlyGeneIndices.size
-
-    regulators
-      .rdd
-      .zipWithIndex // order of cell observations might be different...
-      .mapPartitions { it =>
-        val matrixBuilder = new CSCMatrix.Builder[Expression](rows = cellDim, cols = geneDim)
-
-        it.foreach{ case (row, cellIdx) =>
-          row
-            .getAs[SparseVector](0)
-            .br
-            .activeIterator
-            .foreach { case (geneIdx, value) => matrixBuilder.add(cellIdx.toInt, geneIdx, value.toInt) }
-        }
-
-        Iterator(matrixBuilder.result) }
-      .reduce(_ += _)
-  }
-
-  def readCSCMatrix(lines: RDD[Line],
-                    onlyGeneIndices: Seq[GeneIndex],
-                    nrCells: CellCount = ZEISEL_CELL_COUNT): CSCMatrix[Expression] = {
+  def toCSCMatrix(lines: RDD[Line],
+                  onlyGeneIndices: Seq[GeneIndex], // TODO perhaps better to provide the entire index Gene->Idx
+                  nrCells: CellCount = ZEISEL_CELL_COUNT): CSCMatrix[Expression] = {
 
     val cellDim = nrCells
     val geneDim = onlyGeneIndices.size
 
     val geneIndexMap = onlyGeneIndices.zipWithIndex.toMap
-
     def genePredicate(i: GeneIndex) = geneIndexMap.contains(i)
-    def reindex(i: GeneIndex) = geneIndexMap.getOrElse(i, i)
+    def reindex(i: GeneIndex) = geneIndexMap(i)
 
-    lines
-      .filter{ case (_, lineIdx) => lineIdx >= NR_META_FEATURES }         // get rid of meta field values
-      .map{ case (v, lineIdx) => (v, (lineIdx - FEAT_INDEX_OFFSET).toInt)} // remap to GeneIndex
+    val geneExpressionLines =
+      lines
+        .filter{ case (_, lineIdx) => lineIdx >= NR_META_FEATURES }          // get rid of meta field values
+        .map{ case (v, lineIdx) => (v, (lineIdx - FEAT_INDEX_OFFSET).toInt)} // remap to GeneIndex
+
+    geneExpressionLines
       .filter{ case (_, geneIdx) => genePredicate(geneIdx) }
       .mapPartitions{ it =>
         val matrixBuilder = new CSCMatrix.Builder[Expression](rows = cellDim, cols = geneDim)
 
         it.foreach {
-          case (gene :: _ :: expression, geneIdx) =>
+          case (gene :: _ :: values, geneIdx) =>
 
             val geneIdxInMatrix = reindex(geneIdx)
 
-            expression
+            values
               .zipWithIndex
-              .filterNot { case (value, _) => value == "0" }
               .foreach { case (value, cellIdx) =>
-                matrixBuilder.add(cellIdx, geneIdxInMatrix, value.toInt)
+                if (value != "0") matrixBuilder.add(cellIdx, geneIdxInMatrix, value.toInt)
               }
 
           case _ => Unit
         }
 
-        Iterator(matrixBuilder.result) }
+        Iterator(matrixBuilder.result)
+      }
       .reduce(_ += _)
   }
 
-
-  /**
-    * @param lines RDD of raw lines.
-    * @return Returns an RDD of (gene, expressionVectorByGene)
-    */
-  private[zeisel] def parseExpressionByGene(lines: RDD[Line]): RDD[(Gene, BSV[Double])] =
-    lines
-      .filter{ case (_, lineIdx) => lineIdx >= NR_META_FEATURES } // get rid of meta field values
-      .map {
-        case (gene :: _ :: values, _) => (gene, expressionByGene(values))
-        case _ => ???
+  private[zeisel] def toExpressionByGene(line: Line): Option[ExpressionByGene] =
+    Some(line)
+      .filter(_._2 >= NR_META_FEATURES)
+      .map{
+        case (gene :: _ :: values, _) => ExpressionByGene(gene, toExpressionVector(values))
+        case _                        => ???
       }
 
-  private[zeisel] def expressionByGene(values: List[String]): BSV[Double] = {
-    val tuples =
+  private[zeisel] def toExpressionVector(values: List[String]): MLVector = {
+    val elements =
       values
         .zipWithIndex
-        .flatMap { case (value, cellIdx) => if (value == "0") Nil else (cellIdx, value.toDouble) :: Nil }
+        .filterNot(_._1 == "0")
+        .map { case (value, cellIdx) => (cellIdx, value.toDouble) }
 
-    BSV(values.length)(tuples: _*)
+    Vectors.sparse(values.length, elements)
   }
 
 }

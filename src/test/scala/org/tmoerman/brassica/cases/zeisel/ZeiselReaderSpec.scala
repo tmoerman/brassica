@@ -63,13 +63,13 @@ class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
     val lines = ZeiselReader.rawLines(spark, zeiselMrna)
 
-    val columnsDF = ZeiselReader.readExpressionByGene(spark, lines)
+    val ds = lines.flatMap(toExpressionByGene).toDS
 
-    columnsDF.filter($"gene" === "Dlx1").show()
+    ds.filter($"gene" === "Dlx1").show()
 
-    columnsDF.head.getAs[SparseVector](VALUES).size shouldBe ZEISEL_CELL_COUNT
+    ds.head.values.size shouldBe ZEISEL_CELL_COUNT
 
-    columnsDF.count shouldBe ZEISEL_GENE_COUNT
+    ds.count shouldBe ZEISEL_GENE_COUNT
   }
 
   it should "read CSC matrix (cells * genes)" in {
@@ -77,7 +77,7 @@ class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
     val onlyGenes = Seq(3, 4, 5)
 
-    val csc = ZeiselReader.readCSCMatrix(
+    val csc = ZeiselReader.toCSCMatrix(
       lines,
       onlyGenes,
       nrCells = ZEISEL_CELL_COUNT)
@@ -105,20 +105,6 @@ class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
     df.count shouldBe ZEISEL_CELL_COUNT
 
     genes.size shouldBe ZEISEL_GENE_COUNT
-  }
-
-  it should "convert the DF to CSCMatrix" in {
-    val (df, genes) = fromParquet(spark, zeiselParquet, zeiselMrna)
-
-    val TFs = readTFs(mouseTFs).toSet
-
-    val globalRegulatorIndex = ScenicPipeline.toGlobalRegulatorIndex(genes, TFs)
-
-    val csc = toCSCMatrix(df, onlyGeneIndices = globalRegulatorIndex.map(_._2))
-
-    csc.rows shouldBe ZEISEL_CELL_COUNT
-
-    csc.cols shouldBe globalRegulatorIndex.size
   }
 
 }

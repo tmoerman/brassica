@@ -45,11 +45,10 @@ class ZeiselBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
             ZeiselPipeline
               .apply(
                 spark,
-                zeiselMrna,
+                file = zeiselMrna,
                 candidateRegulators = TFs,
                 targets = targets.toSet,
                 params = params,
-                cellTop = None,
                 nrPartitions = Some(spark.sparkContext.defaultParallelism))
 
           result.repartition(4).write.parquet(out)

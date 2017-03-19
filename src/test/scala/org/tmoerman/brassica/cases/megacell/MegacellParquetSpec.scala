@@ -1,9 +1,10 @@
 package org.tmoerman.brassica.cases.megacell
 
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
-import org.apache.spark.sql.SaveMode.Append
+import org.apache.spark.sql.{SaveMode, Dataset, DataFrame}
+import org.apache.spark.sql.SaveMode.{Overwrite, Append}
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.{CellCount, Gene}
+import org.tmoerman.brassica.{ExpressionByGene, GeneIndex, CellCount, Gene}
 import org.tmoerman.brassica.cases.megacell.MegacellReader._
 
 /**
@@ -27,12 +28,10 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
     df.write.parquet(megacellColumnsParquet)
   }
 
-  it should "write the entire matrix to column vector Parquet" ignore {
+  it should "write the entire matrix to a Parquet Dataset of ExpressionByGene tuples" ignore {
     val (_, nrGenes) = readDimensions(megacell).get
 
-    val genes = readGeneNames(megacell).get
-
-    val cellTop = None
+    val globalGeneIndex = readGeneNames(megacell).get.zipWithIndex
 
     val parquetFile = megacellColumnsParquet
 
@@ -43,7 +42,39 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
       .foreach { range =>
         println(s"reading csc matrix columns ${range.head} -> ${range.last}")
 
-        readBlock(range, genes, cellTop).write.mode(Append).parquet(parquetFile)
+        val subIndex = globalGeneIndex.slice(range.head, range.head + range.size)
+
+        readBlockDS(subIndex).write.mode(Append).parquet(parquetFile)
+
+        println
+      }
+  }
+
+  it should "read the full parquet into a Dataset[ExpressionByGene]" in {
+    import spark.implicits._
+
+    val parquetFile = megacellColumnsParquet + "_full"
+
+    val ds = spark.read.parquet(parquetFile).as[ExpressionByGene]
+
+    ds.show(5)
+  }
+
+  it should "write the entire matrix to column vector Parquet" ignore {
+    val (_, nrGenes) = readDimensions(megacell).get
+
+    val genes = readGeneNames(megacell).get
+
+    val parquetFile = megacellColumnsParquet
+
+    val blockWidth = 1000
+
+    (0 until nrGenes)
+      .sliding(blockWidth, blockWidth)
+      .foreach { range =>
+        println(s"reading csc matrix columns ${range.head} -> ${range.last}")
+
+        readBlockDF(range, genes).write.mode(Append).parquet(parquetFile)
 
         println
       }
@@ -65,24 +96,38 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
       .foreach { range =>
         println(s"reading csc matrix columns ${range.head} -> ${range.last}")
 
-        readBlock(range, genes, cellTop).write.mode(Append).parquet(parquetFile)
+        readBlockDF(range, genes, cellTop).write.mode(Append).parquet(parquetFile)
 
         println
       }
   }
 
-  private def readBlock(range: Seq[Int], genes: List[Gene], cellTop: Option[CellCount] = None) = {
-    val genesInRange = genes.slice(range.head, range.head + range.size)
+  private def readBlockDS(genesIndex: List[(Gene, GeneIndex)],
+                          cellTop: Option[CellCount] = None): Dataset[ExpressionByGene] = {
 
     val csc =
       MegacellReader
         .readCSCMatrix(
           megacell,
           cellTop = cellTop,
-          onlyGeneIndices = Some(range))
+          onlyGeneIndices = Some(genesIndex.map(_._2)))
         .get
 
-    toColumnDataFrame(spark, csc, genesInRange)
+    MegacellReader.toExpressionByGeneDataset(spark, csc, genesIndex.map(_._1))
+  }
+
+  private def readBlockDF(geneIndexRange: Seq[Int], genes: List[Gene], cellTop: Option[CellCount] = None): DataFrame = {
+    val genesInRange = genes.slice(geneIndexRange.head, geneIndexRange.head + geneIndexRange.size)
+
+    val csc =
+      MegacellReader
+        .readCSCMatrix(
+          megacell,
+          cellTop = cellTop,
+          onlyGeneIndices = Some(geneIndexRange))
+        .get
+
+    MegacellReader.toColumnDataFrame(spark, csc, genesInRange)
   }
 
   it should "read the dataframe from column vector Parquet" in {

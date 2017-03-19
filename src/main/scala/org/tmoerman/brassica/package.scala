@@ -1,11 +1,13 @@
 package org.tmoerman
 
+import org.apache.spark.ml.linalg.{Vector => MLVector}
+
 /**
+  * Constants, case classes and type aliases.
+  *
   * @author Thomas Moerman
   */
 package object brassica {
-
-  // type aliases facilitate code interpretation
 
   type Path = String
 
@@ -36,6 +38,19 @@ package object brassica {
   val DEFAULT_BOOSTER_PARAMS: BoosterParams = Map(
     "silent" -> 1
   )
+
+  /**
+    * @param gene The gene name.
+    * @param values The sparse expression vector.
+    */
+  case class ExpressionByGene(gene: Gene, values: MLVector) // TODO rename values -> "expression"
+
+  /**
+    * @param regulator The regulator gene name.
+    * @param target The target gene name.
+    * @param importance The inferred importance of the regulator vis-a-vis the target.
+    */
+  case class RegulatorTarget(regulator: Gene, target: Gene, importance: Importance)
 
   case class RegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                               nrRounds: Int = 10,
