@@ -13,16 +13,22 @@ import org.tmoerman.brassica.util.TimeUtils.pretty
   */
 class ZeiselBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
 
+  val boosterParams = Map(
+    "seed" -> 777,
+    "silent" -> 1,
+    "eta" -> 0.2,
+    "subsample" -> 0.8,
+    "colsample_bytree" -> 0.7,
+    "gamma" -> 2
+  )
+
   val params =
     RegressionParams(
       normalize = false,
-      nrRounds = 100,
-      boosterParams = Map(
-        "seed" -> 777,
-        "silent" -> 1
-      ))
+      nrRounds = 25,
+      boosterParams = boosterParams)
 
-  "the emb.par pipeline from parquet" should "run" in {
+  "the Zeisel emb.par pipeline from parquet" should "run" in {
     val TFs = ZeiselReader.readTFs(mouseTFs).toSet
 
     val genes = ZeiselReader.readGenes(spark, zeiselMrna)
