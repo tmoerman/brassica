@@ -59,7 +59,6 @@ object ScenicPipeline {
         .map(expressionByGene.rdd.repartition)
         .getOrElse(expressionByGene.rdd)
         .filter(isTarget)
-        .cache
 
     val GRN = rdd.mapPartitions(it => {
 
@@ -129,20 +128,19 @@ object ScenicPipeline {
     }
 
     def performXGBoost(trainingData: DMatrix) = {
-      import params.{boosterParams, normalize, nrRounds}
+      import params.{boosterParams, normalize, nrRounds, showCV}
 
       val booster = XGBoost.train(trainingData, boosterParams, nrRounds)
 
       // TODO refactor CV
-
-      /*
-      val cv = XGBoost.crossValidation(trainingData, boosterParams, nrRounds, 10)
-      val tuples =
-        cv
-          .map(_.split("\t").drop(1).map(_.split(":")(1).toFloat))
-          .map{ case Array(train, test) => (train, test) }
-      println(tuples.mkString(",\n"))
-      */
+      if (showCV) {
+        val cv = XGBoost.crossValidation(trainingData, boosterParams, nrRounds, 10)
+        val tuples =
+          cv
+            .map(_.split("\t").drop(1).map(_.split(":")(1).toFloat))
+            .map{ case Array(train, test) => (train, test) }
+        println(tuples.mkString(",\n"))
+      }
 
       val sum = booster.getFeatureScore().values.map(_.toInt).sum
 
