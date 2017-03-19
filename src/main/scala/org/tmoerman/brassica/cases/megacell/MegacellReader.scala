@@ -163,9 +163,13 @@ object MegacellReader extends DataReader {
 
         it.foreach{ case ExpressionByGene(gene, expression) =>
 
-          print(s"+$gene")
+          println(s"+ $gene")
 
           val geneIdxInMatrix = reindex(gene)
+
+          // FIXME
+          // this slicing must be done with a VectorSlicer before proceeding through the pipeline...
+          // not a fix for
 
           val sliced =
             cellTop
