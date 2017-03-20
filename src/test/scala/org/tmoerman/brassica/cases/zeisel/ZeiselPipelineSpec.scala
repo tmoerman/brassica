@@ -42,6 +42,23 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
     result.show
   }
 
+  it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
+    val TFs = ZeiselReader.readTFs(mouseTFs).toSet
+
+    val result =
+      ZeiselFilteredPipeline
+        .apply(
+          spark,
+          file = zeiselFiltered,
+          candidateRegulators = TFs,
+          targets = Set("Gad1"),
+          params = params)
+
+    println(params)
+
+    result.show
+  }
+
   it should "run the old Spark scenic pipeline" in {
     val (df, genes) = ZeiselReader.fromParquet(spark, zeiselParquet, zeiselMrna)
 
