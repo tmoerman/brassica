@@ -41,7 +41,7 @@ object ScenicPipeline {
 
     import spark.implicits._
 
-    val regulators = allGenes.filter(candidateRegulators.contains _)
+    val regulators = allGenes.filter(candidateRegulators.contains)
 
     val (csc, duration) = profile {
       cscProducer.apply(regulators)
@@ -82,20 +82,18 @@ object ScenicPipeline {
         })
       })
       .toDS()
-      //.toDF(REGULATOR_NAME, TARGET_NAME, IMPORTANCE) //TODO Dataset instead of DataFrame
   }
 
   /**
     * @param targetGene The target gene.
     * @param targetResponse The response vector of target gene.
-    * @param globalRegulatorIndex Global index of the regulator genes.
+    * @param cscGenes The List of genes in the columns of the CSCMatrix.
     * @param csc The CSC matrix of gene expression values, only contains regulators.
     * @param fullDMatrix DMatrix built from the CSC Matrix.
     * @param params RegressionParams
     */
   case class XGboostInput(targetGene: String,
                           targetResponse: Array[Float],
-                          //globalRegulatorIndex: List[(Gene, GeneIndex)],
                           cscGenes: List[Gene],
                           csc: CSCMatrix[Expression],
                           fullDMatrix: DMatrix,
@@ -111,9 +109,9 @@ object ScenicPipeline {
 
     import input._
 
-    val targetIsRegulator = cscGenes.exists(_ == targetGene)
+    val targetIsRegulator = cscGenes.contains(targetGene)
 
-    // println(s"-> $targetGene (regulator? $targetIsRegulator)")
+    println(s"-> $targetGene (regulator? $targetIsRegulator)")
 
     val regulatorsToCSCIndex =
       cscGenes
@@ -140,6 +138,8 @@ object ScenicPipeline {
           cv
             .map(_.split("\t").drop(1).map(_.split(":")(1).toFloat))
             .map{ case Array(train, test) => (train, test) }
+            .zipWithIndex
+
         println(tuples.mkString(",\n"))
       }
 

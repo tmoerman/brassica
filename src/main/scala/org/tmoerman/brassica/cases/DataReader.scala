@@ -26,7 +26,7 @@ trait DataReader {
     * @param path The file path as a String.
     * @return Returns java.io.File(path)
     */
-  implicit def pimp(path: String) = new File(path)
+  implicit def pimpPath(path: String): File = new File(path)
 
   /**
     * @param file

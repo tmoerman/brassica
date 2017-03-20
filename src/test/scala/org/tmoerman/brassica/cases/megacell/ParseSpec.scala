@@ -46,6 +46,7 @@ class ParseSpec extends FlatSpec with Matchers {
         println(a.toList)
         println(b.toList)
         println(c.toList)
+      case _ => ???
     }
 
     println(node)

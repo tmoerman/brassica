@@ -13,7 +13,7 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
   val boosterParams = Map(
     "seed" -> 777,
     "silent" -> 1,
-    "eta" -> 0.2,
+    "eta" -> 0.15,
     "subsample" -> 0.8,
     "colsample_bytree" -> 0.7,
     "gamma" -> 2
@@ -22,7 +22,7 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
   val params =
     RegressionParams(
       normalize = true,
-      nrRounds = 25,
+      nrRounds = 50,
       boosterParams = boosterParams)
 
   it should "run the embarrassingly parallel pipeline from raw" in {
