@@ -12,6 +12,8 @@ object RDDFunctions {
 
 class RDDFunctions[T: ClassTag](val rdd: RDD[T]) {
 
+  def drop(n: Int) = rdd.mapPartitionsWithIndex{ (idx, it) => if (idx == 0) it.drop(n) else it }
+
   def takeOrAll(n: Option[Int]): Array[T] = n.map(v => rdd.take(v)).getOrElse(rdd.collect)
 
 }

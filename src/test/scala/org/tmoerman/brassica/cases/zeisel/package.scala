@@ -9,6 +9,8 @@ package object zeisel {
 
   def zeiselMrna = props("zeisel")
 
+  def zeiselFiltered = props("zeiselFiltered")
+
   def zeiselParquet = props("zeiselParquet")
 
   def mouseTFs = props("mouseTFs")

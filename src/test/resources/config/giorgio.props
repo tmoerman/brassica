@@ -10,6 +10,8 @@ genie3 = src/test/resources/genie3/data.txt
 zeisel = /Users/tmo/Work/ghb2016/data/zeisel/expression_mRNA_17-Aug-2014.txt
 zeiselParquet = src/test/resources/parquet/zeisel
 
+zeiselFiltered = /Users/tmo/Work/ghb2016/data/zeisel/expression_sara_filtered.txt
+
 # source: TODO
 megacell = /Users/tmo/work/ghb2016/data/bigsc/1M_neurons_filtered_gene_bc_matrices_h5.h5
 megacellRowsParquet = src/test/resources/parquet/megacell_rows
@@ -17,7 +19,7 @@ megacellColumnsParquet = src/test/resources/parquet/megacell
 
 # source: TODO
 dream5Original = /Users/tmo/Work/ghb2016/data/Dream_challenge/GNI/original data/
-# dream5Training =
+dream5WD       = /Users/tmo/Work/ghb2016/data/Dream_challenge/GNI/
 
 # out folder
 out = src/test/resources/out/

@@ -4,9 +4,8 @@ import java.io.File
 
 import org.apache.commons.io.FileUtils.deleteDirectory
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.{RegressionParams, XGBoostSuiteBase}
 import org.tmoerman.brassica.util.{PropsReader, TimeUtils}
-import org.tmoerman.brassica.util.TimeUtils.pretty
+import org.tmoerman.brassica.{RegressionParams, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
