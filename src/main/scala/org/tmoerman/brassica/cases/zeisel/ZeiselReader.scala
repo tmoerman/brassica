@@ -2,14 +2,12 @@ package org.tmoerman.brassica.cases.zeisel
 
 import breeze.linalg.{CSCMatrix, SparseVector => BSV}
 import org.apache.spark.ml.linalg.BreezeMLConversions._
-import org.apache.spark.ml.linalg.{Vector => MLVector, Vectors}
+import org.apache.spark.ml.linalg.{Vectors, Vector => MLVector}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.{StructField, _}
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.cases.DataReader
-import org.tmoerman.brassica.util.BreezeUtils
-import org.tmoerman.brassica.util.BreezeUtils.asCSCMatrix
 
 import scala.reflect.ClassTag
 
@@ -226,51 +224,40 @@ object ZeiselReader extends DataReader {
   }
 
   /**
-    * @param lines
-    * @param onlyGeneIndices
-    * @param nrCells
-    * @return
+    * @param ds The Dataset of ExpressionByGene instances.
+    * @param regulators The ordered List of regulators.
+    * @param nrCells The nr of cells = nr of row in the CSCMatrix
+    * @return Returns a CSCMatrix of expression values.
     */
-  def toCSCMatrix(lines: RDD[Line],
-                  onlyGeneIndices: Seq[GeneIndex], // TODO perhaps better to provide the entire index Gene->Idx
+  def toCSCMatrix(ds: Dataset[ExpressionByGene],
+                  regulators: List[Gene],
                   nrCells: CellCount = ZEISEL_CELL_COUNT): CSCMatrix[Expression] = {
 
-    val cellDim = nrCells
-    val geneDim = onlyGeneIndices.size
+    val nrGenes = regulators.size
 
-    val geneIndexMap = onlyGeneIndices.zipWithIndex.toMap
-    def genePredicate(i: GeneIndex) = geneIndexMap.contains(i)
-    def reindex(i: GeneIndex) = geneIndexMap(i)
+    val regulatorIndexMap = regulators.zipWithIndex.toMap
 
-    val geneExpressionLines =
-      lines
-        .filter{ case (_, lineIdx) => lineIdx >= NR_META_FEATURES }          // get rid of meta field values
-        .map{ case (v, lineIdx) => (v, (lineIdx - FEAT_INDEX_OFFSET).toInt)} // remap to GeneIndex
+    def isPredictor(gene: Gene) = regulatorIndexMap.contains(gene)
+    def cscIndex(gene: Gene) = regulatorIndexMap.apply(gene)
 
-    geneExpressionLines
-      .filter{ case (_, geneIdx) => genePredicate(geneIdx) }
-
+    ds.rdd
+      .filter(e => isPredictor(e.gene))
       .mapPartitions{ it =>
-        val matrixBuilder = new CSCMatrix.Builder[Expression](rows = cellDim, cols = geneDim)
+        val matrixBuilder = new CSCMatrix.Builder[Expression](rows = nrCells, cols = nrGenes)
 
-        it.foreach {
-          case (gene :: _ :: values, geneIdx) =>
+        it.foreach { case ExpressionByGene(gene, expression) =>
 
-            val geneIdxInMatrix = reindex(geneIdx)
+          val geneIdx = cscIndex(gene)
 
-            values
-              .zipWithIndex
-              .foreach { case (value, cellIdx) =>
-                if (value != "0") matrixBuilder.add(cellIdx, geneIdxInMatrix, value.toInt)
-              }
-
-          case _ => Unit
+          expression
+            .foreachActive{ (cellIdx, value) =>
+              matrixBuilder.add(cellIdx, geneIdx, value.toInt)
+            }
         }
 
         Iterator(matrixBuilder.result)
       }
-
-      .reduce(_ += _)
+      .reduce(_ + _)
   }
 
   private[zeisel] def toExpressionByGene(line: Line): Option[ExpressionByGene] =

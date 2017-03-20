@@ -10,10 +10,8 @@ import org.apache.spark.ml.attribute.AttributeGroup
 import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
-import org.apache.spark.sql.{Dataset, DataFrame, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.tmoerman.brassica.cases.DataReader
-import org.tmoerman.brassica.util.BreezeUtils
-import org.tmoerman.brassica.util.BreezeUtils.asCSCMatrix
 import org.tmoerman.brassica.{Gene, _}
 import resource._
 
@@ -137,27 +135,28 @@ object MegacellReader extends DataReader {
 
   /**
     * @param ds The Dataset of ExpressionByGene
-    * @param genesByGlobalIndex The ordered list of genes and their global index.
+    * @param regulators The ordered list of genes
     * @param cellTop Optional limit on the top nr of cells to read into the CSCMatrix.
     * @param nrCells The nr of cells in the Megacell file.
     * @param nrGenes the nr of genes in the Megacell file.
     * @return Returns a CSCMatrix[Expression].
     */
   def toCSCMatrix(ds: Dataset[ExpressionByGene],
-                  genesByGlobalIndex: List[(Gene, GeneIndex)],
-                  cellTop: Option[CellCount] = None,
+                  regulators: List[Gene],
+                  cellTop: Option[CellCount] = None, // TODO slicing should happen elsewhere.
                   nrCells: CellCount = MEGACELL_CELL_COUNT,
                   nrGenes: GeneCount = MEGACELL_GENE_COUNT): CSCMatrix[Expression] = {
 
     val cellDim = cellTop.map(min(_, nrCells)).getOrElse(nrCells)
-    val geneDim = genesByGlobalIndex.size
+    val geneDim = regulators.size
 
-    val geneIndexMap = genesByGlobalIndex.map(_._1).zipWithIndex.toMap
-    def genePredicate(gene: Gene) = geneIndexMap.contains(gene)
-    def reindex(gene: Gene) = geneIndexMap(gene)
+    val regulatorIndexMap = regulators.zipWithIndex.toMap
+
+    def isPredictor(gene: Gene) = regulatorIndexMap.contains(gene)
+    def cscIndex(gene: Gene) = regulatorIndexMap.apply(gene)
 
     ds.rdd
-      .filter(e => genePredicate(e.gene))
+      .filter(e => isPredictor(e.gene))
       .mapPartitions{ it =>
         val matrixBuilder = new CSCMatrix.Builder[Expression](rows = cellDim, cols = geneDim)
 
@@ -165,7 +164,7 @@ object MegacellReader extends DataReader {
 
           println(s"+ $gene")
 
-          val geneIdxInMatrix = reindex(gene)
+          val geneIdx = cscIndex(gene)
 
           // FIXME
           // this slicing must be done with a VectorSlicer before proceeding through the pipeline...
@@ -178,7 +177,7 @@ object MegacellReader extends DataReader {
 
           sliced
             .foreachPair { (cellIdx, value) =>
-              matrixBuilder.add(cellIdx, geneIdxInMatrix, value.toInt)
+              matrixBuilder.add(cellIdx, geneIdx, value.toInt)
             }
         }
 

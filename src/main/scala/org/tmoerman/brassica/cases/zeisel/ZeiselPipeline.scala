@@ -1,8 +1,8 @@
 package org.tmoerman.brassica.cases.zeisel
 
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.tmoerman.brassica._
-import org.tmoerman.brassica.cases.zeisel.ZeiselReader.toExpressionByGene
+import org.tmoerman.brassica.cases.zeisel.ZeiselReader.{toCSCMatrix, toExpressionByGene}
 
 /**
   * @author Thomas Moerman
@@ -17,28 +17,24 @@ object ZeiselPipeline {
     *                If empty Set is specified, all genes will be considered as targets.
     * @param params The XGBoost regression params.
     * @param nrPartitions Optional technical parameter specifying parallelism.
-    * @return Returns a Dataset
+    * @return Returns a Dataset of Regulation instances.
     */
   def apply(spark: SparkSession,
             file: Path,
             candidateRegulators: Set[Gene],
             targets: Set[Gene] = Set.empty,
             params: RegressionParams = RegressionParams(),
-            nrPartitions: Option[Int] = None): DataFrame = {
+            nrPartitions: Option[Int] = None) = {
 
     import spark.implicits._
 
     val lines = ZeiselReader.rawLines(spark, file)
 
-    val cscProducer = (globalRegulatorIndex: List[(Gene, GeneIndex)]) =>
-      ZeiselReader
-        .toCSCMatrix(
-          lines,
-          globalRegulatorIndex.map(_._2))
+    val allGenes = ZeiselReader.readGenes(lines)
 
     val expressionByGene = lines.flatMap(toExpressionByGene).toDS
 
-    val allGenes = ZeiselReader.readGenes(lines)
+    val cscProducer = (regulators: List[Gene]) => toCSCMatrix(expressionByGene, regulators)
 
     ScenicPipeline
       .apply(
@@ -51,15 +47,6 @@ object ZeiselPipeline {
         params,
         cellTop = None,
         nrPartitions)
-  }
-
-  def crossValidate(spark: SparkSession,
-                    raw: Path,
-                    candidateRegulators: Set[Gene],
-                    targets: Set[Gene],
-                    params: RegressionParams = RegressionParams(),
-                    nrPartitions: Option[Int]) = {
-    // TODO
   }
 
 }

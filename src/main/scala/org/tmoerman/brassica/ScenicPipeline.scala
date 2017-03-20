@@ -30,58 +30,59 @@ object ScenicPipeline {
     *         | regulator_name | target_name | importance |
     */
   def apply(spark: SparkSession,
-            cscProducer: List[(Gene, GeneIndex)] => CSCMatrix[Expression],
+            cscProducer: List[Gene] => CSCMatrix[Expression],
             expressionByGene: Dataset[ExpressionByGene],
             allGenes: List[Gene],
             candidateRegulators: Set[Gene],
             targets: Set[Gene] = Set.empty,
             params: RegressionParams = RegressionParams(),
             cellTop: Option[CellCount] = None,
-            nrPartitions: Option[Int] = None): DataFrame = {
+            nrPartitions: Option[Int] = None): Dataset[Regulation] = {
 
-    val sc = spark.sparkContext
+    import spark.implicits._
 
-    val globalRegulatorIndex = toGlobalRegulatorIndex(allGenes, candidateRegulators)
+    val regulators = allGenes.filter(candidateRegulators.contains _)
 
     val (csc, duration) = profile {
-      cscProducer.apply(globalRegulatorIndex)
+      cscProducer.apply(regulators)
     }
 
-    println(s"constructing CSC matrix took ${pretty(duration)}")
+    println(s"constructing CSC matrix took ${pretty(duration)}") // TODO logging framework
 
-    val cscBroadcast = sc.broadcast(csc)
-    val globalRegulatorIndexBroadcast = sc.broadcast(globalRegulatorIndex)
+    val cscBroadcast = spark.sparkContext.broadcast(csc)
+    val globalRegulatorIndexBroadcast = spark.sparkContext.broadcast(regulators)
+
+    val repartitionedExpressionByGene =
+      nrPartitions
+        .map(expressionByGene.repartition)
+        .getOrElse(expressionByGene)
 
     def isTarget(e: ExpressionByGene) = containedIn(targets)(e.gene)
-    
-    val rdd =
-      nrPartitions
-        .map(expressionByGene.rdd.repartition)
-        .getOrElse(expressionByGene.rdd)
-        .filter(isTarget)
 
-    val GRN = rdd.mapPartitions(it => {
+    repartitionedExpressionByGene
+      .filter(isTarget _)
+      .rdd
+      .mapPartitions(it => {
 
-      val csc = cscBroadcast.value
-      val globalRegulatorIndex = globalRegulatorIndexBroadcast.value
-      val full = toDMatrix(csc)
+        val csc = cscBroadcast.value
+        val full = toDMatrix(csc)
 
-      it.flatMap(row => {
-        val input = XGboostInput(row.gene, row.values.toArray.map(_.toFloat), globalRegulatorIndex, csc, full, params)
+        val globalRegulatorIndex = globalRegulatorIndexBroadcast.value
 
-        val scores = importanceScores(input)
+        it.flatMap(row => {
+          val input = XGboostInput(row.gene, row.values.toArray.map(_.toFloat), globalRegulatorIndex, csc, full, params)
 
-        if (it.isEmpty) {
-          full.delete()
-        }
+          val scores = importanceScores(input)
 
-        scores
+          if (it.isEmpty) {
+            full.delete()
+          }
+
+          scores
+        })
       })
-    })
-
-    spark
-      .createDataFrame(GRN)
-      .toDF(REGULATOR_NAME, TARGET_NAME, IMPORTANCE)
+      .toDS()
+      //.toDF(REGULATOR_NAME, TARGET_NAME, IMPORTANCE) //TODO Dataset instead of DataFrame
   }
 
   /**
@@ -94,7 +95,8 @@ object ScenicPipeline {
     */
   case class XGboostInput(targetGene: String,
                           targetResponse: Array[Float],
-                          globalRegulatorIndex: List[(Gene, GeneIndex)],
+                          //globalRegulatorIndex: List[(Gene, GeneIndex)],
+                          cscGenes: List[Gene],
                           csc: CSCMatrix[Expression],
                           fullDMatrix: DMatrix,
                           params: RegressionParams)
@@ -103,24 +105,23 @@ object ScenicPipeline {
     * @param input Input value object.
     * @return @return Calculate the importance scores for the regulators of the target gene.
     */
-  def importanceScores(input: XGboostInput): Iterable[(Gene, Gene, Importance)] = {
+  def importanceScores(input: XGboostInput): Iterable[Regulation] = {
 
     // TODO take this apart like hell
 
     import input._
 
-    val targetIsRegulator = globalRegulatorIndex.exists{ case (gene, _) => gene == targetGene }
+    val targetIsRegulator = cscGenes.exists(_ == targetGene)
 
-    println(s"-> $targetGene (regulator? $targetIsRegulator)")
+    // println(s"-> $targetGene (regulator? $targetIsRegulator)")
 
-    val regulatorCSCIndexTuples =
-      globalRegulatorIndex
-        .map(_._1)
+    val regulatorsToCSCIndex =
+      cscGenes
         .zipWithIndex
         .filterNot { case (gene, _) => gene == targetGene } // remove the target from the predictors
 
     def toTrainingDMatrix = {
-      lazy val withoutTargetDMatrix = toDMatrix(csc.apply(0 until csc.rows, regulatorCSCIndexTuples.map(_._2)))
+      lazy val withoutTargetDMatrix = toDMatrix(csc.apply(0 until csc.rows, regulatorsToCSCIndex.map(_._2)))
       val trainingDMatrix = if (targetIsRegulator) withoutTargetDMatrix else fullDMatrix
       trainingDMatrix.setLabel(targetResponse)
 
@@ -149,12 +150,12 @@ object ScenicPipeline {
           .getFeatureScore()
           .map { case (feature, score) => {
             val featureIndex = feature.substring(1).toInt
-            val (regulatorGene, _) = regulatorCSCIndexTuples(featureIndex)
+            val (regulatorGene, _) = regulatorsToCSCIndex(featureIndex)
             val importance = if (normalize) score.toFloat / sum else score.toFloat
 
-            (regulatorGene, targetGene, importance)}}
+            Regulation(regulatorGene, targetGene, importance)}}
           .toSeq
-          .sortBy(- _._3)
+          .sortBy(- _.importance)
 
       scores
     }
@@ -184,6 +185,7 @@ object ScenicPipeline {
     * @return Returns a List[(Gene -> GeneIndex)], mapping the genes present in the List of
     *         candidate regulators to their index in the complete gene List.
     */
+  @deprecated("fragile API design... revise.")
   def toGlobalRegulatorIndex(allGenes: List[Gene], candidateRegulators: Set[Gene]): List[(Gene, GeneIndex)] =
     allGenes
       .zipWithIndex

@@ -46,11 +46,17 @@ package object brassica {
   case class ExpressionByGene(gene: Gene, values: MLVector) // TODO rename values -> "expression"
 
   /**
+    * @param predictor
+    * @param index
+    */
+  case class PredictorToIndex(predictor: Gene, index: GeneIndex)
+
+  /**
     * @param regulator The regulator gene name.
     * @param target The target gene name.
     * @param importance The inferred importance of the regulator vis-a-vis the target.
     */
-  case class RegulatorTarget(regulator: Gene, target: Gene, importance: Importance)
+  case class Regulation(regulator: Gene, target: Gene, importance: Importance)
 
   case class RegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                               nrRounds: Int = 10,

@@ -2,6 +2,7 @@ package org.tmoerman.brassica.cases.megacell
 
 import org.apache.spark.sql.SparkSession
 import org.tmoerman.brassica._
+import org.tmoerman.brassica.cases.megacell.MegacellReader.toCSCMatrix
 
 /**
   * @author Thomas Moerman
@@ -18,7 +19,7 @@ object MegacellPipeline {
     * @param params The XGBoost regression params.
     * @param cellTop Optional limit for nr of cells to consider in the regressions.
     * @param nrPartitions Optional technical parameter
-    * @return
+    * @return Returns a Dataset of Regulation instances.
     */
   def apply(spark: SparkSession,
             hdf5: Path,
@@ -32,10 +33,10 @@ object MegacellPipeline {
     import spark.implicits._
 
     val allGenes = MegacellReader.readGeneNames(hdf5).get
+
     val expressionByGene = spark.read.parquet(parquet).as[ExpressionByGene]
 
-    val cscProducer = (globalRegulatorIndex: List[(Gene, GeneIndex)]) =>
-      MegacellReader.toCSCMatrix(expressionByGene, globalRegulatorIndex)
+    val cscProducer = (regulators: List[Gene]) => toCSCMatrix(expressionByGene, regulators)
 
     ScenicPipeline
       .apply(
