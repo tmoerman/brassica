@@ -52,17 +52,15 @@ object ScenicPipeline {
       .filter(isTarget _)
       .rdd
       .mapPartitions(it => {
-
-        val csc        = cscBroadcast.value
-        val regulators = regulatorsBroadcast.value
-
+        val csc         = cscBroadcast.value
+        val regulators  = regulatorsBroadcast.value
         val fullDMatrix = toDMatrix(csc)
 
         it.flatMap(expressionByGene => {
 
           val input  = XGboostInput(expressionByGene, regulators, csc, fullDMatrix, params)
 
-          val result = importanceScores(input) // TODO extract this to a "task" trait.
+          val result = withManagedTrainingDMatrix(input /* <insert task> */) // TODO extract this to a "task" trait.
 
           if (it.isEmpty) {
             fullDMatrix.delete()
@@ -112,91 +110,128 @@ object ScenicPipeline {
 
   /**
     * @param expressionByGene
-    * @param cscGenes The List of genes in the columns of the CSCMatrix.
+    * @param regulators The List of genes in the columns of the CSCMatrix.
     * @param csc The CSC matrix of gene expression values, only contains regulators.
     * @param fullDMatrix DMatrix built from the CSC Matrix.
     * @param params RegressionParams
     */
   case class XGboostInput(expressionByGene: ExpressionByGene,
-                          cscGenes: List[Gene],
+                          regulators: List[Gene],
                           csc: CSCMatrix[Expression],
                           fullDMatrix: DMatrix,
-                          params: RegressionParams)
+                          params: RegressionParams) {
+
+    def targetGene = expressionByGene.gene
+
+    /**
+      * @return Returns wether the target gene is a regulator.
+      */
+    def targetIsRegulator = regulators.contains(targetGene)
+
+  }
 
   /**
     * @param input Input value object.
     * @return @return Calculate the importance scores for the regulators of the target gene.
     */
-  def importanceScores(input: XGboostInput): Iterable[Regulation] = {
+  def withManagedTrainingDMatrix(input: XGboostInput): Iterable[Regulation] = {
     import input._
 
-    val targetGene = expressionByGene.gene
-    val targetIsRegulator = cscGenes.contains(targetGene)
     println(s"-> $targetGene (regulator? $targetIsRegulator)")
 
-    val regulatorsToTrainingDMatrixIndex =
-      cscGenes
+    val trainingDMatrixGenesToIndices =
+      regulators
         .zipWithIndex
         .filterNot { case (gene, _) => gene == targetGene } // remove the target from the predictors
-
-    // TODO move this to dedicated function
+    val trainingDMatrixGenes       = trainingDMatrixGenesToIndices.map(_._1)
+    val trainingDMatrixGeneIndices = trainingDMatrixGenesToIndices.map(_._2)
 
     resource
-      .makeManagedResource(toTrainingDMatrix(input, targetIsRegulator, regulatorsToTrainingDMatrixIndex))(m => if (targetIsRegulator) m.delete())(Nil)
-      .map(m => computeRegulations(m, targetGene, regulatorsToTrainingDMatrixIndex, params))
+      .makeManagedResource(toTrainingDMatrix(input, trainingDMatrixGeneIndices))(m => if (targetIsRegulator) m.delete())(Nil)
+      .map(trainingDMatrix => computeRegulations(targetGene, trainingDMatrix, trainingDMatrixGenes, params))
       .opt
       .get
   }
 
-  private def toTrainingDMatrix(input: XGboostInput,
-                                targetIsRegulator: Boolean,
-                                regulatorsToTrainingDMatrixIndex: List[(Gene, GeneIndex)]) = {
+  /**
+    * @param input The XGBoostInput
+    * @param trainingDMatrixGeneIndices Subset of CSC matrix column indices to slice the CSC matrix,
+    *                                   removing the column for the target gene.
+    * @return
+    */
+  private def toTrainingDMatrix(input: XGboostInput, trainingDMatrixGeneIndices: List[GeneIndex]) = {
     import input._
 
-    lazy val withoutTargetDMatrix = toDMatrix(csc.apply(0 until csc.rows, regulatorsToTrainingDMatrixIndex.map(_._2)))
+    lazy val withoutTargetDMatrix = toDMatrix(csc.apply(0 until csc.rows, trainingDMatrixGeneIndices))
     val trainingDMatrix = if (targetIsRegulator) withoutTargetDMatrix else fullDMatrix
 
     trainingDMatrix.setLabel(expressionByGene.response)
     trainingDMatrix
   }
 
-  def computeRegulations(trainingData: DMatrix,
-                         targetGene: Gene,
-                         regulatorsToTrainingDMatrixIndex: List[(Gene, GeneIndex)],
+  /**
+    * @param trainingDMatrix The training DMatrix.
+    * @param targetGene The target gene.
+    * @param trainingDMatrixGenes
+    * @param params The regression parameters.
+    * @return Returns an Iterable of gene Regulation instances.
+    */
+  @deprecated("wrap in a trait")
+  def computeRegulations(targetGene: Gene,
+                         trainingDMatrix: DMatrix,
+                         trainingDMatrixGenes: List[Gene],
                          params: RegressionParams): Iterable[Regulation] = {
     import params._
 
-    val booster = XGBoost.train(trainingData, boosterParams, nrRounds)
+    val booster = XGBoost.train(trainingDMatrix, boosterParams, nrRounds)
 
-    // TODO refactor CV
-    if (showCV) {
-      val cv = XGBoost.crossValidation(trainingData, boosterParams, nrRounds, 10)
-      val tuples =
-        cv
-          .map(_.split("\t").drop(1).map(_.split(":")(1).toFloat))
-          .map{ case Array(train, test) => (train, test) }
-          .zipWithIndex
+    toRegulations(booster, targetGene, trainingDMatrixGenes)
+  }
 
-      println(tuples.mkString(",\n"))
-    }
+  /**
+    * @param trainingDMatrix
+    * @param targetGene
+    * @param trainingDMatrixGenes
+    * @param params
+    */
+  def computeCVScores(trainingDMatrix: DMatrix,
+                      targetGene: Gene,
+                      trainingDMatrixGenes: List[Gene],
+                      params: RegressionParams) = {
+    import params._
 
-    toScores(booster, targetGene, regulatorsToTrainingDMatrixIndex)
+    val booster = XGBoost.train(trainingDMatrix, boosterParams, nrRounds)
+
+    val regulations = toRegulations(booster, targetGene, trainingDMatrixGenes)
+
+    val cv = XGBoost.crossValidation(trainingDMatrix, boosterParams, nrRounds, nrFolds)
+
+    val tuples =
+      cv
+        .map(_.split("\t").drop(1).map(_.split(":")(1).toFloat))
+        .zipWithIndex
+        .map{ case (Array(train, test), round) => (round, train, test) }
+
+    // TODO suggested nr rounds cutoff computation ~ cfr. early stopping in XGBoost Python.
+    // TODO design a CV data
+
+    println(tuples.mkString(",\n"))
   }
 
   /**
     * @param booster The Booster instance.
     * @param targetGene The target gene.
-    * @param regulatorsToTrainingDMatrixIndex List of (Gene, GeneIndex) tuples for the training DMatrix.
+    * @param trainingDMatrixGenes List of genes in the columns of the training DMatrix.
     * @return Returns a Seq of Regulation instances, ordered by importance DESC.
     */
-  def toScores(booster: Booster,
-               targetGene: Gene,
-               regulatorsToTrainingDMatrixIndex: List[(Gene, GeneIndex)]): Iterable[Regulation] = {
+  def toRegulations(booster: Booster,
+                    targetGene: Gene,
+                    trainingDMatrixGenes: List[Gene]): Iterable[Regulation] = {
     booster
       .getFeatureScore()
       .map { case (feature, importance) => {
         val featureIndex = feature.substring(1).toInt
-        val regulatorGene = regulatorsToTrainingDMatrixIndex(featureIndex)._1
+        val regulatorGene = trainingDMatrixGenes(featureIndex)
 
         Regulation(regulatorGene, targetGene, importance)
       }}

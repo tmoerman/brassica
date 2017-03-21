@@ -45,9 +45,7 @@ package object brassica {
     * @param values The sparse expression vector.
     */
   case class ExpressionByGene(gene: Gene, values: MLVector) { // TODO rename values -> "expression"
-
     def response = values.toArray.map(_.toFloat)
-
   }
 
   /**
@@ -80,13 +78,11 @@ package object brassica {
 
   /**
     * @param boosterParams The XGBoost Map of booster parameters.
-    * @param nrRounds The nr of boosting rounds
-    * @param nrFolds The nr of
-    * @param showCV
+    * @param nrRounds The nr of boosting rounds.
+    * @param nrFolds The nr of cross validation folds.
     */
   case class RegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                               nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
-                              nrFolds: Int = DEFAULT_NR_FOLDS,
-                              showCV: Boolean = false)
+                              nrFolds: Int = DEFAULT_NR_FOLDS)
 
 }

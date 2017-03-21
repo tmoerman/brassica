@@ -40,7 +40,7 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with XGBoostSuiteBase with Mat
           expressionByGene,
           candidateRegulators = TFs,
           targets = Set("Gad1"),
-          params = params.copy(showCV = true))
+          params = params)
 
     println(params)
 
