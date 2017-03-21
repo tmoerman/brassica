@@ -1,6 +1,7 @@
 package org.tmoerman
 
 import org.apache.spark.ml.linalg.{Vector => MLVector}
+import org.apache.spark.sql.Dataset
 
 /**
   * Constants, case classes and type aliases.
@@ -44,6 +45,18 @@ package object brassica {
     * @param values The sparse expression vector.
     */
   case class ExpressionByGene(gene: Gene, values: MLVector) // TODO rename values -> "expression"
+
+  /**
+    * Implicit pimp class for adding functions to Dataset[ExpressionByGene]
+    * @param ds
+    */
+  implicit class ExpressionByGeneFunctions(val ds: Dataset[ExpressionByGene]) {
+    import ds.sparkSession.implicits._
+
+    def genes = ds.select($"gene").rdd.map(_.getString(0)).collect.toList
+
+    def slice(cellIndices: Seq[CellIndex]): Dataset[ExpressionByGene] = ??? // FIXME implement this
+  }
 
   /**
     * @param predictor

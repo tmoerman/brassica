@@ -28,11 +28,12 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
   it should "run the embarrassingly parallel pipeline from raw" in {
     val TFs = ZeiselReader.readTFs(mouseTFs).toSet
 
+    val expressionByGene = ZeiselReader.apply(spark, zeiselMrna)
+
     val result =
-      ZeiselPipeline
+      ScenicPipeline
         .apply(
-          spark,
-          file = zeiselMrna,
+          expressionByGene,
           candidateRegulators = TFs,
           targets = Set("Gad1"),
           params = params)
@@ -45,11 +46,12 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
   it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
     val TFs = ZeiselReader.readTFs(mouseTFs).toSet
 
+    val expressionByGene = ZeiselFilteredReader.apply(spark, zeiselFiltered)
+
     val result =
-      ZeiselFilteredPipeline
+      ScenicPipeline
         .apply(
-          spark,
-          file = zeiselFiltered,
+          expressionByGene,
           candidateRegulators = TFs,
           targets = Set("Gad1"),
           params = params)
@@ -60,12 +62,12 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
   }
 
   it should "run the old Spark scenic pipeline" in {
-    val (df, genes) = ZeiselReader.fromParquet(spark, zeiselParquet, zeiselMrna)
+    val (df, genes) = ZeiselReaderOld.fromParquet(spark, zeiselParquet, zeiselMrna)
 
-    val TFs = ZeiselReader.readTFs(mouseTFs).toSet
+    val TFs = ZeiselReaderOld.readTFs(mouseTFs).toSet
 
     val (grn, info) =
-      ScenicPipeline_OLD.apply(
+      ScenicPipelineOld.apply(
         spark,
         df,
         genes,

@@ -3,8 +3,9 @@ package org.tmoerman.brassica
 import breeze.linalg.{CSCMatrix, SliceMatrix}
 import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
 import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.Dataset
 import org.tmoerman.brassica.util.TimeUtils.{pretty, profile}
+import org.tmoerman.brassica._
 
 /**
   * @author Thomas Moerman
@@ -12,10 +13,8 @@ import org.tmoerman.brassica.util.TimeUtils.{pretty, profile}
 object ScenicPipeline {
 
   /**
-    * @param spark The SparkSession.
     * @param expressionByGene A DataFrame containing the expression values by gene.
     *                         | gene | value |
-    * @param allGenes The ordered List of all genes.
     * @param candidateRegulators The Set of candidate regulators (TF).
     *                            The term "candidate" is used to imply that not all these regulators are expected
     *                            to be present in the specified List of all genes.
@@ -26,18 +25,16 @@ object ScenicPipeline {
     * @return Returns a DataFrame with schema:
     *         | regulator_name | target_name | importance |
     */
-  def apply(spark: SparkSession,
-            expressionByGene: Dataset[ExpressionByGene],
-            allGenes: List[Gene], // TODO get rid of this parameter, can be distilled from previous one
+  def apply(expressionByGene: Dataset[ExpressionByGene],
             candidateRegulators: Set[Gene],
             targets: Set[Gene] = Set.empty,
             params: RegressionParams = RegressionParams(),
             nrPartitions: Option[Int] = None): Dataset[Regulation] = {
 
+    val spark = expressionByGene.sparkSession
     import spark.implicits._
 
-    val allGenes   = expressionByGene.select($"gene").rdd.map(_(0)).collect.toList
-    val regulators = allGenes.filter(candidateRegulators.contains)
+    val regulators = expressionByGene.genes.filter(candidateRegulators.contains)
 
     val (csc, duration) = profile {
       toRegulatorCSCMatrix(expressionByGene, regulators)
@@ -46,7 +43,7 @@ object ScenicPipeline {
     println(s"constructing CSC matrix took ${pretty(duration)}") // TODO logging framework
 
     val cscBroadcast = spark.sparkContext.broadcast(csc)
-    val globalRegulatorIndexBroadcast = spark.sparkContext.broadcast(regulators)
+    val regulatorsBroadcast = spark.sparkContext.broadcast(regulators)
 
     val repartitionedExpressionByGene =
       nrPartitions
@@ -61,12 +58,14 @@ object ScenicPipeline {
       .mapPartitions(it => {
 
         val csc = cscBroadcast.value
+        val regulators = regulatorsBroadcast.value
+
         val full = toDMatrix(csc)
 
-        val globalRegulatorIndex = globalRegulatorIndexBroadcast.value
-
         it.flatMap(row => {
-          val input = XGboostInput(row.gene, row.values.toArray.map(_.toFloat), globalRegulatorIndex, csc, full, params)
+
+          val response = row.values.toArray.map(_.toFloat)
+          val input = XGboostInput(row.gene, response, regulators, csc, full, params)
 
           val scores = importanceScores(input)
 
@@ -77,7 +76,7 @@ object ScenicPipeline {
           scores
         })
       })
-      .toDS()
+      .toDS
   }
 
   /**
@@ -150,6 +149,7 @@ object ScenicPipeline {
         .zipWithIndex
         .filterNot { case (gene, _) => gene == targetGene } // remove the target from the predictors
 
+    // TODO move this to dedicated function
     def toTrainingDMatrix = {
       lazy val withoutTargetDMatrix = toDMatrix(csc.apply(0 until csc.rows, regulatorsToCSCIndex.map(_._2)))
       val trainingDMatrix = if (targetIsRegulator) withoutTargetDMatrix else fullDMatrix

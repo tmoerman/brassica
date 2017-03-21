@@ -10,7 +10,7 @@ import scala.concurrent.duration._
 /**
   * @author Thomas Moerman
   */
-object ScenicPipeline_OLD {
+object ScenicPipelineOld {
 
   /**
     * See XGBoost docs:

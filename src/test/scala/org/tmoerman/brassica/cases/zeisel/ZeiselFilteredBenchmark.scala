@@ -6,7 +6,7 @@ import org.apache.commons.io.FileUtils._
 import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.{PropsReader, TimeUtils}
-import org.tmoerman.brassica.{RegressionParams, XGBoostSuiteBase}
+import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -50,11 +50,12 @@ class ZeiselFilteredBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
         deleteDirectory(new File(out))
 
         val (_, duration) = TimeUtils.profile {
+          val expressionByGene = ZeiselFilteredReader.apply(spark, zeiselFiltered)
+
           val result =
-            ZeiselFilteredPipeline
+            ScenicPipeline
               .apply(
-                spark,
-                file = zeiselFiltered,
+                expressionByGene,
                 candidateRegulators = TFs,
                 targets = targets.toSet,
                 params = params,

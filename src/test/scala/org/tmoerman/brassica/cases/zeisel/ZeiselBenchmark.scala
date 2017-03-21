@@ -4,8 +4,9 @@ import java.io.File
 
 import org.apache.commons.io.FileUtils.deleteDirectory
 import org.scalatest.{FlatSpec, Matchers}
+import org.tmoerman.brassica.cases.zeisel.ZeiselReader.ZEISEL_GENE_COUNT
 import org.tmoerman.brassica.util.{PropsReader, TimeUtils}
-import org.tmoerman.brassica.{RegressionParams, XGBoostSuiteBase}
+import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -30,9 +31,11 @@ class ZeiselBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
   "the Zeisel emb.par pipeline from parquet" should "run" in {
     val TFs = ZeiselReader.readTFs(mouseTFs).toSet
 
-    val genes = ZeiselReader.readGenes(spark, zeiselMrna)
+    val expressionByGene = ZeiselReader.apply(spark, zeiselMrna)
 
-    val nrTargets = Seq(1, 5, 10, 25, 100, 250, 1000, 2500, 10000, genes.size)
+    val genes = expressionByGene.genes
+
+    val nrTargets = Seq(1, 5, 10, 25, 100, 250, 1000, 2500, 10000, ZEISEL_GENE_COUNT)
 
     val machine = PropsReader.currentProfile.get
 
@@ -47,14 +50,14 @@ class ZeiselBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
 
         val (_, duration) = TimeUtils.profile {
           val result =
-            ZeiselPipeline
-              .apply(
-                spark,
-                file = zeiselMrna,
-                candidateRegulators = TFs,
-                targets = targets.toSet,
-                params = params,
-                nrPartitions = Some(spark.sparkContext.defaultParallelism))
+
+          ScenicPipeline
+            .apply(
+              expressionByGene,
+              candidateRegulators = TFs,
+              targets = targets.toSet,
+              params = params,
+              nrPartitions = Some(spark.sparkContext.defaultParallelism))
 
           result.repartition(4).write.parquet(out)
         }
