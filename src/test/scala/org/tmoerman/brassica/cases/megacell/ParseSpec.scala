@@ -73,9 +73,4 @@ class ParseSpec extends FlatSpec with Matchers {
 //
 //  }
 
-  it should "read a dataset in column blocks" in {
-
-
-  }
-
 }

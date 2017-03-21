@@ -1,6 +1,7 @@
 package org.tmoerman.brassica.cases.zeisel
 
 import org.scalatest.{FlatSpec, Matchers}
+import org.tmoerman.brassica.util.PropsReader.props
 import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, XGBoostSuiteBase}
 
 /**
@@ -9,6 +10,10 @@ import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, XGBoostSuiteBase
 class ZeiselFilteredPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   behavior of "Scenic pipeline on Zeisel"
+
+  val zeiselFiltered = props("zeiselFiltered")
+
+  val mouseTFs = props("mouseTFs")
 
   val boosterParams = Map(
     "seed" -> 777,
@@ -21,7 +26,6 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with XGBoostSuiteBase with Mat
 
   val params =
     RegressionParams(
-      normalize = true,
       nrRounds = 50,
       boosterParams = boosterParams)
 

@@ -23,14 +23,11 @@ class MegacellBenchmark extends FlatSpec with XGBoostSuiteBase {
 
   val params =
     RegressionParams(
-      normalize = true,
       nrRounds = 25,
       boosterParams = boosterParams)
 
   "the Megacell emb.par pipeline from parquet" should "run" in {
     val TFs = MegacellReader.readTFs(mouseTFs).toSet
-
-    val limit = Some(10000)
 
     val result =
       MegacellPipeline
@@ -40,7 +37,6 @@ class MegacellBenchmark extends FlatSpec with XGBoostSuiteBase {
           parquet = path,
           candidateRegulators = TFs,
           targets = Set("Gad1"),
-          cellTop = limit,
           params = params)
 
     println(params)

@@ -1,10 +1,9 @@
 package org.tmoerman.brassica
 
-import org.apache.spark.annotation.DeveloperApi
-import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.ml.Transformer
 import org.apache.spark.ml.attribute.AttributeGroup
 import org.apache.spark.ml.feature.VectorSlicer
+import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.ml.param.{IntArrayParam, IntParam, ParamMap}
 import org.apache.spark.ml.util.{DefaultParamsWritable, Identifiable}
 import org.apache.spark.sql.functions._

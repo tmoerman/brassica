@@ -7,6 +7,7 @@ import org.tmoerman.brassica.cases.megacell.MegacellReader.toCSCMatrix
 /**
   * @author Thomas Moerman
   */
+@deprecated
 object MegacellPipeline {
 
   /**
@@ -30,17 +31,13 @@ object MegacellPipeline {
 
     import spark.implicits._
 
-    val allGenes = MegacellReader.readGeneNames(hdf5).get
-
     val expressionByGene = spark.read.parquet(parquet).as[ExpressionByGene]
 
     // TODO any preprocessing on the Dataset should be done here, downstream agnostic of nr cells under consideration.
 
     ScenicPipeline
       .apply(
-        spark,
         expressionByGene,
-        allGenes,
         candidateRegulators,
         targets,
         params,

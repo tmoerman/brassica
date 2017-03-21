@@ -1,7 +1,6 @@
 package org.tmoerman.brassica
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.tmoerman.brassica.ScenicPipeline.toGlobalRegulatorIndex
 import org.tmoerman.brassica.util.TimeUtils.{pretty, profile}
 
 import scala.collection.immutable.ListMap
@@ -34,7 +33,10 @@ object ScenicPipelineOld {
             targets: Set[Gene] = Set.empty,
             nrWorkers: Option[Int] = None) = {
 
-    val regulatorIndices = toGlobalRegulatorIndex(genes, candidateRegulators).map(_._2)
+    val regulatorIndices =
+      genes
+        .zipWithIndex
+        .filter{ case (gene, _) => candidateRegulators.contains(gene) }
 
     type ACC = (List[DataFrame], List[Duration])
 
@@ -52,7 +54,7 @@ object ScenicPipelineOld {
             repartitioned,
             genes,
             targetIndex,
-            regulatorIndices,
+            regulatorIndices.map(_._2),
             params,
             nrRounds = nrRounds,
             nrWorkers = nrWorkers) }}

@@ -22,7 +22,7 @@ package object brassica {
   type GeneIndex = Int
   type GeneCount = Int
   type Expression = Int
-  type Importance = Float
+  type Importance = Int
 
   val VALUES      = "values"
   val GENE        = "gene"
@@ -44,7 +44,11 @@ package object brassica {
     * @param gene The gene name.
     * @param values The sparse expression vector.
     */
-  case class ExpressionByGene(gene: Gene, values: MLVector) // TODO rename values -> "expression"
+  case class ExpressionByGene(gene: Gene, values: MLVector) { // TODO rename values -> "expression"
+
+    def response = values.toArray.map(_.toFloat)
+
+  }
 
   /**
     * Implicit pimp class for adding functions to Dataset[ExpressionByGene]
@@ -71,10 +75,18 @@ package object brassica {
     */
   case class Regulation(regulator: Gene, target: Gene, importance: Importance)
 
+  val DEFAULT_NR_BOOSTING_ROUNDS = 50
+  val DEFAULT_NR_FOLDS = 10
+
+  /**
+    * @param boosterParams The XGBoost Map of booster parameters.
+    * @param nrRounds The nr of boosting rounds
+    * @param nrFolds The nr of
+    * @param showCV
+    */
   case class RegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
-                              nrRounds: Int = 10,
-                              normalize: Boolean = true,
-                              nrWorkers: Option[Int] = Some(1),
+                              nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
+                              nrFolds: Int = DEFAULT_NR_FOLDS,
                               showCV: Boolean = false)
 
 }

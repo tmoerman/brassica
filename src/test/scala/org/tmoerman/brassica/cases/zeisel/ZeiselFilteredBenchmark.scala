@@ -5,6 +5,7 @@ import java.io.File
 import org.apache.commons.io.FileUtils._
 import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
+import org.tmoerman.brassica.util.PropsReader.props
 import org.tmoerman.brassica.util.{PropsReader, TimeUtils}
 import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, XGBoostSuiteBase}
 
@@ -24,9 +25,12 @@ class ZeiselFilteredBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 
   val params =
     RegressionParams(
-      normalize = true,
       nrRounds = 50,
       boosterParams = boosterParams)
+
+  val zeiselFiltered = props("zeiselFiltered")
+
+  val mouseTFs = props("mouseTFs")
 
   "the (filtered, cfr. Sara) Zeisel emb.par pipeline from parquet" should "run" in {
     val TFs = ZeiselFilteredReader.readTFs(mouseTFs).toSet

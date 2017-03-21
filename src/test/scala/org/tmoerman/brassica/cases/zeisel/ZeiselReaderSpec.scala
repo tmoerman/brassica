@@ -3,6 +3,7 @@ package org.tmoerman.brassica.cases.zeisel
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.cases.zeisel.ZeiselReader._
+import org.tmoerman.brassica.util.PropsReader.props
 
 /**
   * @author Thomas Moerman
@@ -10,6 +11,10 @@ import org.tmoerman.brassica.cases.zeisel.ZeiselReader._
 class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
   behavior of "ZeiselReader"
+
+  val zeiselMrna = props("zeisel")
+
+  val mouseTFs = props("mouseTFs")
 
   it should "parse the mouse TFs properly" in {
     val TFs = readTFs(mouseTFs)

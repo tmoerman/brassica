@@ -31,6 +31,7 @@ object MegacellReader extends DataReader {
 
   private[megacell] val MEGACELL_CELL_COUNT = 1300774
   private[megacell] val MEGACELL_GENE_COUNT = 27998
+  private[megacell] val MEGACELL_REGULATOR_COUNT = 1607
 
   private[megacell] val INDPTR     = "/mm10/indptr"
   private[megacell] val DATA       = "/mm10/data"

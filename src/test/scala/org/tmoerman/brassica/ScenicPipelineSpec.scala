@@ -1,23 +1,28 @@
 package org.tmoerman.brassica
 
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.ScenicPipeline._
+import org.tmoerman.brassica.cases.zeisel.ZeiselReader
+import org.tmoerman.brassica.cases.zeisel.ZeiselReader.ZEISEL_CELL_COUNT
+import org.tmoerman.brassica.util.PropsReader
 
 /**
   * @author Thomas Moerman
   */
-class ScenicPipelineSpec extends FlatSpec with Matchers {
+class ScenicPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
-  behavior of "regulatorIndices"
+  val zeiselMrna = PropsReader.props("zeisel")
 
-  val allGenes = List("brca1", "brca2", "hox")
+  "converting to a CSCMatrix" should "work" in {
+    val ds = ZeiselReader.apply(spark, zeiselMrna)
 
-  it should "return indices of all genes when candidates are Nil" in {
-    an [AssertionError] shouldBe thrownBy { toGlobalRegulatorIndex(allGenes, Set.empty) }
-  }
+    val predictors = "Tspan12" :: Nil
 
-  it should "return the correct indices for specified candidates" in {
-    toGlobalRegulatorIndex(allGenes, Set("brca1", "hox")).map(_._2) shouldBe (0, 2)
+    val csc = ScenicPipeline.toRegulatorCSCMatrix(ds, predictors)
+
+    csc.rows shouldBe ZEISEL_CELL_COUNT
+    csc.cols shouldBe 1
+
+    println(csc.toDense.t)
   }
 
 }

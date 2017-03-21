@@ -3,7 +3,7 @@ package org.tmoerman.brassica.cases.megacell
 import breeze.linalg.CSCMatrix
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.TimeUtils
-import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, ScenicPipeline_OLD, XGBoostSuiteBase}
+import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, ScenicPipelineOld, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -23,14 +23,13 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
 
   val params =
     RegressionParams(
-      normalize = false,
       nrRounds = 25,
       boosterParams = boosterParams)
 
   it should "run the embarrassingly parallel pipeline on top 10k" in {
-    val cellTop = Some(10000)
-
     val TFs = MegacellReader.readTFs(mouseTFs).toSet
+
+    // TODO slice the input Dataset
 
     val result =
       MegacellPipeline
@@ -40,8 +39,7 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
           parquet = megacellColumnsParquet + "_10k",
           candidateRegulators = TFs,
           targets = Set("Gad1"),
-          params = params,
-          cellTop = cellTop)
+          params = params)
 
     println(params)
 
@@ -99,7 +97,6 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
           candidateRegulators = TFs,
           targets = Set("Gad1"),
           params = params,
-          cellTop = cellTop,
           nrPartitions = None)
 
       result.show()
@@ -175,16 +172,6 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
     println(dm.toString)
 
     dm.delete()
-  }
-
-  "calculating the regulator genes" should "work correctly" in {
-    val genes = MegacellReader.readGeneNames(megacell).get
-
-    val candidateRegulators = MegacellReader.readTFs(mouseTFs).toSet
-
-    val regulators = ScenicPipeline.toGlobalRegulatorIndex(genes, candidateRegulators)
-
-    regulators.size shouldBe 1607
   }
 
 }

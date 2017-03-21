@@ -24,15 +24,13 @@ object ZeiselReader extends DataReader {
     *
     * A Line consists of a feature and the values for that feature across cells.
     */
-  private[zeisel] type Line = (List[String], Index)
+  type Line = (List[String], Index)
 
-  private[zeisel] val ZEISEL_CELL_COUNT = 3005
-  private[zeisel] val ZEISEL_GENE_COUNT = 19972
-
+  val ZEISEL_CELL_COUNT = 3005
+  val ZEISEL_GENE_COUNT = 19972
+  
   private[zeisel] val NR_META_FEATURES  = 10
   private[zeisel] val EMPTY_LINE_INDEX  = NR_META_FEATURES
-//  private[zeisel] val FEAT_INDEX_OFFSET = NR_META_FEATURES + 1
-//  private[zeisel] val OBSERVATION_INDEX_OFFSET  = 2
 
   /**
     * @param spark The SparkSession.

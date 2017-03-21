@@ -2,6 +2,8 @@ package org.tmoerman.brassica.cases.zeisel
 
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica._
+import org.tmoerman.brassica.util.PropsReader
+import org.tmoerman.brassica.util.PropsReader.props
 
 /**
   * @author Thomas Moerman
@@ -21,9 +23,13 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   val params =
     RegressionParams(
-      normalize = true,
       nrRounds = 50,
       boosterParams = boosterParams)
+
+  val zeiselMrna = props("zeisel")
+  val zeiselFiltered = props("zeiselFiltered")
+
+  val mouseTFs = props("mouseTFs")
 
   it should "run the embarrassingly parallel pipeline from raw" in {
     val TFs = ZeiselReader.readTFs(mouseTFs).toSet
@@ -60,6 +66,8 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     result.show
   }
+
+  val zeiselParquet = props("zeiselParquet")
 
   it should "run the old Spark scenic pipeline" in {
     val (df, genes) = ZeiselReaderOld.fromParquet(spark, zeiselParquet, zeiselMrna)
