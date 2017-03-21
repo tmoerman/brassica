@@ -17,7 +17,6 @@ object MegacellPipeline {
     * @param targets The Set of target genes for which to compute the predictors.
     *                If empty Set is specified, all genes will be considered as targets.
     * @param params The XGBoost regression params.
-    * @param cellTop Optional limit for nr of cells to consider in the regressions.
     * @param nrPartitions Optional technical parameter
     * @return Returns a Dataset of Regulation instances.
     */
@@ -27,7 +26,6 @@ object MegacellPipeline {
             candidateRegulators: Set[Gene],
             targets: Set[Gene] = Set.empty,
             params: RegressionParams = RegressionParams(),
-            cellTop: Option[CellCount] = None,
             nrPartitions: Option[Int] = None) = {
 
     import spark.implicits._
@@ -36,18 +34,16 @@ object MegacellPipeline {
 
     val expressionByGene = spark.read.parquet(parquet).as[ExpressionByGene]
 
-    val cscProducer = (regulators: List[Gene]) => toCSCMatrix(expressionByGene, regulators)
+    // TODO any preprocessing on the Dataset should be done here, downstream agnostic of nr cells under consideration.
 
     ScenicPipeline
       .apply(
         spark,
-        cscProducer,
         expressionByGene,
         allGenes,
         candidateRegulators,
         targets,
         params,
-        cellTop,
         nrPartitions)
   }
 

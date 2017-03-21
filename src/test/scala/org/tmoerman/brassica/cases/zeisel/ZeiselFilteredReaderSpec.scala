@@ -1,7 +1,7 @@
 package org.tmoerman.brassica.cases.zeisel
 
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.XGBoostSuiteBase
+import org.tmoerman.brassica.{ScenicPipeline, XGBoostSuiteBase}
 import org.tmoerman.brassica.cases.zeisel.ZeiselReader.ZEISEL_CELL_COUNT
 import org.tmoerman.brassica.util.PropsReader
 
@@ -27,7 +27,7 @@ class ZeiselFilteredReaderSpec extends FlatSpec with XGBoostSuiteBase with Match
 
     val predictors = "Tspan12" :: Nil
 
-    val csc = ZeiselReader.toCSCMatrix(ds, predictors)
+    val csc = ScenicPipeline.toRegulatorCSCMatrix(ds, predictors)
 
     csc.rows shouldBe ZEISEL_CELL_COUNT
     csc.cols shouldBe 1

@@ -3,7 +3,7 @@ package org.tmoerman.brassica
 import breeze.linalg.{CSCMatrix, SliceMatrix}
 import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
 import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.tmoerman.brassica.util.TimeUtils.{pretty, profile}
 
 /**
@@ -13,7 +13,6 @@ object ScenicPipeline {
 
   /**
     * @param spark The SparkSession.
-    * @param cscProducer Function that constructs a CSCMatrix[Expression] in (rows = cells, cols = genes).
     * @param expressionByGene A DataFrame containing the expression values by gene.
     *                         | gene | value |
     * @param allGenes The ordered List of all genes.
@@ -23,28 +22,25 @@ object ScenicPipeline {
     * @param targets A Set of target genes for which we wish to infer the important regulators.
     *                If empty Set is specified, this is interpreted as: target genes = all genes.
     * @param params The XGBoost regression parameters.
-    * @param cellTop Optional nr of top cells to consider for the regression.
-    *                All cells are used if None is specified.
     * @param nrPartitions Optional technical parameter for defining the nr. of Spark partitions to use.
     * @return Returns a DataFrame with schema:
     *         | regulator_name | target_name | importance |
     */
   def apply(spark: SparkSession,
-            cscProducer: List[Gene] => CSCMatrix[Expression],
             expressionByGene: Dataset[ExpressionByGene],
-            allGenes: List[Gene],
+            allGenes: List[Gene], // TODO get rid of this parameter, can be distilled from previous one
             candidateRegulators: Set[Gene],
             targets: Set[Gene] = Set.empty,
             params: RegressionParams = RegressionParams(),
-            cellTop: Option[CellCount] = None,
             nrPartitions: Option[Int] = None): Dataset[Regulation] = {
 
     import spark.implicits._
 
+    val allGenes   = expressionByGene.select($"gene").rdd.map(_(0)).collect.toList
     val regulators = allGenes.filter(candidateRegulators.contains)
 
     val (csc, duration) = profile {
-      cscProducer.apply(regulators)
+      toRegulatorCSCMatrix(expressionByGene, regulators)
     }
 
     println(s"constructing CSC matrix took ${pretty(duration)}") // TODO logging framework
@@ -82,6 +78,42 @@ object ScenicPipeline {
         })
       })
       .toDS()
+  }
+
+  /**
+    * @param expressionByGene The Dataset of ExpressionByGene instances.
+    * @param regulators The ordered List of regulators.
+    * @return Returns a CSCMatrix of regulator gene expression values.
+    */
+  def toRegulatorCSCMatrix(expressionByGene: Dataset[ExpressionByGene],
+                           regulators: List[Gene]): CSCMatrix[Expression] = {
+
+    val nrGenes = regulators.size
+    val nrCells = expressionByGene.first.values.size
+
+    val regulatorIndexMap = regulators.zipWithIndex.toMap
+    def isPredictor(gene: Gene) = regulatorIndexMap.contains(gene)
+    def cscIndex(gene: Gene) = regulatorIndexMap.apply(gene)
+
+    expressionByGene
+      .rdd
+      .filter(e => isPredictor(e.gene))
+      .mapPartitions{ it =>
+        val matrixBuilder = new CSCMatrix.Builder[Expression](rows = nrCells, cols = nrGenes)
+
+        it.foreach { case ExpressionByGene(gene, expression) =>
+
+          val geneIdx = cscIndex(gene)
+
+          expression
+            .foreachActive{ (cellIdx, value) =>
+              matrixBuilder.add(cellIdx, geneIdx, value.toInt)
+            }
+        }
+
+        Iterator(matrixBuilder.result)
+      }
+      .reduce(_ += _)
   }
 
   /**

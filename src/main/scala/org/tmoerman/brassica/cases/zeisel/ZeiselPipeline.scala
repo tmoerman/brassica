@@ -1,8 +1,8 @@
 package org.tmoerman.brassica.cases.zeisel
 
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.tmoerman.brassica._
-import org.tmoerman.brassica.cases.zeisel.ZeiselReader.{toCSCMatrix, toExpressionByGene}
+import org.tmoerman.brassica.cases.zeisel.ZeiselReader.toExpressionByGene
 
 /**
   * @author Thomas Moerman
@@ -34,18 +34,14 @@ object ZeiselPipeline {
 
     val expressionByGene = lines.flatMap(toExpressionByGene).toDS
 
-    val cscProducer = (regulators: List[Gene]) => toCSCMatrix(expressionByGene, regulators)
-
     ScenicPipeline
       .apply(
         spark,
-        cscProducer,
         expressionByGene,
         allGenes,
         candidateRegulators,
         targets,
         params,
-        cellTop = None,
         nrPartitions)
   }
 

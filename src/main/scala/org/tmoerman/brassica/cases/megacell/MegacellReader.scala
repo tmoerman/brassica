@@ -141,7 +141,7 @@ object MegacellReader extends DataReader {
     * @param nrGenes the nr of genes in the Megacell file.
     * @return Returns a CSCMatrix[Expression].
     */
-  def toCSCMatrix(ds: Dataset[ExpressionByGene],
+  @deprecated def toCSCMatrix(ds: Dataset[ExpressionByGene],
                   regulators: List[Gene],
                   cellTop: Option[CellCount] = None, // TODO slicing should happen elsewhere.
                   nrCells: CellCount = MEGACELL_CELL_COUNT,

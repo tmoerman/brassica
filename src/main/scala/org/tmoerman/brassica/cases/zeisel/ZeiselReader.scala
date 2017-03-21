@@ -223,43 +223,6 @@ object ZeiselReader extends DataReader {
       .map { case (meta, features) => Row.fromSeq(features.ml :: meta.toList) }
   }
 
-  /**
-    * @param ds The Dataset of ExpressionByGene instances.
-    * @param regulators The ordered List of regulators.
-    * @param nrCells The nr of cells = nr of row in the CSCMatrix
-    * @return Returns a CSCMatrix of expression values.
-    */
-  def toCSCMatrix(ds: Dataset[ExpressionByGene],
-                  regulators: List[Gene],
-                  nrCells: CellCount = ZEISEL_CELL_COUNT): CSCMatrix[Expression] = {
-
-    val nrGenes = regulators.size
-
-    val regulatorIndexMap = regulators.zipWithIndex.toMap
-
-    def isPredictor(gene: Gene) = regulatorIndexMap.contains(gene)
-    def cscIndex(gene: Gene) = regulatorIndexMap.apply(gene)
-
-    ds.rdd
-      .filter(e => isPredictor(e.gene))
-      .mapPartitions{ it =>
-        val matrixBuilder = new CSCMatrix.Builder[Expression](rows = nrCells, cols = nrGenes)
-
-        it.foreach { case ExpressionByGene(gene, expression) =>
-
-          val geneIdx = cscIndex(gene)
-
-          expression
-            .foreachActive{ (cellIdx, value) =>
-              matrixBuilder.add(cellIdx, geneIdx, value.toInt)
-            }
-        }
-
-        Iterator(matrixBuilder.result)
-      }
-      .reduce(_ + _)
-  }
-
   private[zeisel] def toExpressionByGene(line: Line): Option[ExpressionByGene] =
     Some(line)
       .filter(_._2 >= NR_META_FEATURES)
