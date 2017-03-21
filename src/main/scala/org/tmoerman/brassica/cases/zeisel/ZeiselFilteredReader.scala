@@ -31,10 +31,15 @@ object ZeiselFilteredReader extends DataReader{
     val expressionByGene =
       lines
         .map{
-          case gene :: rest =>
+          case gene :: values =>
 
-            val length = rest.length
-            val tuples = rest.map(_.toDouble).zipWithIndex.filterNot(_._1 == 0).map{ case (e, i) => (i, e) }
+            val length = values.length
+            val tuples =
+              values
+                .zipWithIndex
+                .filterNot(_._1 == "0")
+                .map{ case (e, i) => (i, e.toDouble) }
+
             ExpressionByGene(gene, Vectors.sparse(length, tuples))
 
           case _ => ???
