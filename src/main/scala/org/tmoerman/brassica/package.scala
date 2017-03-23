@@ -1,10 +1,11 @@
 package org.tmoerman
 
-import org.apache.spark.ml.linalg.{Vector => MLVector}
+import org.apache.spark.ml.feature.VectorSlicer
+import org.apache.spark.ml.linalg.{SparseVector, Vector => MLVector}
 import org.apache.spark.mllib.feature.Normalizer
-import org.apache.spark.mllib.linalg.Vectors.fromML
 import org.apache.spark.mllib.linalg.{Vectors => OldVectors}
 import org.apache.spark.sql.Dataset
+import org.apache.spark.ml.linalg.BreezeMLConversions._
 
 /**
   * Constants, case classes and type aliases.
@@ -68,13 +69,30 @@ package object brassica {
     /**
       * @return Returns the Dataset, with normalized (p=2) expression vectors.
       */
-    def normalized: Dataset[ExpressionByGene] = ds.map(e => e.copy(values = normalizer.transform(fromML(e.values)).asML))
+    def normalized: Dataset[ExpressionByGene] =
+      // TODO this can probably be rewritten with UDF
+      ds.map(e => e.copy(values = normalizer.transform(OldVectors.fromML(e.values)).asML))
 
     /**
       * @param cellIndices
       * @return
       */
-    def slice(cellIndices: Seq[CellIndex]): Dataset[ExpressionByGene] = ??? // FIXME implement this
+    def slice(cellIndices: Seq[CellIndex]): Dataset[ExpressionByGene] = {
+      val slicer =
+        new VectorSlicer()
+          .setInputCol("values")
+          .setOutputCol("sliced")
+          .setIndices(cellIndices.toArray)
+
+      Some(ds)
+        .map(slicer.transform)
+        .map(_.select($"gene", $"sliced"))
+        .map(_.withColumnRenamed("sliced", "values"))
+        .map(_.as[ExpressionByGene])
+        .get
+    }
+
+
   }
 
   /**
