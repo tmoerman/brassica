@@ -3,7 +3,7 @@ package org.tmoerman.brassica.cases.megacell
 import breeze.linalg.CSCMatrix
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.TimeUtils
-import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, ScenicPipelineOld, XGBoostSuiteBase}
+import org.tmoerman.brassica.{Expression, RegressionParams, ScenicPipeline, ScenicPipelineOld, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -148,12 +148,12 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
 
   "toDMatrix" should "work correctly" in {
 
-    val builder = new CSCMatrix.Builder[Int](rows = 10, cols = 4)
+    val builder = new CSCMatrix.Builder[Expression](rows = 10, cols = 4)
 
-    builder.add(0, 0, 6)
-    builder.add(1, 1, 7)
-    builder.add(2, 2, 8)
-    builder.add(3, 3, 9)
+    builder.add(0, 0, 6f)
+    builder.add(1, 1, 7f)
+    builder.add(2, 2, 8f)
+    builder.add(3, 3, 9f)
 
     val csc = builder.result
 

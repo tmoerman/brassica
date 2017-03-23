@@ -1,6 +1,9 @@
 package org.tmoerman
 
 import org.apache.spark.ml.linalg.{Vector => MLVector}
+import org.apache.spark.mllib.feature.Normalizer
+import org.apache.spark.mllib.linalg.Vectors.fromML
+import org.apache.spark.mllib.linalg.{Vectors => OldVectors}
 import org.apache.spark.sql.Dataset
 
 /**
@@ -21,7 +24,7 @@ package object brassica {
   type CellCount = Int
   type GeneIndex = Int
   type GeneCount = Int
-  type Expression = Int
+  type Expression = Float
   type Importance = Int
 
   val VALUES      = "values"
@@ -48,6 +51,8 @@ package object brassica {
     def response = values.toArray.map(_.toFloat)
   }
 
+  private[this] val normalizer = new Normalizer(p = 2.0)
+
   /**
     * Implicit pimp class for adding functions to Dataset[ExpressionByGene]
     * @param ds
@@ -55,8 +60,20 @@ package object brassica {
   implicit class ExpressionByGeneFunctions(val ds: Dataset[ExpressionByGene]) {
     import ds.sparkSession.implicits._
 
-    def genes = ds.select($"gene").rdd.map(_.getString(0)).collect.toList
+    /**
+      * @return Returns the genes in the Dataset as List of Strings.
+      */
+    def genes: List[Gene] = ds.select($"gene").rdd.map(_.getString(0)).collect.toList
 
+    /**
+      * @return Returns the Dataset, with normalized (p=2) expression vectors.
+      */
+    def normalized: Dataset[ExpressionByGene] = ds.map(e => e.copy(values = normalizer.transform(fromML(e.values)).asML))
+
+    /**
+      * @param cellIndices
+      * @return
+      */
     def slice(cellIndices: Seq[CellIndex]): Dataset[ExpressionByGene] = ??? // FIXME implement this
   }
 

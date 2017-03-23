@@ -99,7 +99,7 @@ object ScenicPipeline {
 
           expression
             .foreachActive{ (cellIdx, value) =>
-              matrixBuilder.add(cellIdx, geneIdx, value.toInt)
+              matrixBuilder.add(cellIdx, geneIdx, value.toFloat)
             }
         }
 
@@ -239,11 +239,11 @@ object ScenicPipeline {
       .sortBy(-_.importance)
   }
 
-  def toDMatrix(m: SliceMatrix[Int, Int, Int]) =
-    new DMatrix(m.activeValuesIterator.map(_.toFloat).toArray, m.rows, m.cols, 0f)
+  def toDMatrix(m: SliceMatrix[Int, Int, Expression]) =
+    new DMatrix(m.activeValuesIterator.toArray, m.rows, m.cols, 0f)
 
-  def toDMatrix(csc: CSCMatrix[Int]) =
-    new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data.map(_.toFloat), CSC)
+  def toDMatrix(csc: CSCMatrix[Expression]) =
+    new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC)
 
   private def containedIn(targets: Set[Gene]): Gene => Boolean =
     if (targets.isEmpty)

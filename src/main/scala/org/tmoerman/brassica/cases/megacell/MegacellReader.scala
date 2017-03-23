@@ -54,7 +54,7 @@ object MegacellReader extends DataReader {
     }
   }
 
-  object IntSparseVector extends RowFn[BSV[Int]] {
+  object IntSparseVector extends RowFn[BSV[Expression]] {
     def apply(cellIndex: CellIndex, geneCount: GeneCount, expressionTuples: ExpressionTuples) =
       BSV(geneCount)(expressionTuples: _*)
   }
@@ -129,7 +129,7 @@ object MegacellReader extends DataReader {
 
     val geneIndices = reader.int32.readArrayBlockWithOffset(INDICES, blockSize, offset)
 
-    val expressionValues = reader.int32.readArrayBlockWithOffset(DATA, blockSize, offset)
+    val expressionValues = reader.int32.readArrayBlockWithOffset(DATA, blockSize, offset).map(_.toFloat)
 
     geneIndices zip expressionValues
   }
@@ -178,7 +178,7 @@ object MegacellReader extends DataReader {
 
           sliced
             .foreachPair { (cellIdx, value) =>
-              matrixBuilder.add(cellIdx, geneIdx, value.toInt)
+              matrixBuilder.add(cellIdx, geneIdx, value.toFloat)
             }
         }
 
@@ -263,7 +263,7 @@ object MegacellReader extends DataReader {
 
   def readGeneNames(reader: IHDF5Reader) = reader.string.readArray(GENE_NAMES).toList
 
-  private[this] def ml(v: BSV[Int]): SparseVector = {
+  private[this] def ml(v: BSV[Expression]): SparseVector = {
     if (v.index.length == v.used) {
       new SparseVector(v.length, v.index, v.data.map(_.toDouble))
     } else {

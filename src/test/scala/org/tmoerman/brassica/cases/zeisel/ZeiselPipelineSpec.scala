@@ -17,8 +17,8 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
     "silent" -> 1,
     "eta" -> 0.15,
     "subsample" -> 0.8,
-    "colsample_bytree" -> 0.7,
-    "gamma" -> 2
+    "colsample_bytree" -> 0.7
+    //"gamma" -> 2
   )
 
   val params =
@@ -54,7 +54,7 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     val expressionByGene = ZeiselFilteredReader.apply(spark, zeiselFiltered)
 
-    val result =
+    val result_raw =
       ScenicPipeline
         .apply(
           expressionByGene,
@@ -62,9 +62,18 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
           targets = Set("Gad1"),
           params = params)
 
+    val result_norm =
+      ScenicPipeline
+        .apply(
+          expressionByGene.normalized,
+          candidateRegulators = TFs,
+          targets = Set("Gad1"),
+          params = params)
+
     println(params)
 
-    result.show
+    result_raw.show
+    result_norm.show
   }
 
   val zeiselParquet = props("zeiselParquet")
