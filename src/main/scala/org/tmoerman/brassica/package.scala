@@ -1,11 +1,8 @@
 package org.tmoerman
 
 import org.apache.spark.ml.feature.VectorSlicer
-import org.apache.spark.ml.linalg.{SparseVector, Vector => MLVector}
-import org.apache.spark.mllib.feature.Normalizer
-import org.apache.spark.mllib.linalg.{Vectors => OldVectors}
+import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
-import org.apache.spark.ml.linalg.BreezeMLConversions._
 
 /**
   * Constants, case classes and type aliases.
@@ -52,7 +49,7 @@ package object brassica {
     def response = values.toArray.map(_.toFloat)
   }
 
-  private[this] val normalizer = new Normalizer(p = 2.0)
+  // private[this] val normalizer = new Normalizer(p = 2.0)
 
   /**
     * Implicit pimp class for adding functions to Dataset[ExpressionByGene]
@@ -69,13 +66,13 @@ package object brassica {
     /**
       * @return Returns the Dataset, with normalized (p=2) expression vectors.
       */
-    def normalized: Dataset[ExpressionByGene] =
-      // TODO this can probably be rewritten with UDF
-      ds.map(e => e.copy(values = normalizer.transform(OldVectors.fromML(e.values)).asML))
+    @deprecated("unclear whether useful") def normalized: Dataset[ExpressionByGene] = ??? // FIXME ?
+    // TODO this can probably be rewritten with UDF
+    // ds.map(e => e.copy(values = normalizer.transform(OldVectors.fromML(e.values)).asML))
 
     /**
       * @param cellIndices
-      * @return
+      * @return Returns the Dataset with values sliced in function of the specified Seq of cell indices.
       */
     def slice(cellIndices: Seq[CellIndex]): Dataset[ExpressionByGene] = {
       val slicer =

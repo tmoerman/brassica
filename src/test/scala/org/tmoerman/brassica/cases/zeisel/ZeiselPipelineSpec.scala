@@ -49,12 +49,12 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
     result.show
   }
 
-  it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
+  it should "run on a slice of the cells" in {
     val TFs = ZeiselReader.readTFs(mouseTFs).toSet
 
-    val expressionByGene = ZeiselFilteredReader.apply(spark, zeiselFiltered)
+    val expressionByGene = ZeiselReader.apply(spark, zeiselMrna).slice(0 until 1000)
 
-    val result_raw =
+    val result =
       ScenicPipeline
         .apply(
           expressionByGene,
@@ -62,18 +62,27 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
           targets = Set("Gad1"),
           params = params)
 
-    val result_norm =
+    println(params)
+
+    result.show
+  }
+
+  it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
+    val TFs = ZeiselReader.readTFs(mouseTFs).toSet
+
+    val expressionByGene = ZeiselFilteredReader.apply(spark, zeiselFiltered)
+
+    val result =
       ScenicPipeline
         .apply(
-          expressionByGene.normalized,
+          expressionByGene,
           candidateRegulators = TFs,
           targets = Set("Gad1"),
           params = params)
 
     println(params)
 
-    result_raw.show
-    result_norm.show
+    result.show
   }
 
   val zeiselParquet = props("zeiselParquet")
