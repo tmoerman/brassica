@@ -10,7 +10,7 @@ import org.apache.spark.ml.attribute.AttributeGroup
 import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
-import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.tmoerman.brassica.cases.DataReader
 import org.tmoerman.brassica.{Gene, _}
 import resource._
@@ -132,59 +132,6 @@ object MegacellReader extends DataReader {
     val expressionValues = reader.int32.readArrayBlockWithOffset(DATA, blockSize, offset).map(_.toFloat)
 
     geneIndices zip expressionValues
-  }
-
-  /**
-    * @param ds The Dataset of ExpressionByGene
-    * @param regulators The ordered list of genes
-    * @param cellTop Optional limit on the top nr of cells to read into the CSCMatrix.
-    * @param nrCells The nr of cells in the Megacell file.
-    * @param nrGenes the nr of genes in the Megacell file.
-    * @return Returns a CSCMatrix[Expression].
-    */
-  @deprecated def toCSCMatrix(ds: Dataset[ExpressionByGene],
-                  regulators: List[Gene],
-                  cellTop: Option[CellCount] = None, // TODO slicing should happen elsewhere.
-                  nrCells: CellCount = MEGACELL_CELL_COUNT,
-                  nrGenes: GeneCount = MEGACELL_GENE_COUNT): CSCMatrix[Expression] = {
-
-    val cellDim = cellTop.map(min(_, nrCells)).getOrElse(nrCells)
-    val geneDim = regulators.size
-
-    val regulatorIndexMap = regulators.zipWithIndex.toMap
-
-    def isPredictor(gene: Gene) = regulatorIndexMap.contains(gene)
-    def cscIndex(gene: Gene) = regulatorIndexMap.apply(gene)
-
-    ds.rdd
-      .filter(e => isPredictor(e.gene))
-      .mapPartitions{ it =>
-        val matrixBuilder = new CSCMatrix.Builder[Expression](rows = cellDim, cols = geneDim)
-
-        it.foreach{ case ExpressionByGene(gene, expression) =>
-
-          println(s"+ $gene")
-
-          val geneIdx = cscIndex(gene)
-
-          // FIXME
-          // this slicing must be done with a VectorSlicer before proceeding through the pipeline...
-          // not a fix for
-
-          val sliced =
-            cellTop
-              .map(top => expression.br.apply(0 to top))
-              .getOrElse(expression.br)
-
-          sliced
-            .foreachPair { (cellIdx, value) =>
-              matrixBuilder.add(cellIdx, geneIdx, value.toFloat)
-            }
-        }
-
-        Iterator(matrixBuilder.result)
-      }
-      .reduce(_ += _)
   }
 
   /**

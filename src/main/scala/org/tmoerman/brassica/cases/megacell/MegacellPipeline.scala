@@ -2,7 +2,6 @@ package org.tmoerman.brassica.cases.megacell
 
 import org.apache.spark.sql.SparkSession
 import org.tmoerman.brassica._
-import org.tmoerman.brassica.cases.megacell.MegacellReader.toCSCMatrix
 
 /**
   * @author Thomas Moerman
