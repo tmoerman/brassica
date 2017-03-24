@@ -23,7 +23,7 @@ package object brassica {
   type GeneIndex = Int
   type GeneCount = Int
   type Expression = Float
-  type Importance = Int
+  type Importance = Float
 
   val VALUES      = "values"
   val GENE        = "gene"
@@ -112,9 +112,11 @@ package object brassica {
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
     * @param nrFolds The nr of cross validation folds.
+    * @param normalize Normalize the Regulation scores (probably useless).
     */
   case class RegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                               nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
-                              nrFolds: Int = DEFAULT_NR_FOLDS)
+                              nrFolds: Int = DEFAULT_NR_FOLDS,
+                              normalize: Boolean = false)
 
 }

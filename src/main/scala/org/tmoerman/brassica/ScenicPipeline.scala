@@ -185,7 +185,7 @@ object ScenicPipeline {
 
     val booster = XGBoost.train(trainingDMatrix, boosterParams, nrRounds)
 
-    toRegulations(booster, targetGene, trainingDMatrixGenes)
+    toRegulations(booster, targetGene, trainingDMatrixGenes, normalize)
   }
 
   /**
@@ -200,9 +200,10 @@ object ScenicPipeline {
                       params: RegressionParams) = {
     import params._
 
+    // TODO booster is disposable... -> managed resource!
     val booster = XGBoost.train(trainingDMatrix, boosterParams, nrRounds)
 
-    val regulations = toRegulations(booster, targetGene, trainingDMatrixGenes)
+    val regulations = toRegulations(booster, targetGene, trainingDMatrixGenes, normalize)
 
     val cv = XGBoost.crossValidation(trainingDMatrix, boosterParams, nrRounds, nrFolds)
 
@@ -226,12 +227,18 @@ object ScenicPipeline {
     */
   def toRegulations(booster: Booster,
                     targetGene: Gene,
-                    trainingDMatrixGenes: List[Gene]): Iterable[Regulation] = {
+                    trainingDMatrixGenes: List[Gene],
+                    normalize: Boolean): Iterable[Regulation] = {
+
+    lazy val sum = booster.getFeatureScore().map(_._2.toInt).sum
+
     booster
       .getFeatureScore()
-      .map { case (feature, importance) => {
-        val featureIndex = feature.substring(1).toInt
+      .map { case (feature, score) => {
+        val featureIndex  = feature.substring(1).toInt
         val regulatorGene = trainingDMatrixGenes(featureIndex)
+
+        val importance = if (normalize) score.toFloat / sum else score.toFloat
 
         Regulation(regulatorGene, targetGene, importance)
       }}
