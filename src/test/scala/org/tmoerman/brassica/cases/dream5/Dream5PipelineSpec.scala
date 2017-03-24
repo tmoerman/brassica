@@ -1,50 +1,57 @@
 package org.tmoerman.brassica.cases.dream5
 
-import java.io.File
-
-import org.apache.commons.io.FileUtils.deleteDirectory
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.util.PropsReader.props
-import org.tmoerman.brassica.{Gene, ScenicPipelineOld, XGBoostSuiteBase}
+import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
   */
 class Dream5PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
-  behavior of "ScenicPipeline"
+  val boosterParams = Map(
+    "seed" -> 777,
+    "silent" -> 1,
+    "eta" -> 0.2,
+    "subsample" -> 0.8,
+    "colsample_bytree" -> 0.7
+    // "gamma" -> 2
+  )
 
-  it should "run on 5 targets of the ecoli data set" in {
-    val (df, genes) = Dream5Reader.readOriginalData(spark, ecoliData, ecoliGenes)
+  val params =
+    RegressionParams(
+      nrRounds = 25,
+      boosterParams = boosterParams)
 
-    val TFs = Dream5Reader.readTFs(ecoliTFs).toSet
+  behavior of "ScenicPipeline on DREAM5"
 
-    val (grn, info) =
-      ScenicPipelineOld.apply(
-        spark,
-        df,
-        genes,
-        nrRounds =  10,
-        candidateRegulators = TFs,
-        targets = genes.take(5).toSet)
+  it should "run on the in silico data set" in {
+    fail("fixme")
+  }
 
-    grn.show(5)
+  it should "run on the ecoli data set" in {
+    val (dataFile, tfFile) = network(3)
 
-    println(info.mkString("\n"))
+    val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-    val out = props("out") + "ecoli_1_target_2.csv"
+    val result =
+      ScenicPipeline
+        .apply(
+          expressionByGene,
+          candidateRegulators = tfs.toSet,
+          targets = Set("G666"),
+          params = params)
 
-    deleteDirectory(new File(out))
+    println(params)
 
-    grn.coalesce(1).write.csv(out)
+    result.show
   }
 
   it should "run on s. aureus" in {
-
+    fail("fixme")
   }
 
   it should "run on s. cerevisiae" in {
-
+    fail("fixme")
   }
 
 }

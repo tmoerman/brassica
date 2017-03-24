@@ -11,49 +11,46 @@ class Dream5ReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
   behavior of "Dream5Reader reading the original data"
 
-  it should "parse ecoli" in {
-    val (df, genes) = readOriginalData(spark, ecoliData, ecoliGenes)
+  it should "parse the in silico data" in {
+    val (dataFile, tfFile) = network(1)
 
-    val tfs = readTFs(ecoliTFs)
+    val (ds, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-    df.count shouldBe 805
-    genes.length shouldBe 4297
-    tfs.length shouldBe 304
+    tfs.size            shouldBe 195
+    ds.count            shouldBe 1643
+    ds.head.values.size shouldBe 805
   }
 
-  it should "parse s. aureus" in {
-    val (df, genes) = readOriginalData(spark, saureusData, saureusGenes)
+  it should "parse the s. aureus data" in {
+    val (dataFile, tfFile) = network(2)
 
-    val TFs = readTFs(saureusTFs)
+    val (ds, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-    df.count shouldBe 160
-    genes.length shouldBe 2677
-    TFs.length shouldBe 90
+    tfs.size            shouldBe 99
+    ds.count            shouldBe 2810
+    ds.head.values.size shouldBe 160
   }
 
-  it should "parse s. cerevisiae" in {
-    val (df, genes) = readOriginalData(spark, yeastData, yeastGenes)
+  it should "parse the e. coli data" in {
+    val (dataFile, tfFile) = network(3)
 
-    val TFs = Dream5Reader.readTFs(yeastTFs)
+    val (ds, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-    df.count shouldBe 536 // experiments file only contains 535...?
-    genes.length shouldBe 5667
-    TFs.length shouldBe 183
+    ds.show()
+
+    tfs.size            shouldBe 334
+    ds.count            shouldBe 4511
+    ds.head.values.size shouldBe 805
   }
 
-  behavior of "Dream5Reader reading the training data"
+  it should "parse the s. cerevisiae" in {
+    val (dataFile, tfFile) = network(4)
 
-  it should "parse ecoli" in {
-    // val (df, genes) = readTrainingData(spark, )
-    fail("fixme")
-  }
+    val (ds, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-  it should "parse s. aureus" in {
-    fail("fixme")
-  }
-
-  it should "parse s. cerevisiae" in {
-    fail("fixme")
+    tfs.size            shouldBe 333
+    ds.count            shouldBe 5950
+    ds.head.values.size shouldBe 536
   }
 
 }

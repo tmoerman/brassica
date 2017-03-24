@@ -2,13 +2,11 @@ package org.tmoerman.brassica.cases.dream5
 
 import breeze.linalg._
 import org.apache.spark.ml.linalg.BreezeMLConversions._
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import org.tmoerman.brassica.Gene
+import org.apache.spark.sql.{Dataset, SparkSession}
+import org.tmoerman.brassica.{ExpressionByGene, Gene}
 import org.tmoerman.brassica.cases.DataReader
 
-import scala.collection.JavaConversions._
-import scala.io.Source.fromFile
+import scala.io.Source
 
 /**
   * Reader function for the Dream 5 training data.
@@ -17,43 +15,30 @@ import scala.io.Source.fromFile
   */
 object Dream5Reader extends DataReader {
 
-  /**
-    * @param spark The SparkSession.
-    * @param dataFile The .tsv containing the expression data.
-    * @return Returns the expression matrix DataFrame and the List of genes.
-    */
-  def readTrainingData(spark: SparkSession, dataFile: String): (DataFrame, List[Gene]) = {
-    val expressionMatrix = csvread(dataFile, '\t', skipLines = 1).t
-
-    val df = toDF(spark, expressionMatrix)
-
-    val genes = fromFile(dataFile).getLines.next.split('\t').map(_.trim).toList
-
-    (df, genes)
-  }
+  val TAB = '\t'
 
   /**
     * @param spark The SparkSession.
-    * @param dataFile The .tsv containing the expression data.
-    * @param genesFile The .tsv containing the gene names.
-    * @return Returns the expression matrix DataFrame and the List of genes.
+    * @param dataFile The data file.
+    * @param tfFile The TF file.
+    * @return Returns the expression matrix by gene Dataset and the List of TFs.
     */
-  def readOriginalData(spark: SparkSession, dataFile: String, genesFile: String): (DataFrame, List[Gene]) = {
-    val expressionMatrix = csvread(dataFile, '\t').t
+  def readTrainingData(spark: SparkSession,
+                       dataFile: String,
+                       tfFile: String): (Dataset[ExpressionByGene], List[Gene]) = {
 
-    val df = toDF(spark, expressionMatrix)
+    import spark.implicits._
 
-    val genes = fromFile(genesFile).getLines.toList
+    val TFs = Source.fromFile(tfFile).getLines.toList
 
-    (df, genes)
-  }
+    val genes = Source.fromFile(dataFile).getLines.next.split(TAB)
+    val matrix = csvread(dataFile, TAB, skipLines = 1)
+    val ds =
+      (genes.toSeq zip matrix.t.ml.rowIter.toSeq)
+        .map{ case (gene, expression) => ExpressionByGene(gene, expression) }
+        .toDS
 
-  private[this] def toDF(spark: SparkSession, data: DenseMatrix[Double]): DataFrame = {
-    val rows = data.ml.rowIter.map(Row(_)).toList
-
-    val schema = StructType(EXPRESSION_STRUCT_FIELD :: Nil)
-
-    spark.createDataFrame(rows, schema)
+    (ds, TFs)
   }
 
 }

@@ -20,7 +20,7 @@ megacellColumnsParquet = src/test/resources/parquet/megacell
 
 # source:
 dream5Original = /media/tmo/data/work/datasets/dream5/original data/
-# dream5Training =
+dream5Training = TODO
 
 # out folder
 out = src/test/resources/out/
