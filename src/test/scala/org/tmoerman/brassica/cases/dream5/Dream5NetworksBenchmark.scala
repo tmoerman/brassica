@@ -3,7 +3,6 @@ package org.tmoerman.brassica.cases.dream5
 import java.io.File
 
 import org.apache.commons.io.FileUtils.deleteDirectory
-import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.PropsReader
 import org.tmoerman.brassica.{RegressionParams, XGBoostSuiteBase, _}
@@ -11,7 +10,7 @@ import org.tmoerman.brassica.{RegressionParams, XGBoostSuiteBase, _}
 /**
   * @author Thomas Moerman
   */
-class Dream5EcoliBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
+class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   val boosterParams = Map(
     "seed" -> 777,
@@ -27,16 +26,18 @@ class Dream5EcoliBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers 
       boosterParams = boosterParams,
       nrFolds = 10)
 
-  "the Dream5 e.coli pipeline" should "run" in {
-    val (dataFile, tfFile) = network(3)
+  "Dream5 networks 1, 3 and 4" should "run" in {
+    Seq(1, 3, 4).foreach(computeNetwork)
+  }
+
+  private def computeNetwork(idx: Int): Unit = {
+    println(s"computing network $idx")
+
+    val (dataFile, tfFile) = network(idx)
 
     val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-    println(expressionByGene.first().values.size)
-
-    val suffix = params.hashCode()
-    val out = s"${PropsReader.props("dream5Out")}e.coli_$suffix"
-
+    val out = s"${PropsReader.props("dream5Out")}Network$idx/"
     deleteDirectory(new File(out))
 
     val result =
@@ -47,9 +48,11 @@ class Dream5EcoliBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers 
           params = params,
           nrPartitions = Some(spark.sparkContext.defaultParallelism))
 
-    println(params)
-
-    result.repartition(1).write.mode(Overwrite).csv(out)
+    result
+      .repartition(1)
+      .rdd
+      .map(_.productIterator.mkString("\t"))
+      .saveAsTextFile(out)
   }
 
 }
