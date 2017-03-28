@@ -8,7 +8,7 @@ object Elbow {
   /**
     * http://stackoverflow.com/questions/2018178/finding-the-best-trade-off-point-on-a-curve
     */
-  def findIn[@specialized(Int, Double, Float, Long) A](s: Seq[A]): A = {
+  def findIn(s: Seq[Int]): Int = {
     val sorted = s.sorted.zipWithIndex
 
     val min = sorted.head
