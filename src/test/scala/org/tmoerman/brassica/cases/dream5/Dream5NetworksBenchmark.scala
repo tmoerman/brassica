@@ -24,13 +24,16 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
     RegressionParams(
       nrRounds = 50,
       boosterParams = boosterParams,
+      normalize = true,
       nrFolds = 10)
 
   "Dream5 networks challenges" should "run" in {
-    Seq(1, 2, 3, 4).foreach(computeNetwork)
+    Seq(1, 3, 4).foreach(computeNetwork)
   }
 
   private def computeNetwork(idx: Int): Unit = {
+    import spark.implicits._
+
     println(s"computing network $idx")
 
     val (dataFile, tfFile) = network(idx)
@@ -49,6 +52,7 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
           nrPartitions = Some(spark.sparkContext.defaultParallelism))
 
     result
+      .sort($"importance".desc)
       .repartition(1)
       .rdd
       .map(_.productIterator.mkString("\t"))
