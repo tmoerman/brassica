@@ -25,10 +25,10 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
       nrRounds = 50,
       boosterParams = boosterParams,
       normalize = true,
-      nrFolds = 10,)
+      nrFolds = 10)
 
   "Dream5 networks challenges" should "run" in {
-    Seq(1, 2, 3, 4).foreach(computeNetwork)
+    Seq(1, 3, 4).foreach(computeNetwork)
   }
 
   private def computeNetwork(idx: Int): Unit = {
