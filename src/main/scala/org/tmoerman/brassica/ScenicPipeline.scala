@@ -185,7 +185,7 @@ object ScenicPipeline {
 
     val booster = XGBoost.train(trainingDMatrix, boosterParams, nrRounds)
 
-    toRegulations(booster, targetGene, trainingDMatrixGenes, normalize)
+    toRegulations(booster, targetGene, trainingDMatrixGenes, normalizeImportances)
   }
 
   /**

@@ -24,11 +24,13 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
     RegressionParams(
       nrRounds = 50,
       boosterParams = boosterParams,
-      normalize = true,
+      normalizeImportances = true,
       nrFolds = 10)
 
   "Dream5 networks challenges" should "run" in {
-    Seq(1, 3, 4).foreach(computeNetwork)
+    // Seq(1, 3, 4).foreach(computeNetwork)
+
+    Seq(3).foreach(computeNetwork)
   }
 
   private def computeNetwork(idx: Int): Unit = {
@@ -46,17 +48,30 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
     val result =
       ScenicPipeline
         .apply(
-          expressionByGene,
+          expressionByGene.standardized,
           candidateRegulators = tfs.toSet,
           params = params,
+          targets = Set("G10"),
           nrPartitions = Some(spark.sparkContext.defaultParallelism))
+        .cache
 
     result
       .sort($"importance".desc)
-      .repartition(1)
-      .rdd
-      .map(_.productIterator.mkString("\t"))
-      .saveAsTextFile(out)
+      .show()
+
+    println(result.count)
+
+//    sorted
+//        .repartition(1)
+//        .rdd
+//        .map(r => {
+//          val result = r.productIterator.mkString("\t")
+//
+//          println(r.regulator, r.target, result)
+//
+//          result
+//        })
+      //.saveAsTextFile(out)
   }
 
 }

@@ -1,8 +1,13 @@
 package org.tmoerman
 
 import org.apache.spark.ml.feature.VectorSlicer
-import org.apache.spark.ml.linalg.{Vector => MLVector}
+import org.apache.spark.ml.linalg.{SparseVector, Vector => MLVector}
+import org.apache.spark.mllib.feature.Normalizer
+import org.apache.spark.mllib.feature.StandardScaler
+import org.apache.spark.mllib.linalg.{Vectors => OldVectors}
 import org.apache.spark.sql.Dataset
+
+import org.apache.spark.ml.linalg.BreezeMLConversions._
 
 /**
   * Constants, case classes and type aliases.
@@ -49,7 +54,7 @@ package object brassica {
     def response = values.toArray.map(_.toFloat)
   }
 
-  // private[this] val normalizer = new Normalizer(p = 2.0)
+  private[this] val normalizer = new Normalizer(p = 2.0)
 
   /**
     * Implicit pimp class for adding functions to Dataset[ExpressionByGene]
@@ -66,9 +71,23 @@ package object brassica {
     /**
       * @return Returns the Dataset, with normalized (p=2) expression vectors.
       */
-    @deprecated("unclear whether useful") def normalized: Dataset[ExpressionByGene] = ??? // FIXME ?
-    // TODO this can probably be rewritten with UDF
-    // ds.map(e => e.copy(values = normalizer.transform(OldVectors.fromML(e.values)).asML))
+    @deprecated("unclear whether useful") def normalized: Dataset[ExpressionByGene] =
+      ds.map(e => e.copy(values = normalizer.transform(OldVectors.fromML(e.values)).asML))
+
+    def standardized: Dataset[ExpressionByGene] =
+      ds.map(e => {
+
+        import breeze.stats._
+
+        val v = e.values.br
+
+        val mu = mean.apply(v)
+        val s  = stddev.apply(v)
+
+        val result = (v - mu) / s
+
+        e.copy(values = result.ml)
+      })
 
     /**
       * @param cellIndices
@@ -112,11 +131,11 @@ package object brassica {
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
     * @param nrFolds The nr of cross validation folds.
-    * @param normalize Normalize the Regulation scores (probably useless).
+    * @param normalizeImportances Normalize the Regulation importance scores (probably useless).
     */
   case class RegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                               nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
                               nrFolds: Int = DEFAULT_NR_FOLDS,
-                              normalize: Boolean = false)
+                              normalizeImportances: Boolean = false)
 
 }
