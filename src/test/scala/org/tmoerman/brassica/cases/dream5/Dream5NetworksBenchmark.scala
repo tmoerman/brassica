@@ -26,8 +26,8 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
       boosterParams = boosterParams,
       nrFolds = 10)
 
-  "Dream5 networks 1, 3 and 4" should "run" in {
-    Seq(1, 3, 4).foreach(computeNetwork)
+  "Dream5 networks challenges" should "run" in {
+    Seq(1, 2, 3, 4).foreach(computeNetwork)
   }
 
   private def computeNetwork(idx: Int): Unit = {
