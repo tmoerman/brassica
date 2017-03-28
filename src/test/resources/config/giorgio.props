@@ -18,6 +18,7 @@ megacellColumnsParquet = src/test/resources/parquet/megacell
 
 # source: TODO
 dream5Training = /Users/tmo/Work/ghb2016/data/Dream_challenge/GNI/training data/
+dream5Out      = /Users/tmo/Work/ghb2016/data/Dream_challenge/GNI/out/
 
 # out folder
 out = src/test/resources/out/

@@ -21,7 +21,7 @@ object Dream5Reader extends DataReader {
     * @param spark The SparkSession.
     * @param dataFile The data file.
     * @param tfFile The TF file.
-    * @return Returns the expression matrix by gene Dataset and the List of TFs.
+    * @return Returns the expression matrix by gene Dataset and the List of TF genes.
     */
   def readTrainingData(spark: SparkSession,
                        dataFile: String,
