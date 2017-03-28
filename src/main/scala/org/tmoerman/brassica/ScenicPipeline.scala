@@ -109,7 +109,7 @@ object ScenicPipeline {
   }
 
   /**
-    * @param expressionByGene
+    * @param expressionByGene The expression of the target gene.
     * @param regulators The List of genes in the columns of the CSCMatrix.
     * @param csc The CSC matrix of gene expression values, only contains regulators.
     * @param fullDMatrix DMatrix built from the CSC Matrix.
@@ -121,12 +121,12 @@ object ScenicPipeline {
                           fullDMatrix: DMatrix,
                           params: RegressionParams) {
 
-    def targetGene = expressionByGene.gene
+    def targetGene: Gene = expressionByGene.gene
 
     /**
       * @return Returns wether the target gene is a regulator.
       */
-    def targetIsRegulator = regulators.contains(targetGene)
+    def targetIsRegulator: Boolean = regulators.contains(targetGene)
 
   }
 
@@ -172,7 +172,7 @@ object ScenicPipeline {
   /**
     * @param trainingDMatrix The training DMatrix.
     * @param targetGene The target gene.
-    * @param trainingDMatrixGenes
+    * @param trainingDMatrixGenes List of genes in the columns of the training DMatrix.
     * @param params The regression parameters.
     * @return Returns an Iterable of gene Regulation instances.
     */
@@ -189,15 +189,15 @@ object ScenicPipeline {
   }
 
   /**
-    * @param trainingDMatrix
-    * @param targetGene
-    * @param trainingDMatrixGenes
-    * @param params
+    * @param trainingDMatrix The training DMatrix.
+    * @param targetGene The target gene.
+    * @param trainingDMatrixGenes List of genes in the columns of the training DMatrix.
+    * @param params The regression parameters.
     */
   def computeCVScores(targetGene: Gene,
                       trainingDMatrix: DMatrix,
                       trainingDMatrixGenes: List[Gene],
-                      params: RegressionParams) = {
+                      params: RegressionParams): Unit = {
     import params._
 
     // TODO booster is disposable... -> managed resource!

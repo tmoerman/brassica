@@ -51,14 +51,14 @@ package object brassica {
     * @param values The sparse expression vector.
     */
   case class ExpressionByGene(gene: Gene, values: MLVector) { // TODO rename values -> "expression"
-    def response = values.toArray.map(_.toFloat)
+    def response: Array[Float] = values.toArray.map(_.toFloat)
   }
 
   private[this] val normalizer = new Normalizer(p = 2.0)
 
   /**
     * Implicit pimp class for adding functions to Dataset[ExpressionByGene]
-    * @param ds
+    * @param ds The Dataset to pimp.
     */
   implicit class ExpressionByGeneFunctions(val ds: Dataset[ExpressionByGene]) {
     import ds.sparkSession.implicits._
@@ -108,14 +108,7 @@ package object brassica {
         .get
     }
 
-
   }
-
-  /**
-    * @param predictor
-    * @param index
-    */
-  case class PredictorToIndex(predictor: Gene, index: GeneIndex)
 
   /**
     * @param regulator The regulator gene name.

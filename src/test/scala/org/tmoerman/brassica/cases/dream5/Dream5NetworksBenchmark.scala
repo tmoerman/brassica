@@ -24,7 +24,6 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
     RegressionParams(
       nrRounds = 50,
       boosterParams = boosterParams,
-      normalizeImportances = true,
       nrFolds = 10)
 
   "Dream5 networks challenges" should "run" in {
@@ -48,20 +47,24 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
     val result =
       ScenicPipeline
         .apply(
-          expressionByGene.standardized,
+          expressionByGene, //.standardized,
           candidateRegulators = tfs.toSet,
           params = params,
-          targets = Set("G10"),
+          targets = Set("G1"),
           nrPartitions = Some(spark.sparkContext.defaultParallelism))
         .cache
 
+    val s =
     result
       .sort($"importance".desc)
-      .show()
-
-    println(result.count)
-
+      .rdd
+      .map(e => s"Map(${e.regulator} -> ${e.importance})")
+      .collect
+      .mkString(", ")
+      //  .show(500)
+    println(s)
 //    sorted
+
 //        .repartition(1)
 //        .rdd
 //        .map(r => {
