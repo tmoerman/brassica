@@ -194,16 +194,16 @@ object ScenicPipeline {
     * @param trainingDMatrixGenes
     * @param params
     */
-  def computeCVScores(trainingDMatrix: DMatrix,
-                      targetGene: Gene,
+  def computeCVScores(targetGene: Gene,
+                      trainingDMatrix: DMatrix,
                       trainingDMatrixGenes: List[Gene],
                       params: RegressionParams) = {
     import params._
 
     // TODO booster is disposable... -> managed resource!
-    val booster = XGBoost.train(trainingDMatrix, boosterParams, nrRounds)
-
-    val regulations = toRegulations(booster, targetGene, trainingDMatrixGenes, normalize)
+    // val booster = XGBoost.train(trainingDMatrix, boosterParams, nrRounds)
+    //
+    // val regulations = toRegulations(booster, targetGene, trainingDMatrixGenes, normalize)
 
     val cv = XGBoost.crossValidation(trainingDMatrix, boosterParams, nrRounds, nrFolds)
 
