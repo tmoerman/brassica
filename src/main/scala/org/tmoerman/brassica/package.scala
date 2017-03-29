@@ -90,7 +90,7 @@ package object brassica {
       })
 
     /**
-      * @param cellIndices
+      * @param cellIndices The cells to slice from the Dataset.
       * @return Returns the Dataset with values sliced in function of the specified Seq of cell indices.
       */
     def slice(cellIndices: Seq[CellIndex]): Dataset[ExpressionByGene] = {
@@ -124,11 +124,9 @@ package object brassica {
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
     * @param nrFolds The nr of cross validation folds.
-    * @param normalizeImportances Normalize the Regulation importance scores (probably useless).
     */
   case class RegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                               nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
-                              nrFolds: Int = DEFAULT_NR_FOLDS,
-                              normalizeImportances: Boolean = false)
+                              nrFolds: Int = DEFAULT_NR_FOLDS)
 
 }
