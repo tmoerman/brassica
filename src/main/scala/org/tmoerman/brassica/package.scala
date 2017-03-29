@@ -1,13 +1,8 @@
 package org.tmoerman
 
 import org.apache.spark.ml.feature.VectorSlicer
-import org.apache.spark.ml.linalg.{SparseVector, Vector => MLVector}
-import org.apache.spark.mllib.feature.Normalizer
-import org.apache.spark.mllib.feature.StandardScaler
-import org.apache.spark.mllib.linalg.{Vectors => OldVectors}
+import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
-
-import org.apache.spark.ml.linalg.BreezeMLConversions._
 
 /**
   * Constants, case classes and type aliases.
@@ -54,8 +49,6 @@ package object brassica {
     def response: Array[Float] = values.toArray.map(_.toFloat)
   }
 
-  private[this] val normalizer = new Normalizer(p = 2.0)
-
   /**
     * Implicit pimp class for adding functions to Dataset[ExpressionByGene]
     * @param ds The Dataset to pimp.
@@ -67,27 +60,6 @@ package object brassica {
       * @return Returns the genes in the Dataset as List of Strings.
       */
     def genes: List[Gene] = ds.select($"gene").rdd.map(_.getString(0)).collect.toList
-
-    /**
-      * @return Returns the Dataset, with normalized (p=2) expression vectors.
-      */
-    @deprecated("unclear whether useful") def normalized: Dataset[ExpressionByGene] =
-      ds.map(e => e.copy(values = normalizer.transform(OldVectors.fromML(e.values)).asML))
-
-    def standardized: Dataset[ExpressionByGene] =
-      ds.map(e => {
-
-        import breeze.stats._
-
-        val v = e.values.br
-
-        val mu = mean.apply(v)
-        val s  = stddev.apply(v)
-
-        val result = (v - mu) / s
-
-        e.copy(values = result.ml)
-      })
 
     /**
       * @param cellIndices The cells to slice from the Dataset.
