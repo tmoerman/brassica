@@ -1,13 +1,8 @@
 package org.tmoerman
 
 import org.apache.spark.ml.feature.VectorSlicer
-import org.apache.spark.ml.linalg.{SparseVector, Vector => MLVector}
-import org.apache.spark.mllib.feature.Normalizer
-import org.apache.spark.mllib.feature.StandardScaler
-import org.apache.spark.mllib.linalg.{Vectors => OldVectors}
+import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
-
-import org.apache.spark.ml.linalg.BreezeMLConversions._
 
 /**
   * Constants, case classes and type aliases.
@@ -51,14 +46,12 @@ package object brassica {
     * @param values The sparse expression vector.
     */
   case class ExpressionByGene(gene: Gene, values: MLVector) { // TODO rename values -> "expression"
-    def response = values.toArray.map(_.toFloat)
+    def response: Array[Float] = values.toArray.map(_.toFloat)
   }
-
-  private[this] val normalizer = new Normalizer(p = 2.0)
 
   /**
     * Implicit pimp class for adding functions to Dataset[ExpressionByGene]
-    * @param ds
+    * @param ds The Dataset to pimp.
     */
   implicit class ExpressionByGeneFunctions(val ds: Dataset[ExpressionByGene]) {
     import ds.sparkSession.implicits._
@@ -69,28 +62,7 @@ package object brassica {
     def genes: List[Gene] = ds.select($"gene").rdd.map(_.getString(0)).collect.toList
 
     /**
-      * @return Returns the Dataset, with normalized (p=2) expression vectors.
-      */
-    @deprecated("unclear whether useful") def normalized: Dataset[ExpressionByGene] =
-      ds.map(e => e.copy(values = normalizer.transform(OldVectors.fromML(e.values)).asML))
-
-    def standardized: Dataset[ExpressionByGene] =
-      ds.map(e => {
-
-        import breeze.stats._
-
-        val v = e.values.br
-
-        val mu = mean.apply(v)
-        val s  = stddev.apply(v)
-
-        val result = (v - mu) / s
-
-        e.copy(values = result.ml)
-      })
-
-    /**
-      * @param cellIndices
+      * @param cellIndices The cells to slice from the Dataset.
       * @return Returns the Dataset with values sliced in function of the specified Seq of cell indices.
       */
     def slice(cellIndices: Seq[CellIndex]): Dataset[ExpressionByGene] = {
@@ -108,14 +80,7 @@ package object brassica {
         .get
     }
 
-
   }
-
-  /**
-    * @param predictor
-    * @param index
-    */
-  case class PredictorToIndex(predictor: Gene, index: GeneIndex)
 
   /**
     * @param regulator The regulator gene name.
@@ -131,11 +96,9 @@ package object brassica {
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
     * @param nrFolds The nr of cross validation folds.
-    * @param normalizeImportances Normalize the Regulation importance scores (probably useless).
     */
   case class RegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                               nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
-                              nrFolds: Int = DEFAULT_NR_FOLDS,
-                              normalizeImportances: Boolean = false)
+                              nrFolds: Int = DEFAULT_NR_FOLDS)
 
 }

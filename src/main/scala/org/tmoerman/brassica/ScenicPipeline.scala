@@ -3,6 +3,7 @@ package org.tmoerman.brassica
 import breeze.linalg.{CSCMatrix, SliceMatrix}
 import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
 import ml.dmlc.xgboost4j.scala.{Booster, DMatrix, XGBoost}
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.Dataset
 import org.tmoerman.brassica.util.TimeUtils.{pretty, profile}
 
@@ -51,25 +52,30 @@ object ScenicPipeline {
       .getOrElse(expressionByGene)
       .filter(isTarget _)
       .rdd
-      .mapPartitions(it => {
-        val csc         = cscBroadcast.value
-        val regulators  = regulatorsBroadcast.value
-        val fullDMatrix = toDMatrix(csc)
-
-        it.flatMap(expressionByGene => {
-
-          val input  = XGboostInput(expressionByGene, regulators, csc, fullDMatrix, params)
-
-          val result = withManagedTrainingDMatrix(input /* <insert task> */) // TODO extract this to a "task" trait.
-
-          if (it.isEmpty) {
-            fullDMatrix.delete()
-          }
-
-          result
-        })
-      })
+      .mapPartitions(processPartition(_, cscBroadcast, regulatorsBroadcast, params))
       .toDS
+  }
+
+  private[brassica] def processPartition(partitionIterator: Iterator[ExpressionByGene],
+                                         cscBroadcast: Broadcast[CSCMatrix[Float]],
+                                         regulatorsBroadcast: Broadcast[List[Gene]],
+                                         params: RegressionParams): Iterator[Regulation] = {
+    val csc         = cscBroadcast.value
+    val regulators  = regulatorsBroadcast.value
+    val fullDMatrix = toDMatrix(csc)
+
+    partitionIterator
+      .flatMap(expressionByGene => {
+        val input = XGboostInput(expressionByGene, regulators, csc, fullDMatrix, params)
+
+        val result = withManagedTrainingDMatrix(input)
+
+        if (partitionIterator.isEmpty) {
+          fullDMatrix.delete()
+        }
+
+        result
+      })
   }
 
   /**
@@ -109,7 +115,7 @@ object ScenicPipeline {
   }
 
   /**
-    * @param expressionByGene
+    * @param expressionByGene The expression of the target gene.
     * @param regulators The List of genes in the columns of the CSCMatrix.
     * @param csc The CSC matrix of gene expression values, only contains regulators.
     * @param fullDMatrix DMatrix built from the CSC Matrix.
@@ -121,12 +127,9 @@ object ScenicPipeline {
                           fullDMatrix: DMatrix,
                           params: RegressionParams) {
 
-    def targetGene = expressionByGene.gene
+    def targetGene: Gene = expressionByGene.gene
 
-    /**
-      * @return Returns wether the target gene is a regulator.
-      */
-    def targetIsRegulator = regulators.contains(targetGene)
+    def targetIsRegulator: Boolean = regulators.contains(targetGene)
 
   }
 
@@ -172,7 +175,7 @@ object ScenicPipeline {
   /**
     * @param trainingDMatrix The training DMatrix.
     * @param targetGene The target gene.
-    * @param trainingDMatrixGenes
+    * @param trainingDMatrixGenes List of genes in the columns of the training DMatrix.
     * @param params The regression parameters.
     * @return Returns an Iterable of gene Regulation instances.
     */
@@ -183,21 +186,33 @@ object ScenicPipeline {
                          params: RegressionParams): Iterable[Regulation] = {
     import params._
 
+    // computeCVScores(targetGene, trainingDMatrix, trainingDMatrixGenes, params)
+
     val booster = XGBoost.train(trainingDMatrix, boosterParams, nrRounds)
 
-    toRegulations(booster, targetGene, trainingDMatrixGenes, normalizeImportances)
+    booster
+      .getFeatureScore()
+      .map { case (feature, score) =>
+        val featureIndex  = feature.substring(1).toInt
+        val regulatorGene = trainingDMatrixGenes(featureIndex)
+        val importance    = score.toFloat
+
+        Regulation(regulatorGene, targetGene, importance)
+      }
+      .toSeq
+      .sortBy(-_.importance)
   }
 
   /**
-    * @param trainingDMatrix
-    * @param targetGene
-    * @param trainingDMatrixGenes
-    * @param params
+    * @param trainingDMatrix The training DMatrix.
+    * @param targetGene The target gene.
+    * @param trainingDMatrixGenes List of genes in the columns of the training DMatrix.
+    * @param params The regression parameters.
     */
   def computeCVScores(targetGene: Gene,
                       trainingDMatrix: DMatrix,
                       trainingDMatrixGenes: List[Gene],
-                      params: RegressionParams) = {
+                      params: RegressionParams): Unit = {
     import params._
 
     // TODO booster is disposable... -> managed resource!
@@ -219,36 +234,11 @@ object ScenicPipeline {
     println(tuples.mkString(",\n"))
   }
 
-  /**
-    * @param booster The Booster instance.
-    * @param targetGene The target gene.
-    * @param trainingDMatrixGenes List of genes in the columns of the training DMatrix.
-    * @return Returns a Seq of Regulation instances, ordered by importance DESC.
-    */
-  def toRegulations(booster: Booster,
-                    targetGene: Gene,
-                    trainingDMatrixGenes: List[Gene],
-                    normalize: Boolean): Iterable[Regulation] = {
-
-    lazy val sum = booster.getFeatureScore().map(_._2.toInt).sum
-
-    booster
-      .getFeatureScore()
-      .map { case (feature, score) => {
-        val featureIndex  = feature.substring(1).toInt
-        val regulatorGene = trainingDMatrixGenes(featureIndex)
-
-        val importance = if (normalize) score.toFloat / sum else score.toFloat
-
-        Regulation(regulatorGene, targetGene, importance)
-      }}
-      .toSeq
-      .sortBy(-_.importance)
-  }
-
+  // TODO write tests for this !!
   def toDMatrix(m: SliceMatrix[Int, Int, Expression]) =
     new DMatrix(m.activeValuesIterator.toArray, m.rows, m.cols, 0f)
 
+  // TODO write tests for this !!
   def toDMatrix(csc: CSCMatrix[Expression]) =
     new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC)
 

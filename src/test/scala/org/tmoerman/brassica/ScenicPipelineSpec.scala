@@ -1,5 +1,7 @@
 package org.tmoerman.brassica
 
+import org.apache.spark.ml.linalg.{Matrices, Vectors}
+import org.apache.spark.ml.linalg.Vectors.dense
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.cases.zeisel.ZeiselReader
 import org.tmoerman.brassica.cases.zeisel.ZeiselReader.ZEISEL_CELL_COUNT
@@ -10,7 +12,9 @@ import org.tmoerman.brassica.util.PropsReader
   */
 class ScenicPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
-  val zeiselMrna = PropsReader.props("zeisel")
+  private val zeiselMrna = PropsReader.props("zeisel")
+
+  import spark.implicits._
 
   "converting to a CSCMatrix" should "work" in {
     val ds = ZeiselReader.apply(spark, zeiselMrna)
@@ -23,6 +27,22 @@ class ScenicPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
     csc.cols shouldBe 1
 
     println(csc.toDense.t)
+  }
+
+  "small test for CSCMatrix builder" should "work" in {
+    val ds =
+      Seq(
+        ExpressionByGene("gene1", dense(1.0, 1.1, 1.2, 1.3)),
+        ExpressionByGene("gene2", dense(2.0, 2.1, 2.2, 2.3)),
+        ExpressionByGene("gene3", dense(3.0, 3.1, 3.2, 3.3)),
+        ExpressionByGene("gene4", dense(4.0, 4.1, 4.2, 4.3)))
+      .toDS
+
+    val csc = ScenicPipeline.toRegulatorCSCMatrix(ds, List("gene2", "gene3"))
+
+    println(csc)
+
+    // val m = Matrices.dense(4, 2, Array(2.0, 2.1, 2.2, 2.3, 3.0, 3.1, 3.2, 3.3))
   }
 
 }
