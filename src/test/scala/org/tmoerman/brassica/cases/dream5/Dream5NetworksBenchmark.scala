@@ -12,24 +12,51 @@ import org.tmoerman.brassica.{RegressionParams, XGBoostSuiteBase, _}
   */
 class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
 
-  val boosterParams = Map(
+  val boosterParamsBAK = Map(
     "seed" -> 777,
+    "silent" -> 1,
+    "eta" -> 0.1,
+    "subsample" -> 0.8,
+    "colsample_bytree" -> 0.8,
+    //"colsample_bylevel" -> 0.5,
+    "min_child_weight" -> 3,
+    "max_depth" -> 4,
+    "gamma" -> 0
+  )
+
+  val boosterParamsEVO = Map(
+    //"seed" -> 777,
+    "silent" -> 1,
+    "eta" -> 0.1,
+    //"subsample" -> 0.8,
+    "colsample_bytree" -> 0.8,
+    //"colsample_bylevel" -> 0.8,
+    "min_child_weight" -> 3,
+    "max_depth" -> 3,
+    "gamma" -> 0
+  )
+
+  val boosterParams = Map(
+    //"seed" -> 777,
     "silent" -> 1,
     "eta" -> 0.2,
     "subsample" -> 0.8,
     "colsample_bytree" -> 0.8
+    //"colsample_bylevel" -> 0.5,
+    //"min_child_weight" -> 3,
+    //"max_depth" -> 4,
+    //"gamma" -> 1
   )
 
   val params =
     RegressionParams(
-      nrRounds = 50,
-      boosterParams = boosterParams,
-      // normalizeImportances = false,
+      nrRounds = 125,
+      boosterParams = boosterParamsBAK,
       nrFolds = 10)
 
   "Dream5 networks challenges" should "run" in {
-    Seq(1, 3, 4).foreach(computeNetwork)
-    //Seq(3).foreach(computeNetwork)
+    //Seq(1, 3, 4).foreach(computeNetwork)
+    Seq(3).foreach(computeNetwork)
   }
 
   private def computeNetwork(idx: Int): Unit = {
@@ -47,20 +74,24 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
     val result =
       ScenicPipeline
         .apply(
-          expressionByGene.standardized,
+          expressionByGene,
           candidateRegulators = tfs.toSet,
           params = params,
-          //targets = Set("G1", "G10", "G100"),
+          targets = Set("G10"),
           nrPartitions = Some(spark.sparkContext.defaultParallelism))
         .cache()
 
     result
       .sort($"importance".desc)
-      .rdd
-      .zipWithIndex.filter(_._2 < 100000).keys // top 100K
-      .repartition(1)
-      .map(_.productIterator.mkString("\t"))
-      .saveAsTextFile(out)
+      .show(100)
+
+//    result
+//      .sort($"importance".desc)
+//      .rdd
+//      .zipWithIndex.filter(_._2 < 100000).keys // top 100K
+//      .repartition(1)
+//      .map(_.productIterator.mkString("\t"))
+//      .saveAsTextFile(out)
   }
 
 }
