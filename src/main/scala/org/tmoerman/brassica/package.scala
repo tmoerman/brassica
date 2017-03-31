@@ -1,5 +1,6 @@
 package org.tmoerman
 
+import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
@@ -16,7 +17,9 @@ package object brassica {
   type Count = Int
   type Index = Long
   type Gene  = String
+
   type BoosterParams = Map[String, Any]
+  type BoosterParamSpace = Map[String, RandomSampler[_]]
 
   type CellIndex = Int
   type CellCount = Int
@@ -37,8 +40,25 @@ package object brassica {
   val REGULATOR_NAME  = "regulator_name"
   val IMPORTANCE      = "importance"
 
+  val DEFAULT_NR_BOOSTING_ROUNDS = 100
+  val DEFAULT_NR_FOLDS           = 10
+
   val DEFAULT_BOOSTER_PARAMS: BoosterParams = Map(
     "silent" -> 1
+  )
+
+  val DEFAULT_BOOSTER_PARAM_SPACE: BoosterParamSpace = Map(
+    // model complexity
+    "max_depth"        -> UniformInt(3, 10),
+    "min_child_weight" -> UniformDouble(1, 15),
+    "gamma"            -> UniformDouble(0, 15),
+
+    // robustness to noise
+    "subsample"        -> UniformDouble(0.5, 1.0),
+    "colsample_bytree" -> UniformDouble(0.5, 1.0),
+
+    // learning rate
+    "eta"              -> UniformDouble(0.01, 0.2)
   )
 
   /**
@@ -89,16 +109,29 @@ package object brassica {
     */
   case class Regulation(regulator: Gene, target: Gene, importance: Importance)
 
-  val DEFAULT_NR_BOOSTING_ROUNDS = 50
-  val DEFAULT_NR_FOLDS = 10
+  /**
+    * @param target The target gene name.
+    * @param metric The evaluation metric, e.g. RMSE.
+    */
+  case class OptimizedHyperParams(target: Gene, metric: String) // TODO nested data structure for hyperparams
 
   /**
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
-    * @param nrFolds The nr of cross validation folds.
     */
-  case class RegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
-                              nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
-                              nrFolds: Int = DEFAULT_NR_FOLDS)
+  case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
+                                     nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS)
+
+  /**
+    * @param boosterParamSpace The space of booster parameters to search through for an optimal set.
+    * @param nrFolds The nr of cross validation folds in which to splice the training data.
+    * @param nrRounds The nr of boosting rounds.
+    * @param parallel Whether to run the optimization per partition in parallel or not
+    *                 (mostly not because we run multiple optimizations in parallel).
+    */
+  case class XGBoostOptimizationParams(boosterParamSpace: BoosterParamSpace = DEFAULT_BOOSTER_PARAM_SPACE,
+                                       nrFolds: Int = DEFAULT_NR_FOLDS,
+                                       nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
+                                       parallel: Boolean = false)
 
 }

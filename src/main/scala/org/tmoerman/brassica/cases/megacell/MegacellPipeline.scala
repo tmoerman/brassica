@@ -25,7 +25,7 @@ object MegacellPipeline {
             parquet: Path,
             candidateRegulators: Set[Gene],
             targets: Set[Gene] = Set.empty,
-            params: RegressionParams = RegressionParams(),
+            params: XGBoostRegressionParams = XGBoostRegressionParams(),
             nrPartitions: Option[Int] = None) = {
 
     import spark.implicits._
@@ -35,7 +35,7 @@ object MegacellPipeline {
     // TODO any preprocessing on the Dataset should be done here, downstream agnostic of nr cells under consideration.
 
     ScenicPipeline
-      .apply(
+      .computeRegulations(
         expressionByGene,
         candidateRegulators,
         targets,

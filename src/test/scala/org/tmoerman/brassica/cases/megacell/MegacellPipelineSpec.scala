@@ -3,7 +3,7 @@ package org.tmoerman.brassica.cases.megacell
 import breeze.linalg.CSCMatrix
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.TimeUtils
-import org.tmoerman.brassica.{Expression, RegressionParams, ScenicPipeline, ScenicPipelineOld, XGBoostSuiteBase}
+import org.tmoerman.brassica.{Expression, XGBoostRegressionParams, ScenicPipeline, ScenicPipelineOld, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -22,7 +22,7 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
   )
 
   val params =
-    RegressionParams(
+    XGBoostRegressionParams(
       nrRounds = 25,
       boosterParams = boosterParams)
 

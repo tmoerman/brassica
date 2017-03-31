@@ -5,7 +5,7 @@ import java.io.File
 import org.apache.commons.io.FileUtils.deleteDirectory
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.PropsReader
-import org.tmoerman.brassica.{RegressionParams, XGBoostSuiteBase, _}
+import org.tmoerman.brassica.{XGBoostRegressionParams, XGBoostSuiteBase, _}
 
 /**
   * @author Thomas Moerman
@@ -18,9 +18,11 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
     "eta" -> 0.1,
     "subsample" -> 0.8,
     "colsample_bytree" -> 0.8,
-    "min_child_weight" -> 3,
+    "min_child_weight" -> 4,
     "max_depth" -> 4,
-    "gamma" -> 0
+    "gamma" -> 2
+    //"alpha" -> 7
+    //"lambda" -> 7
   )
 
   val boosterParams = Map(
@@ -32,14 +34,13 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
   )
 
   val params =
-    RegressionParams(
+    XGBoostRegressionParams(
       nrRounds = 125,
-      boosterParams = boosterParamsBAK,
-      nrFolds = 10)
+      boosterParams = boosterParams)
 
   "Dream5 networks challenges" should "run" in {
-    Seq(1, 3, 4).foreach(computeNetwork)
-    // Seq(3).foreach(computeNetwork)
+    // Seq(1, 3, 4).foreach(computeNetwork)
+    Seq(3).foreach(computeNetwork)
   }
 
   private def computeNetwork(idx: Int): Unit = {
@@ -56,11 +57,11 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 
     val result =
       ScenicPipeline
-        .apply(
+        .computeRegulations(
           expressionByGene,
           candidateRegulators = tfs.toSet,
           params = params,
-          // targets = Set("G10"),
+          targets = Set("G3"),
           nrPartitions = Some(spark.sparkContext.defaultParallelism))
         .cache()
 

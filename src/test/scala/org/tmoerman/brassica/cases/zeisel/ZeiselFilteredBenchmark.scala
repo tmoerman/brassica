@@ -7,7 +7,7 @@ import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.PropsReader.props
 import org.tmoerman.brassica.util.{PropsReader, TimeUtils}
-import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, XGBoostSuiteBase}
+import org.tmoerman.brassica.{XGBoostRegressionParams, ScenicPipeline, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -24,7 +24,7 @@ class ZeiselFilteredBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
   )
 
   val params =
-    RegressionParams(
+    XGBoostRegressionParams(
       nrRounds = 50,
       boosterParams = boosterParams)
 
@@ -58,7 +58,7 @@ class ZeiselFilteredBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 
           val result =
             ScenicPipeline
-              .apply(
+              .computeRegulations(
                 expressionByGene,
                 candidateRegulators = TFs,
                 targets = targets.toSet,

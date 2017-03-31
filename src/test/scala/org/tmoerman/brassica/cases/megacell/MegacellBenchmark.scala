@@ -1,7 +1,7 @@
 package org.tmoerman.brassica.cases.megacell
 
 import org.scalatest.FlatSpec
-import org.tmoerman.brassica.{RegressionParams, XGBoostSuiteBase}
+import org.tmoerman.brassica.{XGBoostRegressionParams, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -22,7 +22,7 @@ class MegacellBenchmark extends FlatSpec with XGBoostSuiteBase {
   )
 
   val params =
-    RegressionParams(
+    XGBoostRegressionParams(
       nrRounds = 25,
       boosterParams = boosterParams)
 

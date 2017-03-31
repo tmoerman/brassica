@@ -2,7 +2,7 @@ package org.tmoerman.brassica.cases.zeisel
 
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.PropsReader.props
-import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, XGBoostSuiteBase}
+import org.tmoerman.brassica.{XGBoostRegressionParams, ScenicPipeline, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -25,7 +25,7 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with XGBoostSuiteBase with Mat
   )
 
   val params =
-    RegressionParams(
+    XGBoostRegressionParams(
       nrRounds = 50,
       boosterParams = boosterParams)
 
@@ -36,7 +36,7 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with XGBoostSuiteBase with Mat
 
     val result =
       ScenicPipeline
-        .apply(
+        .computeRegulations(
           expressionByGene,
           candidateRegulators = TFs,
           targets = Set("Gad1"),

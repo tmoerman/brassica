@@ -1,7 +1,7 @@
 package org.tmoerman.brassica.cases.dream5
 
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.{RegressionParams, ScenicPipeline, XGBoostSuiteBase}
+import org.tmoerman.brassica.{XGBoostRegressionParams, ScenicPipeline, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -18,7 +18,7 @@ class Dream5PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
   )
 
   val params =
-    RegressionParams(
+    XGBoostRegressionParams(
       nrRounds = 25,
       boosterParams = boosterParams)
 
@@ -35,7 +35,7 @@ class Dream5PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     val result =
       ScenicPipeline
-        .apply(
+        .computeRegulations(
           expressionByGene,
           candidateRegulators = tfs.toSet,
           targets = Set("G666"),
