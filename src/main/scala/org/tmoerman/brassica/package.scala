@@ -1,9 +1,12 @@
 package org.tmoerman
 
+import com.eharmony.spotz.optimizer.{StopStrategy, MaxTrialsStop}
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
+
+import scala.util.Random
 
 /**
   * Constants, case classes and type aliases.
@@ -41,7 +44,10 @@ package object brassica {
   val IMPORTANCE      = "importance"
 
   val DEFAULT_NR_BOOSTING_ROUNDS = 100
+
   val DEFAULT_NR_FOLDS           = 10
+  val DEFAULT_STOP_STRATEGY      = new MaxTrialsStop(1000)
+  val DEFAULT_SEED               = 666L
 
   val DEFAULT_BOOSTER_PARAMS: BoosterParams = Map(
     "silent" -> 1
@@ -100,9 +106,28 @@ package object brassica {
         .get
     }
 
+    import org.apache.spark.ml.linalg.BreezeMLConversions._
+
+    def standardized: Dataset[ExpressionByGene] =
+      ds.map(e => {
+
+        import breeze.stats._
+
+        val v = e.values.br
+
+        val mu = mean.apply(v)
+        val s  = stddev.apply(v)
+
+        val result = (v - mu) / s
+
+        e.copy(values = result.ml)
+      })
+
   }
 
   /**
+    * XGBoost regression output data structure.
+    *
     * @param regulator The regulator gene name.
     * @param target The target gene name.
     * @param importance The inferred importance of the regulator vis-a-vis the target.
@@ -110,12 +135,16 @@ package object brassica {
   case class Regulation(regulator: Gene, target: Gene, importance: Importance)
 
   /**
+    *
+    *
     * @param target The target gene name.
     * @param metric The evaluation metric, e.g. RMSE.
     */
   case class OptimizedHyperParams(target: Gene, metric: String) // TODO nested data structure for hyperparams
 
   /**
+    * Data structure holding parameters for XGBoost regression.
+    *
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
     */
@@ -123,15 +152,33 @@ package object brassica {
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS)
 
   /**
+    * Data structure holding parameters for XGBoost regression optimization.
+    *
     * @param boosterParamSpace The space of booster parameters to search through for an optimal set.
+    * @param stopStrategy The optimization stopping strategy.
     * @param nrFolds The nr of cross validation folds in which to splice the training data.
-    * @param nrRounds The nr of boosting rounds.
+    * @param seed The seed for computing the random n folds.
     * @param parallel Whether to run the optimization per partition in parallel or not
     *                 (mostly not because we run multiple optimizations in parallel).
     */
   case class XGBoostOptimizationParams(boosterParamSpace: BoosterParamSpace = DEFAULT_BOOSTER_PARAM_SPACE,
+                                       stopStrategy: StopStrategy = DEFAULT_STOP_STRATEGY,
                                        nrFolds: Int = DEFAULT_NR_FOLDS,
-                                       nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
-                                       parallel: Boolean = false)
+                                       seed: Long = DEFAULT_SEED,
+                                       parallel: Boolean = false) {
+
+    assert(nrFolds > 0, s"nr folds must be greater than 0 (specified: $nrFolds) ")
+
+  }
+
+  /**
+    * @param seed
+    * @return Returns a new Random initialized with a seed.
+    */
+  def rng(seed: Long = DEFAULT_SEED) = {
+    val rng = new Random(seed)
+    rng.nextLong // get rid of first, low entropy}
+    rng
+  }
 
 }

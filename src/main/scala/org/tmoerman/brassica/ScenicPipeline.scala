@@ -4,6 +4,7 @@ import breeze.linalg.{CSCMatrix, SliceMatrix}
 import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
 import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
 import org.apache.spark.sql.{Dataset, Encoder}
+import org.tmoerman.brassica.tuning.Tuning.makeCVSets
 import resource.makeManagedResource
 
 import scala.reflect.ClassTag
@@ -78,30 +79,30 @@ object ScenicPipeline {
 
     import spark.implicits._
 
-    val regulators = expressionsByGene.genes.filter(candidateRegulators.contains)
-    val csc = toRegulatorCSCMatrix(expressionsByGene, regulators)
+    val regulators   = expressionsByGene.genes.filter(candidateRegulators.contains)
+    val regulatorCSC = toRegulatorCSCMatrix(expressionsByGene, regulators)
 
-    val regulatorsBroadcast = sc.broadcast(regulators)
-    val cscBroadcast        = sc.broadcast(csc)
+    val regulatorsBroadcast   = sc.broadcast(regulators)
+    val regulatorCSCBroadcast = sc.broadcast(regulatorCSC)
 
     def isTarget(e: ExpressionByGene) = containedIn(targets)(e.gene)
 
     nrPartitions
-      .map(expressionsByGene.repartition)
+      .map(expressionsByGene.repartition(_).cache) // always cache after repartition (cfr. Heather Miller Coursera)
       .getOrElse(expressionsByGene)
       .filter(isTarget _)
       .rdd
       .mapPartitions(partitionIterator => {
 
-        val regulators  = regulatorsBroadcast.value
-        val csc         = cscBroadcast.value
-        val fullDMatrix = toDMatrix(csc)
+        val regulators   = regulatorsBroadcast.value
+        val regulatorCSC = regulatorCSCBroadcast.value
+        val regulatorDMatrix = toDMatrix(regulatorCSC)
 
         partitionIterator.flatMap(expressionByGene => {
-            val result = withManagedTrainingDMatrix(expressionByGene, regulators, csc, fullDMatrix)(params, task)
+            val result = withManagedTrainingDMatrix(expressionByGene, regulators, regulatorCSC, regulatorDMatrix)(params, task)
 
             if (partitionIterator.isEmpty) {
-              fullDMatrix.delete()
+              regulatorDMatrix.delete()
             }
 
             result
@@ -148,25 +149,13 @@ object ScenicPipeline {
   }
 
   /**
-    * @param expressionByGene
-    * @param regulators
-    * @param csc
-    * @param fullDMatrix
-    *
-    * @param params
-    * @param task
-    *
-    * @tparam P
-    * @tparam T
-    *
-    * @return Returns the task result.
+    * @return Returns the task result for the specified params, computed with respect to a managed training matrix.
     */
   private[brassica] def withManagedTrainingDMatrix[P, T : Encoder : ClassTag](expressionByGene: ExpressionByGene,
                                                                               regulators: List[Gene],
-                                                                              csc: CSCMatrix[Expression],
-                                                                              fullDMatrix: DMatrix)
-                                                                             (params: P,
-                                                                              task: TargetGeneTask[P, T]): Iterable[T] = {
+                                                                              regulatorCSC: CSCMatrix[Expression],
+                                                                              regulatorDMatrix: DMatrix)
+                                                                             (params: P, task: TargetGeneTask[P, T]): Iterable[T] = {
     val targetGene: Gene = expressionByGene.gene
     val trainingDMatrixGenesToIndices =
       regulators
@@ -175,7 +164,7 @@ object ScenicPipeline {
     val trainingDMatrixGenes       = trainingDMatrixGenesToIndices.map(_._1)
     val trainingDMatrixGeneIndices = trainingDMatrixGenesToIndices.map(_._2)
 
-    toManagedTrainingDMatrix(expressionByGene, regulators, csc, fullDMatrix, trainingDMatrixGeneIndices)
+    toManagedTrainingDMatrix(expressionByGene, regulators, regulatorCSC, regulatorDMatrix, trainingDMatrixGeneIndices)
       .map(trainingDMatrix => task(targetGene, trainingDMatrix, trainingDMatrixGenes, params))
       .opt
       .get
@@ -187,56 +176,26 @@ object ScenicPipeline {
     */
   private[brassica] def toManagedTrainingDMatrix(expressionByGene: ExpressionByGene,
                                                  regulators: List[Gene],
-                                                 csc: CSCMatrix[Expression],
-                                                 fullDMatrix: DMatrix,
+                                                 regulatorCSC: CSCMatrix[Expression],
+                                                 regulatorDMatrix: DMatrix,
                                                  trainingDMatrixGeneIndices: List[GeneIndex]) = {
     val targetGene = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
-    def createMatrix = {
-      val result = targetIsRegulator match {
-        case true  => toDMatrix(csc.apply(0 until csc.rows, trainingDMatrixGeneIndices))
-        case false => fullDMatrix
+    def create = {
+      val trainingMatrix = targetIsRegulator match {
+        case true  => toDMatrix(regulatorCSC.apply(0 until regulatorCSC.rows, trainingDMatrixGeneIndices))
+        case false => regulatorDMatrix
       }
-      result.setLabel(expressionByGene.response)
-      result
+
+      trainingMatrix.setLabel(expressionByGene.response)
+      trainingMatrix
     }
 
-    def disposeMatrix(m: DMatrix) = if (targetIsRegulator) m.delete()
+    def dispose(m: DMatrix) = if (targetIsRegulator) m.delete()
 
-    makeManagedResource(createMatrix)(disposeMatrix)(Nil)
+    makeManagedResource(create)(dispose)(Nil)
   }
-
-//  /**
-//    * @param trainingDMatrix The training DMatrix.
-//    * @param targetGene The target gene.
-//    * @param trainingDMatrixGenes List of genes in the columns of the training DMatrix.
-//    * @param params The regression parameters.
-//    */
-//  def computeCVScores(targetGene: Gene,
-//                      trainingDMatrix: DMatrix,
-//                      trainingDMatrixGenes: List[Gene],
-//                      params: RegressionParams): Unit = {
-//    import params._
-//
-//    // TODO booster is disposable... -> managed resource!
-//    // val booster = XGBoost.train(trainingDMatrix, boosterParams, nrRounds)
-//    //
-//    // val regulations = toRegulations(booster, targetGene, trainingDMatrixGenes, normalize)
-//
-//    val cv = XGBoost.crossValidation(trainingDMatrix, boosterParams, nrRounds, nrFolds)
-//
-//    val tuples =
-//      cv
-//        .map(_.split("\t").drop(1).map(_.split(":")(1).toFloat))
-//        .zipWithIndex
-//        .map{ case (Array(train, test), round) => (round, train, test) }
-//
-//    // TODO suggested nr rounds cutoff computation ~ cfr. early stopping in XGBoost Python.
-//    // TODO design a CV data
-//
-//    println(tuples.mkString(",\n"))
-//  }
 
   // TODO write tests for this !!
   private[brassica] def toDMatrix(m: SliceMatrix[Int, Int, Expression]) =
@@ -263,8 +222,16 @@ trait TargetGeneTask[P, T] {
 
 }
 
-object ComputeXGBoostRegulations extends TargetGeneTask[XGBoostRegressionParams, Regulation] {
+object ComputeXGBoostRegulations extends TargetGeneTask[XGBoostRegressionParams, Regulation]
+  with Serializable {
 
+  /**
+    * @param targetGene
+    * @param trainingDMatrix
+    * @param trainingDMatrixGenes
+    * @param params
+    * @return Returns inferred Regulations from training a model with the specified parameter map.
+    */
   override def apply(targetGene: Gene,
                      trainingDMatrix: DMatrix,
                      trainingDMatrixGenes: List[Gene],
@@ -294,7 +261,10 @@ object ComputeXGBoostRegulations extends TargetGeneTask[XGBoostRegressionParams,
 
 }
 
-object ComputeXGBoostOptimizedHyperParams extends TargetGeneTask[XGBoostOptimizationParams, OptimizedHyperParams] {
+object ComputeXGBoostOptimizedHyperParams extends TargetGeneTask[XGBoostOptimizationParams, OptimizedHyperParams]
+  with Serializable {
+
+  // TODO granularity is incorrect: all regression should be performed with the same CV packs
 
   override def apply(targetGene: Gene,
                      trainingDMatrix: DMatrix,
@@ -303,11 +273,13 @@ object ComputeXGBoostOptimizedHyperParams extends TargetGeneTask[XGBoostOptimiza
 
     import params._
 
-    //val seed: Long = boosterParams.getOrElse("seed", 0L)
-
-    // TODO slice the trainingDMatrix in function of nFolds
+    val cvPack =
+      makeCVSets(nrFolds, trainingDMatrix.rowNum.toInt, seed)
+        .map{ case (train, test) => (trainingDMatrix.slice(train), trainingDMatrix.slice(test)) }
 
     // TODO instantiate
+
+    // infer reasonable nr of boosting rounds ~ early stopping.
 
     ???
   }
