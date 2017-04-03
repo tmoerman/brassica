@@ -7,7 +7,7 @@ import org.tmoerman.brassica._
 /**
   * @author Thomas Moerman
   */
-object Tuning {
+object CV {
 
   type FoldNr = Int
 

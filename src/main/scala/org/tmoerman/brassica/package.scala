@@ -1,7 +1,8 @@
 package org.tmoerman
 
-import com.eharmony.spotz.optimizer.{StopStrategy, MaxTrialsStop}
+import com.eharmony.spotz.optimizer.{MaxTrialsStop, StopStrategy}
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
+import ml.dmlc.xgboost4j.scala.DMatrix
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
@@ -23,6 +24,8 @@ package object brassica {
 
   type BoosterParams = Map[String, Any]
   type BoosterParamSpace = Map[String, RandomSampler[_]]
+
+  type CVSet = (DMatrix, DMatrix)
 
   type CellIndex = Int
   type CellCount = Int

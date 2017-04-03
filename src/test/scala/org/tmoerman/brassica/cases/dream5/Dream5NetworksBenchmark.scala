@@ -36,7 +36,7 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
   val params =
     XGBoostRegressionParams(
       nrRounds = 125,
-      boosterParams = boosterParams)
+      boosterParams = boosterParamsBAK)
 
   "Dream5 networks challenges" should "run" in {
     // Seq(1, 3, 4).foreach(computeNetwork)
@@ -62,7 +62,7 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
           candidateRegulators = tfs.toSet,
           params = params,
           targets = Set("G3"),
-          nrPartitions = Some(spark.sparkContext.defaultParallelism))
+          nrPartitions = Some(1))
         .cache()
 
     result

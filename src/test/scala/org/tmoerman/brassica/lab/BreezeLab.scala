@@ -1,14 +1,14 @@
 package org.tmoerman.brassica.lab
 
-import breeze.linalg.CSCMatrix
-import org.scalatest.{Matchers, FlatSpec}
+import breeze.linalg._
+import org.scalatest.{FlatSpec, Matchers}
 
 /**
   * Created by tmo on 18/03/17.
   */
 class BreezeLab extends FlatSpec with Matchers {
 
-  "adding two sparse matrices" should "work" in {
+  "adding two CSC matrices" should "work" in {
     val b1 = new CSCMatrix.Builder[Int](rows = 4, cols = 4)
     b1.add(0,0,1)
     b1.add(0,1,1)
@@ -30,6 +30,22 @@ class BreezeLab extends FlatSpec with Matchers {
     println(m2.toDense)
     println
     println(m3.toDense)
+  }
+
+  "slicing rows of a CSC matrix" should "work" in {
+    val m = new CSCMatrix.Builder[Int](rows = 4, cols = 4)
+    m.add(0,0,1)
+    m.add(1,1,1)
+    m.add(2,2,1)
+    m.add(3,3,1)
+    val m1 = m.result
+
+    println(m1.toDense)
+    println(" --- ")
+
+    val s = m1(Seq(1, 2), 0 until m1.cols)
+
+    println(s.toDenseMatrix)
   }
 
 }

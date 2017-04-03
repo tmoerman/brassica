@@ -3,12 +3,12 @@ package org.tmoerman.brassica.tuning
 import java.lang.Math.min
 
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.tuning.Tuning.makeFoldSlices
+import org.tmoerman.brassica.tuning.CV.makeFoldSlices
 
 /**
   * @author Thomas Moerman
   */
-class TuningSpec extends FlatSpec with Matchers {
+class CVSpec extends FlatSpec with Matchers {
 
   behavior of "creating folds"
 
@@ -31,7 +31,7 @@ class TuningSpec extends FlatSpec with Matchers {
   it should "create CV sets correctly" in {
     foldsSamplesCombos.foreach { case (nrFolds, nrSamples) =>
 
-      val cvSets = Tuning.makeCVSets(nrFolds, nrSamples)
+      val cvSets = CV.makeCVSets(nrFolds, nrSamples)
 
       cvSets.size shouldBe min(nrFolds, nrSamples)
 

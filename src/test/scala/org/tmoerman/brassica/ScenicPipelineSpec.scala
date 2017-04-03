@@ -21,7 +21,7 @@ class ScenicPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     val predictors = "Tspan12" :: Nil
 
-    val csc = ScenicPipeline.toRegulatorCSCMatrix(ds, predictors)
+    val csc = ScenicPipeline.reduceToRegulatorCSCMatrix(ds, predictors)
 
     csc.rows shouldBe ZEISEL_CELL_COUNT
     csc.cols shouldBe 1
@@ -38,7 +38,7 @@ class ScenicPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
         ExpressionByGene("gene4", dense(4.0, 4.1, 4.2, 4.3)))
       .toDS
 
-    val csc = ScenicPipeline.toRegulatorCSCMatrix(ds, List("gene2", "gene3"))
+    val csc = ScenicPipeline.reduceToRegulatorCSCMatrix(ds, List("gene2", "gene3"))
 
     println(csc)
 
