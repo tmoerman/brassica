@@ -48,12 +48,18 @@ object CV {
 
     val denominator = min(nrFolds, nrSamples)
 
-    rng(seed)
+    random(seed)
       .shuffle((0 until nrSamples).toList)
       .zipWithIndex
       .map{ case (cellIndex, idx) => (cellIndex, idx % denominator) }
       .groupBy{ case (_, fold) => fold }
       .mapValues(_.map(_._1).sorted)
+  }
+
+  def parseFoldResult(s: String) = {
+    val chunks = s.split("\t")
+
+    ???
   }
 
 }

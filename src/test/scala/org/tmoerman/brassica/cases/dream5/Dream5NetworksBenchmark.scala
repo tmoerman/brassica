@@ -38,7 +38,7 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
       nrRounds = 125,
       boosterParams = boosterParamsBAK)
 
-  "Dream5 networks challenges" should "run" in {
+  "Dream5 regulation inference" should "run" in {
     // Seq(1, 3, 4).foreach(computeNetwork)
     Seq(3).foreach(computeNetwork)
   }
@@ -52,20 +52,20 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 
     val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-    val out = s"${PropsReader.props("dream5Out")}Network$idx/"
-    deleteDirectory(new File(out))
+//    val out = s"${PropsReader.props("dream5Out")}Network$idx/"
+//    deleteDirectory(new File(out))
 
-    val result =
+    val regulationDS =
       ScenicPipeline
-        .computeRegulations(
+        .inferRegulations(
           expressionByGene,
           candidateRegulators = tfs.toSet,
           params = params,
-          targets = Set("G3"),
-          nrPartitions = Some(1))
+          targets = Set("G3", "G10", "G7"),
+          nrPartitions = Some(spark.sparkContext.defaultParallelism))
         .cache()
 
-    result
+    regulationDS
       .sort($"importance".desc)
       .show(100)
     
@@ -77,5 +77,33 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 //      .map(_.productIterator.mkString("\t"))
 //      .saveAsTextFile(out)
   }
+
+  "Dream5 hyperparam optimization" should "run" in {
+    Seq(3).foreach(optimizeHyperParams)
+  }
+
+  val optimizationParams: XGBoostOptimizationParams = XGBoostOptimizationParams(nrTrials = 20)
+
+  private def optimizeHyperParams(idx: Int): Unit = {
+    println(s"computing network $idx")
+
+    val (dataFile, tfFile) = network(idx)
+
+    val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
+
+    val optimizedHyperParamsDS =
+      ScenicPipeline
+        .optimizeHyperParams(
+          expressionByGene,
+          candidateRegulators = tfs.toSet,
+          params = optimizationParams,
+          targets = Set("G3", "G10", "G7"),
+          nrPartitions = Some(spark.sparkContext.defaultParallelism))
+        //.cache()
+
+    optimizedHyperParamsDS
+      .show()
+  }
+
 
 }
