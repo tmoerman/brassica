@@ -35,7 +35,7 @@ class Dream5PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     val result =
       ScenicPipeline
-        .computeRegulations(
+        .inferRegulations(
           expressionByGene,
           candidateRegulators = tfs.toSet,
           targets = Set("G666"),

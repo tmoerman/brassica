@@ -35,7 +35,7 @@ object MegacellPipeline {
     // TODO any preprocessing on the Dataset should be done here, downstream agnostic of nr cells under consideration.
 
     ScenicPipeline
-      .computeRegulations(
+      .inferRegulations(
         expressionByGene,
         candidateRegulators,
         targets,

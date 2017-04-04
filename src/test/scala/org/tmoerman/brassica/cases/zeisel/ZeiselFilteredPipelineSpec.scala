@@ -36,7 +36,7 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with XGBoostSuiteBase with Mat
 
     val result =
       ScenicPipeline
-        .computeRegulations(
+        .inferRegulations(
           expressionByGene,
           candidateRegulators = TFs,
           targets = Set("Gad1"),

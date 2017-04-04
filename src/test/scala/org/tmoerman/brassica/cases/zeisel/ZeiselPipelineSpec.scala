@@ -38,7 +38,7 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     val result =
       ScenicPipeline
-        .computeRegulations(
+        .inferRegulations(
           expressionByGene,
           candidateRegulators = TFs,
           targets = Set("Gad1"),
@@ -56,7 +56,7 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     val result =
       ScenicPipeline
-        .computeRegulations(
+        .inferRegulations(
           expressionByGene,
           candidateRegulators = TFs,
           targets = Set("Gad1"),
@@ -74,7 +74,7 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
     val result =
       ScenicPipeline
-        .computeRegulations(
+        .inferRegulations(
           expressionByGene,
           candidateRegulators = TFs,
           targets = Set("Gad1"),

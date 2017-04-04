@@ -58,7 +58,7 @@ class ZeiselFilteredBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 
           val result =
             ScenicPipeline
-              .computeRegulations(
+              .inferRegulations(
                 expressionByGene,
                 candidateRegulators = TFs,
                 targets = targets.toSet,
