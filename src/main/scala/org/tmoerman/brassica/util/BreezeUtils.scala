@@ -1,8 +1,11 @@
 package org.tmoerman.brassica.util
 
-import breeze.linalg.{CSCMatrix, SparseVector}
+import breeze.linalg.{CSCMatrix, SliceMatrix, SparseVector}
 import breeze.linalg.SparseVector._
 import breeze.storage.Zero
+import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
+import ml.dmlc.xgboost4j.scala.DMatrix
+import org.tmoerman.brassica.Expression
 
 import scala.reflect.ClassTag
 
@@ -27,5 +30,11 @@ object BreezeUtils {
 
     horzcat(L_0s ::: v :: R_0s: _*)
   }
+
+  // TODO write tests for this !!
+  def toDMatrix(m: SliceMatrix[Int, Int, Expression]) = new DMatrix(m.activeValuesIterator.toArray, m.rows, m.cols, 0f)
+
+  // TODO write tests for this !!
+  def toDMatrix(csc: CSCMatrix[Expression]) = new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC)
 
 }
