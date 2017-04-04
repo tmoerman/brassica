@@ -61,7 +61,7 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
           expressionByGene,
           candidateRegulators = tfs.toSet,
           params = params,
-          targets = Set("G3", "G10", "G7"),
+          targets = Set("G3"),
           nrPartitions = Some(spark.sparkContext.defaultParallelism))
         .cache()
 

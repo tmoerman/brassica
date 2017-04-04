@@ -20,7 +20,8 @@ class ZeiselFilteredBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
     "eta" -> 0.15,
     "subsample" -> 0.8,
     "colsample_bytree" -> 0.7,
-    "gamma" -> 2
+    "gamma" -> 2,
+    "nthread" -> 1
   )
 
   val params =
@@ -39,8 +40,8 @@ class ZeiselFilteredBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 
     val genes = ZeiselFilteredReader.toGenes(spark, ds)
 
-    // val nrTargets = Seq(1, 5, 10, 25, 100, 250, 1000, 2500, 10000, genes.size)
-    val nrTargets = Nil // all
+    val nrTargets = Seq(genes.size) // Seq(1, 5, 10, 25, 100, 250, 1000, 2500, 10000, genes.size)
+    // val nrTargets = Nil // all
 
     val machine = PropsReader.currentProfile.get
 

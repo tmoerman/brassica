@@ -9,7 +9,7 @@ import scala.collection.JavaConverters._
 /**
   * @author Thomas Moerman
   */
-object JXBoostAccess {
+object JXGBoostAccess {
 
   /**
     * @param params
@@ -17,11 +17,14 @@ object JXBoostAccess {
     * @param test
     * @return Returns a Booster instance.
     */
-  def createBooster(params: BoosterParams, train: ScalaDMatrix, test: ScalaDMatrix) = {
+  def createBooster(params: BoosterParams, train: ScalaDMatrix, test: ScalaDMatrix): Booster = {
     val coerced: Map[String, Object] = params.mapValues(_.toString)
 
     new Booster(coerced.asJava, Array(inner(train), inner(test)))
   }
 
+  def saveRabbitCheckpoint(booster: Booster): Unit = {
+    booster.saveRabitCheckpoint()
+  }
 
 }

@@ -57,6 +57,8 @@ package object brassica {
   )
 
   val DEFAULT_BOOSTER_PARAM_SPACE: BoosterParamSpace = Map(
+    // FIXME float instead of double -> reduces space when saved as a Dataset
+
     // model complexity
     "max_depth"        -> UniformInt(3, 10),
     "min_child_weight" -> UniformDouble(1, 15),
@@ -197,10 +199,10 @@ package object brassica {
   }
 
   /**
-    * @param seed
+    * @param seed The random seed.
     * @return Returns a new Random initialized with a seed.
     */
-  def random(seed: Long = DEFAULT_SEED) = {
+  def random(seed: Long = DEFAULT_SEED): Random = {
     val rng = new Random(seed)
     rng.nextLong // get rid of first, low entropy}
     rng
