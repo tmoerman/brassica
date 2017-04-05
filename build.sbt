@@ -29,9 +29,9 @@ libraryDependencies ++= Seq(
   "com.esotericsoftware.kryo" % "kryo"       % "2.21", // old version, cfr. XGBoost
   "LLNL"                      % "spark-hdf5" % "0.0.4",
 
-  "com.jsuereth"           %% "scala-arm"          % "2.0",
+  "com.jsuereth"    %% "scala-arm"          % "2.0",
+  "org.scalactic"   %% "scalactic"          % "3.0.1",
 
-  "org.scalatest"          %% "scalatest"          % "2.2.1"       % "test",
-  "com.holdenkarau"        %% "spark-testing-base" % "2.0.0_0.6.0" % "test"
+  "com.holdenkarau" %% "spark-testing-base" % "2.0.0_0.6.0" % "test"
 
 )
