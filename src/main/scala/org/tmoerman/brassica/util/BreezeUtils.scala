@@ -32,9 +32,9 @@ object BreezeUtils {
   }
 
   // TODO write tests for this !!
-  def toDMatrix(m: SliceMatrix[Int, Int, Expression]) = new DMatrix(m.activeValuesIterator.toArray, m.rows, m.cols, 0f)
+  def slicedToDMatrix(m: SliceMatrix[Int, Int, Expression]) = new DMatrix(m.activeValuesIterator.toArray, m.rows, m.cols, 0f)
 
   // TODO write tests for this !!
-  def toDMatrix(csc: CSCMatrix[Expression]) = new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC)
+  def cscToDMatrix(csc: CSCMatrix[Expression]) = new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC)
 
 }
