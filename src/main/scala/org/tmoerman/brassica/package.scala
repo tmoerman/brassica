@@ -77,7 +77,7 @@ package object brassica {
     * @param values The sparse expression vector.
     */
   case class ExpressionByGene(gene: Gene, values: MLVector) { // TODO rename values -> "expression"
-    def response: Array[Float] = values.toArray.map(_.toFloat)
+    def response: Array[Expression] = values.toArray.map(_.toFloat) // TODO test case
   }
 
   /**
@@ -153,8 +153,6 @@ package object brassica {
                                   metric: String,
                                   nrBoostingRounds: Int,
                                   loss: Float,
-
-
                                   keys: String,
                                   values: MLVector) {
 

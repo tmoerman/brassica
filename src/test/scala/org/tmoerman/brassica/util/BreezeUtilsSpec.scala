@@ -30,7 +30,7 @@ class BreezeUtilsSpec extends FlatSpec with Matchers {
     println(sliced.rows, sliced.cols, sliced.activeValuesIterator.toList)
     println(dense.rows, dense.cols, dense.data.toList)
 
-    val dm = BreezeUtils.toDMatrix(sliced)
+    val dm = BreezeUtils.slicedToDMatrix(sliced)
     //dm.setLabel(Array(1, 1, 1, 1, 0, 0, 0, 0, 0, 0))
 
     println(dm.toString)

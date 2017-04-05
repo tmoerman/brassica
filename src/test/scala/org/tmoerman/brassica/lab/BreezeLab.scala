@@ -1,6 +1,7 @@
 package org.tmoerman.brassica.lab
 
 import breeze.linalg._
+import org.apache.spark.ml.linalg.Vectors
 import org.scalatest.{FlatSpec, Matchers}
 
 /**
@@ -30,6 +31,14 @@ class BreezeLab extends FlatSpec with Matchers {
     println(m2.toDense)
     println
     println(m3.toDense)
+  }
+
+  "slicing a dense vector" should "work" in {
+    val v = Array(1f, 2f, 3f, 4f, 5f)
+    val d = new DenseVector[Float](v)
+    val s = d.apply(Seq(2, 3))
+
+    println(s.toArray.toList)
   }
 
   "slicing rows of a CSC matrix" should "work" in {

@@ -1,10 +1,10 @@
 package org.tmoerman.brassica
 
-import breeze.linalg.CSCMatrix
-import ml.dmlc.xgboost4j.java.{Booster, JXGBoostAccess}
-import ml.dmlc.xgboost4j.java.JXGBoostAccess.{createBooster, saveRabbitCheckpoint}
+import breeze.linalg.{CSCMatrix, DenseVector, Matrix}
+import ml.dmlc.xgboost4j.java.Booster
+import ml.dmlc.xgboost4j.java.JXGBoostAccess.createBooster
 import ml.dmlc.xgboost4j.scala.XGBoostAccess.inner
-import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost, XGBoostAccess}
+import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
 import org.apache.spark.ml.linalg.Vectors.dense
 import org.apache.spark.sql.{Dataset, Encoder}
 import org.tmoerman.brassica.tuning.CV.makeCVSets
@@ -37,7 +37,7 @@ object ScenicPipeline {
 
     import expressionsByGene.sparkSession.implicits._
 
-    val f = ComputeXGBoostRegulations(params)(_, _, _, _)
+    val f = ComputeXGBoostRegulations(params)(_, _, _)
 
     computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(f)
   }
@@ -62,14 +62,12 @@ object ScenicPipeline {
 
     import expressionsByGene.sparkSession.implicits._
 
-    val f = ComputeXGBoostOptimizedHyperParams(params)(_, _, _, _)
+    val f = ComputeXGBoostOptimizedHyperParams(params)(_, _, _)
 
     computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(f)
   }
 
   /**
-    *
-    *
     * @param expressionsByGene
     * @param candidateRegulators
     * @param targets
@@ -83,7 +81,7 @@ object ScenicPipeline {
     candidateRegulators: Set[Gene],
     targets: Set[Gene],
     nrPartitions: Option[Int])
-   (partitionTaskFactory: (List[Gene], CSCMatrix[Expression], Int, Iterator[ExpressionByGene]) => PartitionTask[T]): Dataset[T] = {
+   (partitionTaskFactory: (List[Gene], CSCMatrix[Expression], Int) => PartitionTask[T]): Dataset[T] = {
 
     val spark = expressionsByGene.sparkSession
     val sc = spark.sparkContext
@@ -98,36 +96,39 @@ object ScenicPipeline {
 
     def isTarget(e: ExpressionByGene) = containedIn(targets)(e.gene)
 
+    val ds =
+      expressionsByGene
+        .filter(isTarget _)
+        .rdd
+        .mapPartitionsWithIndex{ case (partitionIndex, partitionIterator) => {
+          if (partitionIterator.nonEmpty) {
+
+            println(s"partition $partitionIndex")
+
+            val regulators    = regulatorsBroadcast.value
+            val regulatorCSC  = regulatorCSCBroadcast.value
+            val partitionTask = partitionTaskFactory.apply(regulators, regulatorCSC, partitionIndex)
+
+            partitionIterator.flatMap(expressionByGene => {
+              val results = partitionTask(expressionByGene)
+
+              if (partitionIterator.isEmpty) {
+                partitionTask.dispose()
+              }
+
+              results
+            })
+          } else {
+            Nil.iterator.asInstanceOf[Iterator[T]]
+          }
+        }}
+        .toDS
+
     nrPartitions
-      .map(expressionsByGene.repartition) // FIXME always cache after repartition (cfr. Heather Miller Coursera)
-      .getOrElse(expressionsByGene)
-      .filter(isTarget _)
-      .rdd
-      .mapPartitionsWithIndex{ case (partitionIndex, partitionIterator) => {
-
-        if (partitionIterator.nonEmpty) {
-          println(s"partition $partitionIndex")
-
-          val regulators    = regulatorsBroadcast.value
-          val regulatorCSC  = regulatorCSCBroadcast.value
-          val partitionTask = partitionTaskFactory.apply(regulators, regulatorCSC, partitionIndex, partitionIterator)
-
-          partitionIterator.flatMap(expressionByGene => {
-            val results = partitionTask(expressionByGene)
-
-            if (partitionIterator.isEmpty) {
-              partitionTask.dispose()
-            }
-
-            results
-          })
-        } else {
-          val empty: Iterator[T] = Nil.iterator
-          empty
-        }
-
-      }}
-      .toDS
+      .map(n =>
+        ds.repartition(n).cache)
+      .getOrElse(
+        ds)
   }
 
   private[brassica] def containedIn(targets: Set[Gene]): Gene => Boolean =
@@ -183,8 +184,7 @@ object ScenicPipeline {
 trait PartitionTask[T] {
 
   /**
-    * @param expressionByGene
-    * @return Returns the result for one ExpressionByGene instance.
+    * @return Returns a resulting iterable of Dataset entries.
     */
   def apply(expressionByGene: ExpressionByGene): Iterable[T]
 
@@ -198,11 +198,10 @@ trait PartitionTask[T] {
 case class ComputeXGBoostRegulations(params: XGBoostRegressionParams)
                                     (regulators: List[Gene],
                                      regulatorCSC: CSCMatrix[Expression],
-                                     partitionIndex: Int,
-                                     partitionIterator: Iterator[ExpressionByGene]) extends PartitionTask[Regulation] {
+                                     partitionIndex: Int) extends PartitionTask[Regulation] {
   import params._
 
-  private[this] val cachedRegulatorDMatrix = toDMatrix(regulatorCSC)
+  private[this] val cachedRegulatorDMatrix = cscToDMatrix(regulatorCSC)
 
   override def dispose(): Unit = {
     cachedRegulatorDMatrix.delete()
@@ -228,7 +227,7 @@ case class ComputeXGBoostRegulations(params: XGBoostRegressionParams)
     val (targetDMatrix, disposeFn) =
       if (targetIsRegulator) {
         val cleanRegulatorCSC = regulatorCSC(0 until regulatorCSC.rows, cleanedDMatrixGenesToIndices.map(_._2))
-        val cleanRegulatorDMatrix = toDMatrix(cleanRegulatorCSC)
+        val cleanRegulatorDMatrix = slicedToDMatrix(cleanRegulatorCSC)
 
         (cleanRegulatorDMatrix, () => cleanRegulatorDMatrix.delete())
       } else {
@@ -265,28 +264,20 @@ case class ComputeXGBoostRegulations(params: XGBoostRegressionParams)
 case class ComputeXGBoostOptimizedHyperParams(params: XGBoostOptimizationParams)
                                              (regulators: List[Gene],
                                               regulatorCSC: CSCMatrix[Expression],
-                                              partitionIndex: Int,
-                                              partitionIterator: Iterator[ExpressionByGene]) extends PartitionTask[OptimizedHyperParams] {
+                                              partitionIndex: Int) extends PartitionTask[OptimizedHyperParams] {
   import params._
 
   private[this] val cvSets = makeCVSets(nrFolds, regulatorCSC.rows, seed + partitionIndex)
 
-  private[this] val cachedRegulatorDMatrix = toDMatrix(regulatorCSC)
 
-  private[this] val cachedNFoldDMatrices = toNFoldMatrices(cachedRegulatorDMatrix, cvSets)
-
-  private[this] val rng = random(seed + partitionIndex)
-
-  override def dispose(): Unit = {
-    cachedRegulatorDMatrix.delete()
-
-    dispose(cachedNFoldDMatrices)
-  }
+  override def dispose(): Unit = {}
 
   /**
     * @return Returns the optimized hyperparameters for one ExpressionByGene instance.
     */
   override def apply(expressionByGene: ExpressionByGene): Iterable[OptimizedHyperParams] = {
+    val rng = random(seed + partitionIndex)
+
     val targetGene = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
@@ -299,38 +290,42 @@ case class ComputeXGBoostOptimizedHyperParams(params: XGBoostOptimizationParams)
         .filterNot { case (gene, _) => gene == targetGene } // remove the target from the predictors
 
     // slice the target gene column from the regulator CSC matrix and create a new DMatrix
-    val (targetDMatrix, disposeFn) =
+    val targetDMatrix =
       if (targetIsRegulator) {
-        val cleanRegulatorCSC = regulatorCSC(0 until regulatorCSC.rows, cleanedDMatrixGenesToIndices.map(_._2))
-        val cleanRegulatorDMatrix = toDMatrix(cleanRegulatorCSC)
+        val slicedRegulatorCSC = regulatorCSC(0 until regulatorCSC.rows, cleanedDMatrixGenesToIndices.map(_._2))
 
-        (cleanRegulatorDMatrix, () => cleanRegulatorDMatrix.delete())
+        slicedToDMatrix(slicedRegulatorCSC)
       } else {
-        (cachedRegulatorDMatrix, () => Unit)
+        cscToDMatrix(regulatorCSC)
       }
+
     targetDMatrix.setLabel(expressionByGene.response)
 
-    // create n-fold matrices
-    val (targetNFoldDMatrices, disposeNFold) =
-      if (targetIsRegulator) {
-        val cleanNFoldDMatrices = toNFoldMatrices(targetDMatrix, cvSets)
+    val targetNFoldDMatrices = toNFoldDMatrices(targetDMatrix, cvSets)
 
-        (cleanNFoldDMatrices, () => {
-          disposeFn(); dispose(cleanNFoldDMatrices)
-        })
-      } else {
-        (cachedNFoldDMatrices, () => Unit)
-      }
+    val disposeAll = () => {
+      targetDMatrix.delete()
+      dispose(targetNFoldDMatrices)
+    }
+
+//      if (targetIsRegulator) {
+//        val cleanNFoldDMatrices = toNFoldDMatrices(targetDMatrix, cvSets)
+//
+//        (cleanNFoldDMatrices, () => {
+//          disposeFn(); dispose(cleanNFoldDMatrices)
+//        })
+//      } else {
+//        (cachedNFoldDMatrices, () => Unit)
+//      }
 
     // optimize the params for the current n-fold CV sets
 
     val trials =
       (1 to nrTrials)
         .map(trial => {
-          val sampledParams =
-            boosterParamSpace.map{ case (key, generator) => (key, generator(rng)) }
+          val sampledParams = boosterParamSpace.map{ case (key, generator) => (key, generator(rng)) }
 
-          // println(s"$targetGene, trial $trial")
+          println(s"partition: $partitionIndex, trial: $trial")
 
           val loss =
             computeLoss(
@@ -341,34 +336,34 @@ case class ComputeXGBoostOptimizedHyperParams(params: XGBoostOptimizationParams)
                 + ("nthread" -> 1)
             )
 
-          // println(s"target: $targetGene \t trial: $trial \t loss: $loss \t $sampledParams")
+          println(s"target: $targetGene \t trial: $trial \t loss: $loss \t $sampledParams")
 
           (sampledParams, loss)
         })
 
-    def toOptimizedHyperParams(sampledParams: BoosterParams, loss: Float) = {
-      val sorted   = sampledParams.toSeq.sortBy(_._1)
-      val keys     = sorted.map(_._1).mkString(",")
-      val values   = sorted.map(_._2.toString.toDouble).toArray
-
-      OptimizedHyperParams(
-        target = targetGene,
-        metric = evalMetric,
-        nrBoostingRounds = nrRounds,
-        loss = loss,
-        keys = keys,
-        values = dense(values))
-    }
-
-    disposeNFold.apply()
+    disposeAll()
 
     if (onlyBest) {
       val (sampledParams, loss) = trials.minBy(_._2)
 
-      Iterable(toOptimizedHyperParams(sampledParams, loss))
+      Iterable(toOptimizedHyperParams(targetGene, sampledParams, loss))
     } else {
-      trials.map{ case (sampledParams, loss) => toOptimizedHyperParams(sampledParams, loss)}
+      trials.map{ case (sampledParams, loss) => toOptimizedHyperParams(targetGene, sampledParams, loss)}
     }
+  }
+
+  private[this] def toOptimizedHyperParams(targetGene: Gene, sampledParams: BoosterParams, loss: Float) = {
+    val sorted   = sampledParams.toSeq.sortBy(_._1)
+    val keys     = sorted.map(_._1).mkString(",")
+    val values   = sorted.map(_._2.toString.toDouble).toArray
+
+    OptimizedHyperParams(
+      target = targetGene,
+      metric = evalMetric,
+      nrBoostingRounds = nrRounds,
+      loss = loss,
+      keys = keys,
+      values = dense(values))
   }
 
   val names = Array("train", "test")
@@ -381,37 +376,25 @@ case class ComputeXGBoostOptimizedHyperParams(params: XGBoostOptimizationParams)
     // TODO early stopping strategy or elbow calculation.
     val foldResultsPerRound =
       (0 until nrRounds)
-        .foreach(round => {
-//          val foldResults =
+        .map(round => {
+          val foldResults =
             cvPacks
-              .foreach{ case (train, test, booster) =>
+              .map{ case (train, test, booster) =>
                 val train4j = inner(train)
-                //val test4j  = inner(test)
-                //val mats4j  = Array(train4j, test4j)
+                train4j.setLabel(train4j.getLabel)
+
+                val test4j  = inner(test)
+                test4j.setLabel(test4j.getLabel)
 
                 booster.update(train4j, round)
-                saveRabbitCheckpoint(booster)
-                // if (round == nrRounds -1) booster.evalSet(mats4j, names, round) else "noppes"
-              }
-              //.toArray
+                booster.evalSet(Array(train4j, test4j), names, round) }
+
+          (round, foldResults)
         })
-
-
-    val lastFoldResults = cvPacks.map{ case (train, test, booster) =>
-      val train4j = inner(train)
-      val test4j  = inner(test)
-      val mats4j  = Array(train4j, test4j)
-
-      val result = booster.evalSet(mats4j, names, nrRounds - 1)
-
-      saveRabbitCheckpoint(booster)
-
-      result
-    }
 
     // TODO also return round nr ~ last for now
 
-    // val (lastRound, lastFoldResults) = foldResultsPerRound.last
+    val (lastRound, lastFoldResults) = foldResultsPerRound.last
 
     val (lastTrainingLoss, lastTestLoss) = toEvalScores(lastFoldResults)
 
@@ -436,8 +419,35 @@ case class ComputeXGBoostOptimizedHyperParams(params: XGBoostOptimizationParams)
     (averageEvalScores("train-rmse"), averageEvalScores("test-rmse"))
   }
 
-  private[this] def toNFoldMatrices(matrix: DMatrix, cvSets: List[(Array[CellIndex], Array[CellIndex])]) =
+  private[this] def toNFoldDMatrices(matrix: DMatrix, cvSets: List[(Array[CellIndex], Array[CellIndex])]) =
     cvSets.map{ case (trainIndices, testIndices) => (matrix.slice(trainIndices), matrix.slice(testIndices)) }
+
+  @deprecated("backup plan") private[this] def toNFoldDMatricesOLD(
+                                        csc: Matrix[Expression],
+                                        cvSets: List[(Array[CellIndex], Array[CellIndex])],
+                                        response: Array[Expression]) = {
+
+    cvSets
+      .map{ case (trainIndices, testIndices) =>
+        val trainSeq = trainIndices.toSeq
+        val testSeq = testIndices.toSeq
+
+        val trainCSC = csc(trainSeq, 0 until csc.cols)
+        val testCSC  = csc(testSeq,  0 until csc.cols)
+
+        val denseY = new DenseVector[Expression](response)
+        val trainY = denseY(trainSeq).toArray
+        val testY  = denseY(testSeq).toArray
+
+        val trainDMatrix = slicedToDMatrix(trainCSC)
+        trainDMatrix.setLabel(trainY)
+
+        val testDMatrix = slicedToDMatrix(testCSC)
+        testDMatrix.setLabel(testY)
+
+        (trainDMatrix, testDMatrix)
+    }
+  }
 
   private[this] def dispose(matrices: List[(DMatrix, DMatrix)]): Unit =
     matrices.foreach{ case (a, b) => {
