@@ -27,6 +27,8 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
   val TARGETS   = TF_50 ::: NORMAL_50
 
   private def optimizeHyperParams(idx: Int): Unit = {
+    import spark.implicits._
+
     val (dataFile, tfFile) = network(idx)
 
     val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
@@ -38,6 +40,7 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
           candidateRegulators = tfs.toSet,
           params = optimizationParams,
           targets = TARGETS.toSet)
+        .sort($"target", $"loss".desc)
         .cache()
 
     optimizedHyperParamsDS
