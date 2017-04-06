@@ -3,7 +3,7 @@ package org.tmoerman.brassica.cases.dream5
 import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.PropsReader.props
-import org.tmoerman.brassica.{XGBoostRegressionParams, XGBoostSuiteBase, _}
+import org.tmoerman.brassica.{XGBoostSuiteBase, _}
 
 /**
   * @author Thomas Moerman
@@ -18,11 +18,13 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
 
   val optimizationParams: XGBoostOptimizationParams =
     XGBoostOptimizationParams(
-      nrTrials = 10,
-      parallel = true,
+      nrTrials = 500,
+      parallel = false,
       onlyBestTrial = false)
 
-  val params = XGBoostRegressionParams(nrRounds = 125)
+  val TF_50     = (1 to 50).map(i => s"G$i").toList
+  val NORMAL_50 = (500 to 550).map(i => s"G$i").toList
+  val TARGETS   = TF_50 ::: NORMAL_50
 
   private def optimizeHyperParams(idx: Int): Unit = {
     val (dataFile, tfFile) = network(idx)
@@ -35,7 +37,8 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
           expressionByGene,
           candidateRegulators = tfs.toSet,
           params = optimizationParams,
-          targets = Set("G1", "G666"),
+          // targets = Set("G1", "G666"),
+          targets = TARGETS.toSet,
           nrPartitions = Some(spark.sparkContext.defaultParallelism))
         .cache()
 
