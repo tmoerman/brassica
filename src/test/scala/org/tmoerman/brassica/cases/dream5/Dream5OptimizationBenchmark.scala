@@ -18,8 +18,8 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
 
   val optimizationParams: XGBoostOptimizationParams =
     XGBoostOptimizationParams(
-      nrTrials = 5,
-      parallel = false,
+      nrTrials = 10,
+      parallel = true,
       onlyBestTrial = false)
 
   val params = XGBoostRegressionParams(nrRounds = 125)

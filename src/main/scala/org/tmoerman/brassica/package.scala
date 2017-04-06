@@ -2,6 +2,7 @@ package org.tmoerman
 
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
 import org.apache.spark.ml.feature.VectorSlicer
+import org.apache.spark.ml.linalg.Vectors.dense
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
 
@@ -27,6 +28,7 @@ package object brassica {
   type CellCount = Int
   type GeneIndex = Int
   type GeneCount = Int
+  type Round     = Int
 
   type Expression = Float
   type Importance = Float
@@ -147,13 +149,15 @@ package object brassica {
     * @param loss The loss function value.
     * @param keys Comma-delimited keys for the values dense vector.
     * @param values The hyper parameter values encoded as an ML dense vector.
+    * @param best Indicates whether this optimization is the best among a bunch for the same target gene.
     */
   case class OptimizedHyperParams(target: Gene,
                                   metric: String,
-                                  rounds: Int,
+                                  rounds: Round,
                                   loss: Loss,
                                   keys: String,
-                                  values: MLVector) {
+                                  values: MLVector,
+                                  best: Boolean = false) {
 
     def toBoosterParams: BoosterParams = (keys.split("\t") zip values.toArray).toMap
 
@@ -184,7 +188,7 @@ package object brassica {
                                        nrTrials: Int = 1000,
                                        nrFolds: Int = DEFAULT_NR_FOLDS,
 
-                                       nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS, // TODO replace by early stopping
+                                       maxNrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS, // TODO replace by early stopping
                                        earlyStopWindow: Int = 10,
                                        earlyStopDelta: Float = 0.01f,
 

@@ -19,48 +19,52 @@ import org.tmoerman.brassica.util.BreezeUtils.toDMatrix
   */
 case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
                                      (regulators: List[Gene],
-                                              regulatorCSC: CSCMatrix[Expression],
-                                              partitionIndex: Int) extends PartitionTask[OptimizedHyperParams] {
+                                      regulatorCSC: CSCMatrix[Expression],
+                                      partitionIndex: Int) extends PartitionTask[OptimizedHyperParams] {
   import params._
 
-  private[this] val cvSets = makeCVSets(nrFolds, regulatorCSC.rows, seed + partitionIndex)
+  private[this] val cvSets = makeCVSets(nrFolds, regulatorCSC.rows, seed)
 
   /**
-    * @return Returns the optimized hyperparameters for one ExpressionByGene instance.
+    * @param expressionByGene The target gene and expression.
+    * @return Returns the optimized hyper parameters for one ExpressionByGene instance.
     */
   override def apply(expressionByGene: ExpressionByGene): Iterable[OptimizedHyperParams] = {
-    val rng = random(seed + partitionIndex)
+    val rng = random(seed)
     val targetGene = expressionByGene.gene
+    val targetIsRegulator = regulators.contains(targetGene)
 
-    // println(s"-> target: $targetGene, regulator: $targetIsRegulator, partition: $partitionIndex")
+    println(s"-> target: $targetGene, regulator: $targetIsRegulator, partition: $partitionIndex")
 
-    val (nFoldDMatrices, disposeAll) =
-      makeNFoldDMatrices(
-        expressionByGene,
-        regulators,
-        regulatorCSC,
-        cvSets)
+    val (nFoldDMatrices, disposeAll) = makeNFoldDMatrices(expressionByGene, regulators, regulatorCSC, cvSets)
 
     // optimize the params for the current n-fold CV sets
     val trials =
       (1 to nrTrials)
         .map(trial => {
-          val sampledParams = boosterParamSpace.map{ case (key, generator) => (key, generator(rng)) }
-          val cvLoss        = computeCVLoss(nFoldDMatrices, sampledParams, params)
+          val sampledParams  = boosterParamSpace.map{ case (key, generator) => (key, generator(rng)) }
+          val (rounds, loss) = computeCVLoss(nFoldDMatrices, sampledParams, params)
 
-          println(s"target: $targetGene \t trial: $trial \t loss: $cvLoss \t $sampledParams")
+          println(s"target: $targetGene \t trial: $trial \t loss: $loss \t $sampledParams \t partition: $partitionIndex")
 
-          (sampledParams, cvLoss)
+          (sampledParams, (rounds, loss))
         })
 
     disposeAll()
 
-    if (onlyBestTrial) {
-      val (sampledParams, loss) = trials.minBy(_._2)
+    val best = trials.minBy{ case (_, (_, loss)) => loss }
 
-      Iterable(toOptimizedHyperParams(targetGene, sampledParams, loss, params))
+    if (onlyBestTrial) {
+      val (sampledParams, (rounds, loss)) = best
+
+      val result = toOptimizedHyperParams(targetGene, sampledParams, rounds, loss, best = true, params)
+
+      Iterable(result)
     } else {
-      trials.map{ case (sampledParams, loss) => toOptimizedHyperParams(targetGene, sampledParams, loss, params)}
+      trials
+        .map{ case trial @ (sampledParams, (rounds, loss)) =>
+          toOptimizedHyperParams(targetGene, sampledParams, rounds, loss, trial == best, params)
+        }
     }
   }
 
@@ -136,52 +140,82 @@ object OptimizeXGBoostHyperParams {
     */
   def computeCVLoss(nFoldDMatrixPairs: List[(DMatrix, DMatrix)],
                     sampledBoosterParams: BoosterParams,
-                    optimizationParams: XGBoostOptimizationParams): Float = {
+                    optimizationParams: XGBoostOptimizationParams): (Round, Loss) = {
 
     import optimizationParams._
 
     // we need the same boosters for all rounds
-    val cvPacks: List[(DMatrix, DMatrix, Booster)] =
+    val foldsAndBoosters: List[(DMatrix, DMatrix, Booster)] =
       nFoldDMatrixPairs
-        .map{ case (train, test) => (train, test, createBooster(withDefaults(sampledBoosterParams, optimizationParams), train, test)) }
+        .map{ case (train, test) =>
+          val booster = createBooster(withDefaults(sampledBoosterParams, optimizationParams), train, test)
+          (train, test, booster)
+        }
 
-    // TODO early stopping strategy or elbow calculation.
-    val resultsPerRound =
-      (0 until nrRounds)
+    // compute test losses
+    val testLossesByRound: Stream[(Round, Loss)] =
+      (0 until maxNrRounds)
+        .toStream
         .map(round => {
           val roundResults =
-            cvPacks
+            foldsAndBoosters
               .map{ case (train, test, booster) =>
                 val train4j = inner(train)
                 val test4j  = inner(test)
-                val matrices = Array(train4j, test4j)
+                val mats    = Array(train4j, test4j)
 
                 booster.update(train4j, round)
-                booster.evalSet(matrices, NAMES, round)
-              }
+                booster.evalSet(mats, NAMES, round)}
 
-          (round, roundResults)
-        })
+          val (_, testLoss) = toLossScores(roundResults)
 
-    // TODO also return round nr ~ last for now
-    val (lastRound, lastRoundResults) = resultsPerRound.last
-    val (lastTrainingLoss, lastTestLoss) = toLossScores(lastRoundResults)
+          (round, testLoss)})
+
+    // infer a reasonable round nr to stop early
+    val (round, loss) = takeUntilEarlyStop(testLossesByRound, optimizationParams)
 
     // dispose boosters
-    cvPacks.map(_._3).foreach(_.dispose())
+    foldsAndBoosters.map(_._3).foreach(_.dispose())
 
-    lastTestLoss
+    // return result
+    (round, loss)
   }
 
   /**
-    * @param sampledBoosterParams
-    * @param params
     * @return Returns sampled Booster params with extra defaults.
     */
-  def withDefaults(sampledBoosterParams: BoosterParams, params: XGBoostOptimizationParams): BoosterParams = {
-    val base = sampledBoosterParams + ("eval_metric" -> params.evalMetric) + ("silent" -> 1)
+  def withDefaults(sampledBoosterParams: BoosterParams,
+                   optimizationParams: XGBoostOptimizationParams): BoosterParams = {
 
-    if (params.parallel) base else base + ("nthread" -> 1)
+    import optimizationParams._
+
+    val base = sampledBoosterParams + ("eval_metric" -> evalMetric) + ("silent" -> 1)
+
+    if (parallel) base else base + ("nthread" -> 1)
+  }
+
+  /**
+    * Compute test losses until the delta between the window head and tail is smaller than a configured early stop delta.
+    *
+    * @param testLossesByRound A lazy Stream of test losses by round.
+    * @param optimizationParams The optimization params.
+    * @return Returns the last or early pair of test loss by round.
+    */
+  def takeUntilEarlyStop(testLossesByRound: Stream[(Round, Loss)],
+                         optimizationParams: XGBoostOptimizationParams): (Round, Loss) = {
+
+    import optimizationParams._
+
+    testLossesByRound
+      .sliding(earlyStopWindow, 1)
+      .takeWhile(window => {
+        val windowDelta = window.head._2 - window.last._2
+
+        windowDelta > earlyStopDelta
+      })
+      .map(window => window(window.length / 2))
+      .toIterable
+      .last
   }
 
   /**
@@ -209,34 +243,35 @@ object OptimizeXGBoostHyperParams {
     */
   def toOptimizedHyperParams(targetGene: Gene,
                              sampledParams: BoosterParams,
+                             round: Round,
                              loss: Loss,
+                             best: Boolean,
                              optimizationParams: XGBoostOptimizationParams): OptimizedHyperParams = {
     import optimizationParams._
 
-    val sorted   = sampledParams.toSeq.sortBy(_._1)
-    val keys     = sorted.map(_._1).mkString(",")
-    val values   = sorted.map(_._2.toString.toDouble).toArray
+    val sorted = sampledParams.toSeq.sortBy(_._1)
+    val keys   = sorted.map(_._1).mkString(",")
+    val values = sorted.map(_._2.toString.toDouble).toArray
 
     OptimizedHyperParams(
       target = targetGene,
       metric = evalMetric,
-      rounds = nrRounds,
-      loss = loss,
-      keys = keys,
+      rounds = round,
+      loss   = loss,
+      keys   = keys,
+      best   = best,
       values = dense(values))
   }
 
-  type FoldNr = Int
-
   /**
-    * @param nrFolds
-    * @param nrSamples
-    * @param seed
+    * @param nrFolds The number of CV folds.
+    * @param nrSamples The number of samples to partition across folds.
+    * @param seed A random seed.
     * @return Returns a Map of (train, test) sets by fold id.
     */
   def makeCVSets(nrFolds: Count,
                  nrSamples: Count,
-                 seed: Long = DEFAULT_SEED): List[(Array[CellIndex], Array[CellIndex])] = {
+                 seed: Long = DEFAULT_SEED): List[CVSet] = {
 
     val foldSlices = makeFoldSlices(nrFolds, nrSamples, seed)
 
@@ -248,6 +283,8 @@ object OptimizeXGBoostHyperParams {
 
         (train.values.flatten.toArray, test.values.flatten.toArray)})
   }
+
+  type FoldNr = Int
 
   /**
     * @param nrFolds The nr of folds.
