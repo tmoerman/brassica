@@ -90,10 +90,18 @@ object ScenicPipeline {
 
     def isTarget(e: ExpressionByGene) = containedIn(targets)(e.gene)
 
-    val ds =
+    val filtered =
       expressionsByGene
         .filter(isTarget _)
         .rdd
+
+    val repartitioned =
+      nrPartitions
+        .map(filtered.repartition(_).cache)
+        .getOrElse(filtered)
+
+    val ds =
+      repartitioned
         .mapPartitionsWithIndex{ case (partitionIndex, partitionIterator) => {
           if (partitionIterator.nonEmpty) {
             val regulators    = regulatorsBroadcast.value
@@ -115,9 +123,7 @@ object ScenicPipeline {
         }}
         .toDS
 
-    nrPartitions
-      .map(n => ds.repartition(n).cache)
-      .getOrElse(ds)
+    ds
   }
 
   private[brassica] def containedIn(targets: Set[Gene]): Gene => Boolean =
