@@ -12,7 +12,11 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
     Seq(3).foreach(optimizeHyperParams)
   }
 
-  val optimizationParams: XGBoostOptimizationParams = XGBoostOptimizationParams(nrTrials = 5)
+  val optimizationParams: XGBoostOptimizationParams =
+    XGBoostOptimizationParams(
+      nrTrials = 5,
+      parallel = false,
+      onlyBestTrial = false)
 
   val params = XGBoostRegressionParams(nrRounds = 125)
 
@@ -27,7 +31,7 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
           expressionByGene,
           candidateRegulators = tfs.toSet,
           params = optimizationParams,
-          targets = Set("G666"),
+          targets = Set("G1", "G666"),
           nrPartitions = Some(spark.sparkContext.defaultParallelism))
 
     optimizedHyperParamsDS

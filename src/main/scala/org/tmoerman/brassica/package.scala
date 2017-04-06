@@ -155,7 +155,7 @@ package object brassica {
                                   keys: String,
                                   values: MLVector) {
 
-    def toBoosterParams: BoosterParams = (keys.split(",") zip values.toArray).toMap
+    def toBoosterParams: BoosterParams = (keys.split("\t") zip values.toArray).toMap
 
   }
 
@@ -175,7 +175,7 @@ package object brassica {
     * @param evalMetric The n-fold evaluation metric.
     * @param nrFolds The nr of cross validation folds in which to splice the training data.
     * @param seed The seed for computing the random n folds.
-    * @param onlyBest Specifies whether to return only the best loss parameter set or all parameter sets.
+    * @param onlyBestTrial Specifies whether to return only the best trial or all trials for a target gene.
     * @param parallel Whether to run the optimization per partition in parallel or not
     *                 (mostly not because we run multiple optimizations in parallel).
     */
@@ -189,7 +189,7 @@ package object brassica {
                                        earlyStopDelta: Float = 0.01f,
 
                                        seed: Long = DEFAULT_SEED,
-                                       onlyBest: Boolean = true, // for testing purposes
+                                       onlyBestTrial: Boolean = true,
                                        parallel: Boolean = false) {
 
     assert(nrFolds > 0, s"nr folds must be greater than 0 (specified: $nrFolds) ")

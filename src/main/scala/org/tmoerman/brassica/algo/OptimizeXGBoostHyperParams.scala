@@ -5,7 +5,6 @@ import ml.dmlc.xgboost4j.java.Booster
 import ml.dmlc.xgboost4j.java.JXGBoostAccess.createBooster
 import ml.dmlc.xgboost4j.scala.DMatrix
 import ml.dmlc.xgboost4j.scala.XGBoostAccess.inner
-import org.apache.commons.lang.StringUtils.EMPTY
 import org.apache.spark.ml.linalg.Vectors.dense
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.algo.OptimizeXGBoostHyperParams._
@@ -55,7 +54,7 @@ case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
 
     disposeAll()
 
-    if (onlyBest) {
+    if (onlyBestTrial) {
       val (sampledParams, loss) = trials.minBy(_._2)
 
       Iterable(toOptimizedHyperParams(targetGene, sampledParams, loss, params))
@@ -157,7 +156,7 @@ object OptimizeXGBoostHyperParams {
                 val matrices = Array(train4j, test4j)
 
                 booster.update(train4j, round)
-                if (round == nrRounds-1) booster.evalSet(matrices, NAMES, round) else EMPTY
+                booster.evalSet(matrices, NAMES, round)
               }
 
           (round, roundResults)
