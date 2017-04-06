@@ -1,14 +1,15 @@
-package org.tmoerman.brassica.tuning
+package org.tmoerman.brassica.algo
 
 import java.lang.Math.min
 
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.tuning.CV.makeFoldSlices
+import org.tmoerman.brassica.XGBoostSuiteBase
+import org.tmoerman.brassica.algo.OptimizeXGBoostHyperParams._
 
 /**
   * @author Thomas Moerman
   */
-class CVSpec extends FlatSpec with Matchers {
+class OptimizeXGBoostParamsSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   behavior of "creating folds"
 
@@ -31,7 +32,7 @@ class CVSpec extends FlatSpec with Matchers {
   it should "create CV sets correctly" in {
     foldsSamplesCombos.foreach { case (nrFolds, nrSamples) =>
 
-      val cvSets = CV.makeCVSets(nrFolds, nrSamples)
+      val cvSets = makeCVSets(nrFolds, nrSamples)
 
       cvSets.size shouldBe min(nrFolds, nrSamples)
 
