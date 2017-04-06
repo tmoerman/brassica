@@ -258,9 +258,15 @@ object OptimizeXGBoostHyperParams {
       metric = evalMetric,
       rounds = round,
       loss   = loss,
-      keys   = keys,
-      best   = best,
-      values = dense(values))
+      //keys   = keys,
+      //values = dense(values)
+      eta               = sampledParams("eta")              .asInstanceOf[Double],
+      max_depth         = sampledParams("max_depth")        .asInstanceOf[Int],
+      min_child_weight  = sampledParams("min_child_weight") .asInstanceOf[Double],
+      gamma             = sampledParams("gamma")            .asInstanceOf[Double],
+      subsample         = sampledParams("subsample")        .asInstanceOf[Double],
+      colsample_bytree  = sampledParams("colsample_bytree") .asInstanceOf[Double],
+      best   = best)
   }
 
   /**
