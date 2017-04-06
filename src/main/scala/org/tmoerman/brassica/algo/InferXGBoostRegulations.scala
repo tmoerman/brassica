@@ -3,16 +3,16 @@ package org.tmoerman.brassica.algo
 import breeze.linalg.CSCMatrix
 import ml.dmlc.xgboost4j.scala.{Booster, XGBoost}
 import org.tmoerman.brassica._
-import org.tmoerman.brassica.algo.ComputeXGBoostRegulations._
+import org.tmoerman.brassica.algo.InferXGBoostRegulations._
 import org.tmoerman.brassica.util.BreezeUtils.toDMatrix
 
 /**
   * @author Thomas Moerman
   */
-case class ComputeXGBoostRegulations(params: XGBoostRegressionParams)
-                                    (regulators: List[Gene],
-                                     regulatorCSC: CSCMatrix[Expression],
-                                     partitionIndex: Int) extends PartitionTask[Regulation] {
+case class InferXGBoostRegulations(params: XGBoostRegressionParams)
+                                  (regulators: List[Gene],
+                                   regulatorCSC: CSCMatrix[Expression],
+                                   partitionIndex: Int) extends PartitionTask[Regulation] {
   import params._
 
   private[this] val cachedRegulatorDMatrix = toDMatrix(regulatorCSC)
@@ -61,7 +61,10 @@ case class ComputeXGBoostRegulations(params: XGBoostRegressionParams)
 
 }
 
-object ComputeXGBoostRegulations {
+/**
+  * Companion object exposing stateless functions.
+  */
+object InferXGBoostRegulations {
 
   def toRegulations(targetGene: Gene,
                     cleanedDMatrixGenesToIndices: List[(Gene, Int)],

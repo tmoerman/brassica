@@ -1,7 +1,6 @@
 package org.tmoerman
 
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
-import ml.dmlc.xgboost4j.scala.DMatrix
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
@@ -9,7 +8,7 @@ import org.apache.spark.sql.Dataset
 import scala.util.Random
 
 /**
-  * Constants, case classes and type aliases.
+  * Application wide domain classes, constants and type aliases.
   *
   * @author Thomas Moerman
   */
@@ -24,14 +23,14 @@ package object brassica {
   type BoosterParams = Map[String, _]
   type BoosterParamSpace = Map[String, RandomSampler[_]]
 
-  type CVSet = (DMatrix, DMatrix)
-
   type CellIndex = Int
   type CellCount = Int
   type GeneIndex = Int
   type GeneCount = Int
+
   type Expression = Float
   type Importance = Float
+  type Loss       = Float
 
   val VALUES      = "values"
   val GENE        = "gene"
@@ -152,7 +151,7 @@ package object brassica {
   case class OptimizedHyperParams(target: Gene,
                                   metric: String,
                                   nrBoostingRounds: Int,
-                                  loss: Float,
+                                  loss: Loss,
                                   keys: String,
                                   values: MLVector) {
 
@@ -173,6 +172,7 @@ package object brassica {
     * Data structure holding parameters for XGBoost regression optimization.
     *
     * @param boosterParamSpace The space of booster parameters to search through for an optimal set.
+    * @param evalMetric The n-fold evaluation metric.
     * @param nrFolds The nr of cross validation folds in which to splice the training data.
     * @param seed The seed for computing the random n folds.
     * @param onlyBest Specifies whether to return only the best loss parameter set or all parameter sets.
@@ -189,7 +189,7 @@ package object brassica {
                                        earlyStopDelta: Float = 0.01f,
 
                                        seed: Long = DEFAULT_SEED,
-                                       onlyBest: Boolean = true,
+                                       onlyBest: Boolean = true, // for testing purposes
                                        parallel: Boolean = false) {
 
     assert(nrFolds > 0, s"nr folds must be greater than 0 (specified: $nrFolds) ")

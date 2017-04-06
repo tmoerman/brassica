@@ -8,19 +8,19 @@ import ml.dmlc.xgboost4j.scala.XGBoostAccess.inner
 import org.apache.commons.lang.StringUtils.EMPTY
 import org.apache.spark.ml.linalg.Vectors.dense
 import org.tmoerman.brassica._
-import org.tmoerman.brassica.algo.ComputeXGBoostOptimizedHyperParams._
+import org.tmoerman.brassica.algo.OptimizeXGBoostHyperParams._
 import org.tmoerman.brassica.tuning.CV.makeCVSets
 import org.tmoerman.brassica.util.BreezeUtils.toDMatrix
 
 /**
+  * PartitionTask implementation for XGBoost hyper parameter optimization.
+  *
   * @author Thomas Moerman
   */
-case class ComputeXGBoostOptimizedHyperParams(params: XGBoostOptimizationParams)
-                                             (regulators: List[Gene],
+case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
+                                     (regulators: List[Gene],
                                               regulatorCSC: CSCMatrix[Expression],
                                               partitionIndex: Int) extends PartitionTask[OptimizedHyperParams] {
-
-
   import params._
 
   private[this] val cvSets = makeCVSets(nrFolds, regulatorCSC.rows, seed + partitionIndex)
@@ -46,11 +46,11 @@ case class ComputeXGBoostOptimizedHyperParams(params: XGBoostOptimizationParams)
       (1 to nrTrials)
         .map(trial => {
           val sampledParams = boosterParamSpace.map{ case (key, generator) => (key, generator(rng)) }
-          val loss = computeLoss(nFoldDMatrices, sampledParams, params)
+          val cvLoss        = computeCVLoss(nFoldDMatrices, sampledParams, params)
 
-          println(s"target: $targetGene \t trial: $trial \t loss: $loss \t $sampledParams")
+          println(s"target: $targetGene \t trial: $trial \t loss: $cvLoss \t $sampledParams")
 
-          (sampledParams, loss)
+          (sampledParams, cvLoss)
         })
 
     disposeAll()
@@ -58,36 +58,30 @@ case class ComputeXGBoostOptimizedHyperParams(params: XGBoostOptimizationParams)
     if (onlyBest) {
       val (sampledParams, loss) = trials.minBy(_._2)
 
-      Iterable(toOptimizedHyperParams(targetGene, sampledParams, loss))
+      Iterable(toOptimizedHyperParams(targetGene, sampledParams, loss, params))
     } else {
-      trials.map{ case (sampledParams, loss) => toOptimizedHyperParams(targetGene, sampledParams, loss)}
+      trials.map{ case (sampledParams, loss) => toOptimizedHyperParams(targetGene, sampledParams, loss, params)}
     }
-  }
-
-  private[this] def toOptimizedHyperParams(targetGene: Gene, sampledParams: BoosterParams, loss: Float) = {
-    val sorted   = sampledParams.toSeq.sortBy(_._1)
-    val keys     = sorted.map(_._1).mkString(",")
-    val values   = sorted.map(_._2.toString.toDouble).toArray
-
-    OptimizedHyperParams(
-      target = targetGene,
-      metric = evalMetric,
-      nrBoostingRounds = nrRounds,
-      loss = loss,
-      keys = keys,
-      values = dense(values))
   }
 
   override def dispose(): Unit = {}
 
 }
 
-object ComputeXGBoostOptimizedHyperParams {
+/**
+  * Companion object exposing stateless functions.
+  */
+object OptimizeXGBoostHyperParams {
 
   type CVSet  = (Array[CellIndex], Array[CellIndex])
 
   private[this] val NAMES = Array("train", "test")
 
+  /**
+    * @return Returns a tuple of
+    *         - list of pairs of n-fold DMatrix instances
+    *         - a dispose function.
+    */
   def makeNFoldDMatrices(expressionByGene: ExpressionByGene,
                          regulators: List[Gene],
                          regulatorCSC: CSCMatrix[Expression],
@@ -111,21 +105,21 @@ object ComputeXGBoostOptimizedHyperParams {
       } else {
         toDMatrix(regulatorCSC)
       }
-
     regulatorDMatrix.setLabel(expressionByGene.response)
 
-    val nFoldDMatrices = toNFoldDMatrices(regulatorDMatrix, cvSets)
+    val nFoldDMatrices = sliceToNFoldDMatrixPairs(regulatorDMatrix, cvSets)
 
-    val disposeAll = () => {
+    val disposeMatrices = () => {
       regulatorDMatrix.delete()
       dispose(nFoldDMatrices)
     }
 
-    (nFoldDMatrices, disposeAll)
+    (nFoldDMatrices, disposeMatrices)
   }
 
-  def toNFoldDMatrices(matrix: DMatrix, cvSets: List[(Array[CellIndex], Array[CellIndex])]) =
-    cvSets.map{ case (trainIndices, testIndices) => (matrix.slice(trainIndices), matrix.slice(testIndices)) }
+  def sliceToNFoldDMatrixPairs(matrix: DMatrix, cvSets: List[CVSet]): List[(DMatrix, DMatrix)] =
+    cvSets
+      .map{ case (trainIndices, testIndices) => (matrix.slice(trainIndices), matrix.slice(testIndices)) }
 
   def dispose(matrices: List[(DMatrix, DMatrix)]): Unit =
     matrices.foreach{ case (a, b) => {
@@ -133,27 +127,29 @@ object ComputeXGBoostOptimizedHyperParams {
       b.delete()
     }}
 
-  def computeLoss(nFoldDMatrices: List[(DMatrix, DMatrix)],
-                  sampledBoosterParams: BoosterParams,
-                  optimizationParams: XGBoostOptimizationParams): Float = {
+  /**
+    * @param nFoldDMatrixPairs The n-fold matrices for crossValidation.
+    * @param sampledBoosterParams A candidate sampled set of XGBoost regression BoosterParams.
+    * @param optimizationParams The XGBoost optimization parameters.
+    * @return Returns the loss of the specified sampled BoosterParams over the n-fold matrices,
+    *         in function of a specified evaluation metric (usually RMSE for regression).
+    */
+  def computeCVLoss(nFoldDMatrixPairs: List[(DMatrix, DMatrix)],
+                    sampledBoosterParams: BoosterParams,
+                    optimizationParams: XGBoostOptimizationParams): Float = {
 
     import optimizationParams._
 
-    val sampledBoosterParamsWithDefaults =
-      sampledBoosterParams +
-        ("eval_metric" -> evalMetric) +
-        ("silent" -> 1) +
-        ("nthread" -> 1)
-
+    // we need the same boosters for all rounds
     val cvPacks: List[(DMatrix, DMatrix, Booster)] =
-      nFoldDMatrices
-        .map{ case (train, test) => (train, test, createBooster(sampledBoosterParamsWithDefaults, train, test)) }
+      nFoldDMatrixPairs
+        .map{ case (train, test) => (train, test, createBooster(withDefaults(sampledBoosterParams, optimizationParams), train, test)) }
 
     // TODO early stopping strategy or elbow calculation.
-    val foldResultsPerRound =
+    val resultsPerRound =
       (0 until nrRounds)
         .map(round => {
-          val foldResults =
+          val roundResults =
             cvPacks
               .map{ case (train, test, booster) =>
                 val train4j = inner(train)
@@ -164,12 +160,12 @@ object ComputeXGBoostOptimizedHyperParams {
                 if (round == nrRounds-1) booster.evalSet(matrices, NAMES, round) else EMPTY
               }
 
-          (round, foldResults)
+          (round, roundResults)
         })
 
     // TODO also return round nr ~ last for now
-    val (lastRound, lastFoldResults) = foldResultsPerRound.last
-    val (lastTrainingLoss, lastTestLoss) = toEvalScores(lastFoldResults)
+    val (lastRound, lastRoundResults) = resultsPerRound.last
+    val (lastTrainingLoss, lastTestLoss) = toLossScores(lastRoundResults)
 
     // dispose boosters
     cvPacks.map(_._3).foreach(_.dispose())
@@ -178,12 +174,23 @@ object ComputeXGBoostOptimizedHyperParams {
   }
 
   /**
-    * @param foldResults
-    * @return Return the
+    * @param sampledBoosterParams
+    * @param params
+    * @return Returns sampled Booster params with extra defaults.
     */
-  def toEvalScores(foldResults: Iterable[String]): (Float, Float) = {
+  def withDefaults(sampledBoosterParams: BoosterParams, params: XGBoostOptimizationParams): BoosterParams = {
+    val base = sampledBoosterParams + ("eval_metric" -> params.evalMetric) + ("silent" -> 1)
+
+    if (params.parallel) base else base + ("nthread" -> 1)
+  }
+
+  /**
+    * @param roundResults
+    * @return Return the train and test CV evaluation scores.
+    */
+  def toLossScores(roundResults: Iterable[String]): (Loss, Loss) = {
     val averageEvalScores =
-      foldResults
+      roundResults
         .flatMap(foldResult => {
           foldResult
             .split("\t")
@@ -195,6 +202,28 @@ object ComputeXGBoostOptimizedHyperParams {
         .mapValues(x => x.map(_._2).sum / x.size)
 
     (averageEvalScores("train-rmse"), averageEvalScores("test-rmse"))
+  }
+
+  /**
+    * @return Returns the structured form of a sampled BoosterParams instance.
+    */
+  def toOptimizedHyperParams(targetGene: Gene,
+                             sampledParams: BoosterParams,
+                             loss: Loss,
+                             optimizationParams: XGBoostOptimizationParams): OptimizedHyperParams = {
+    import optimizationParams._
+
+    val sorted   = sampledParams.toSeq.sortBy(_._1)
+    val keys     = sorted.map(_._1).mkString(",")
+    val values   = sorted.map(_._2.toString.toDouble).toArray
+
+    OptimizedHyperParams(
+      target = targetGene,
+      metric = evalMetric,
+      nrBoostingRounds = nrRounds,
+      loss = loss,
+      keys = keys,
+      values = dense(values))
   }
 
 }

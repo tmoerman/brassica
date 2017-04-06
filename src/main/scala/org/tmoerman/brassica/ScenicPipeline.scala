@@ -2,7 +2,7 @@ package org.tmoerman.brassica
 
 import breeze.linalg.CSCMatrix
 import org.apache.spark.sql.{Dataset, Encoder}
-import org.tmoerman.brassica.algo.{ComputeXGBoostOptimizedHyperParams, ComputeXGBoostRegulations}
+import org.tmoerman.brassica.algo.{OptimizeXGBoostHyperParams, InferXGBoostRegulations}
 
 import scala.reflect.ClassTag
 
@@ -31,7 +31,7 @@ object ScenicPipeline {
 
     import expressionsByGene.sparkSession.implicits._
 
-    val partitionTaskfactory = ComputeXGBoostRegulations(params)(_, _, _)
+    val partitionTaskfactory = InferXGBoostRegulations(params)(_, _, _)
 
     computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskfactory)
   }
@@ -56,7 +56,7 @@ object ScenicPipeline {
 
     import expressionsByGene.sparkSession.implicits._
 
-    val partitionTaskFactory = ComputeXGBoostOptimizedHyperParams(params)(_, _, _)
+    val partitionTaskFactory = OptimizeXGBoostHyperParams(params)(_, _, _)
 
     computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskFactory)
   }
