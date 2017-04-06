@@ -37,9 +37,7 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
           expressionByGene,
           candidateRegulators = tfs.toSet,
           params = optimizationParams,
-          // targets = Set("G1", "G666"),
-          targets = TARGETS.toSet,
-          nrPartitions = Some(spark.sparkContext.defaultParallelism))
+          targets = TARGETS.toSet)
         .cache()
 
     optimizedHyperParamsDS

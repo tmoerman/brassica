@@ -37,6 +37,7 @@ object Dream5Reader extends DataReader {
       (genes.toSeq zip matrix.t.ml.rowIter.toSeq)
         .map{ case (gene, expression) => ExpressionByGene(gene, expression) }
         .toDS
+        .cache
 
     (ds, TFs)
   }
