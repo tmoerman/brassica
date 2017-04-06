@@ -143,14 +143,14 @@ package object brassica {
   /**
     * @param target The target gene name.
     * @param metric The evaluation metric, e.g. RMSE.
-    * @param nrBoostingRounds A putative sufficient nr of boosting rounds ~ to be computed with early stopping.
+    * @param rounds A putative sufficient nr of boosting rounds ~ to be computed with early stopping.
     * @param loss The loss function value.
     * @param keys Comma-delimited keys for the values dense vector.
     * @param values The hyper parameter values encoded as an ML dense vector.
     */
   case class OptimizedHyperParams(target: Gene,
                                   metric: String,
-                                  nrBoostingRounds: Int,
+                                  rounds: Int,
                                   loss: Loss,
                                   keys: String,
                                   values: MLVector) {

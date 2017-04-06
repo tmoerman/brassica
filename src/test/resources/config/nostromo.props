@@ -17,8 +17,9 @@ megacellRowsParquet    = src/test/resources/parquet/megacell_rows
 megacellColumnsParquet = src/test/resources/parquet/megacell
 
 # source:
-dream5Training = /media/tmo/data/work/datasets/dream5/training data/
-dream5Out      = /media/tmo/data/work/datasets/dream5/out/
+dream5Training     = /media/tmo/data/work/datasets/dream5/training data/
+dream5Out          = /media/tmo/data/work/datasets/dream5/out/
+dream5Optimization = /media/tmo/data/work/datasets/dream5/optimization/
 
 # out folder
 out = src/test/resources/out/
