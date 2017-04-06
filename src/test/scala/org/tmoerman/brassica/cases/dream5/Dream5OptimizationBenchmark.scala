@@ -33,13 +33,16 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
 
     val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
+    println(s"default spark parallelism: ${spark.sparkContext.defaultParallelism}")
+
     val optimizedHyperParamsDS =
       ScenicPipeline
         .optimizeHyperParams(
           expressionByGene,
           candidateRegulators = tfs.toSet,
           params = optimizationParams,
-          targets = TARGETS.toSet)
+          targets = TARGETS.toSet,
+          nrPartitions = Some(spark.sparkContext.defaultParallelism))
         .sort($"target", $"loss".desc)
         .cache()
 

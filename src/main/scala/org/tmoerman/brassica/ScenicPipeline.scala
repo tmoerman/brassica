@@ -116,7 +116,7 @@ object ScenicPipeline {
         .toDS
 
     nrPartitions
-      .map(ds.repartition(_).cache)
+      .map(n => ds.repartition(n).cache)
       .getOrElse(ds)
   }
 
