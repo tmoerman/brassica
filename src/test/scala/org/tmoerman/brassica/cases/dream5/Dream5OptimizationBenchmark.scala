@@ -18,7 +18,8 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
 
   val optimizationParams: XGBoostOptimizationParams =
     XGBoostOptimizationParams(
-      nrTrials = 500,
+      nrTrialsPerBatch = 2,
+      nrBatches = 8,
       parallel = false,
       onlyBestTrial = false)
 
@@ -26,9 +27,11 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
 
   println(s"available processors: $nrCores")
 
-  val TF_50     = (  1 to   0 + (nrCores / 2)).map(i => s"G$i").toList
-  val NORMAL_50 = (501 to 500 + (nrCores / 2)).map(i => s"G$i").toList
-  val TARGETS   = TF_50 ::: NORMAL_50
+//  val TF_50     = (  1 to   0 + (nrCores / 2)).map(i => s"G$i").toList
+//  val NORMAL_50 = (501 to 500 + (nrCores / 2)).map(i => s"G$i").toList
+//  val TARGETS   = TF_50 ::: NORMAL_50
+
+  val TARGETS = "G666" :: Nil
 
   private def optimizeHyperParams(idx: Int): Unit = {
     import spark.implicits._
@@ -54,7 +57,7 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
     optimizedHyperParamsDS
       .write
       .mode(Overwrite)
-      .parquet(writePath + s"network$idx")
+      .parquet(writePath + s"network${idx}_low_gamma")
   }
 
 }

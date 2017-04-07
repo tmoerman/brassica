@@ -189,7 +189,8 @@ package object brassica {
     */
   case class XGBoostOptimizationParams(boosterParamSpace: BoosterParamSpace = DEFAULT_BOOSTER_PARAM_SPACE,
                                        evalMetric: String = DEFAULT_EVAL_METRIC,
-                                       nrTrials: Int = 1000,
+                                       nrTrialsPerBatch: Int = 1000,
+                                       nrBatches: Int = 1,
                                        nrFolds: Int = DEFAULT_NR_FOLDS,
 
                                        maxNrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS, // TODO replace by early stopping

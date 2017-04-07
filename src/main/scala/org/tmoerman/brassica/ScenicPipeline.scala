@@ -2,7 +2,7 @@ package org.tmoerman.brassica
 
 import breeze.linalg.CSCMatrix
 import org.apache.spark.sql.{Dataset, Encoder}
-import org.tmoerman.brassica.algo.{OptimizeXGBoostHyperParams, InferXGBoostRegulations}
+import org.tmoerman.brassica.algo.{InferXGBoostRegulations, OptimizeXGBoostHyperParams}
 
 import scala.reflect.ClassTag
 
@@ -58,7 +58,9 @@ object ScenicPipeline {
 
     val partitionTaskFactory = OptimizeXGBoostHyperParams(params)(_, _, _)
 
-    computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskFactory)
+    def multiplex(e: ExpressionByGene) = Iterable.tabulate(params.nrBatches)(_ => e)
+
+    computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions, Some(multiplex))(partitionTaskFactory)
   }
 
   /**
@@ -66,6 +68,7 @@ object ScenicPipeline {
     * @param candidateRegulators
     * @param targets
     * @param nrPartitions
+    * @param multiplexer TODO document
     * @param partitionTaskFactory
     * @tparam T Generic result Product (Tuple) type.
     * @return Returns a Dataset of T instances.
@@ -74,7 +77,8 @@ object ScenicPipeline {
     expressionsByGene: Dataset[ExpressionByGene],
     candidateRegulators: Set[Gene],
     targets: Set[Gene],
-    nrPartitions: Option[Int])
+    nrPartitions: Option[Int],
+    multiplexer: Option[(ExpressionByGene) => Iterable[ExpressionByGene]] = None)
    (partitionTaskFactory: (List[Gene], CSCMatrix[Expression], Int) => PartitionTask[T]): Dataset[T] = {
 
     val spark = expressionsByGene.sparkSession
@@ -90,15 +94,20 @@ object ScenicPipeline {
 
     def isTarget(e: ExpressionByGene) = containedIn(targets)(e.gene)
 
-    val filtered =
+    val onlyTargets =
       expressionsByGene
         .filter(isTarget _)
         .rdd
 
+    val multiplexed =
+      multiplexer
+        .map(mplxr => onlyTargets.flatMap(x => mplxr(x)))
+        .getOrElse(onlyTargets)
+
     val repartitioned =
       nrPartitions
-        .map(filtered.repartition(_).cache)
-        .getOrElse(filtered)
+        .map(multiplexed.repartition(_).cache)
+        .getOrElse(multiplexed)
 
     val ds =
       repartitioned

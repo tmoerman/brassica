@@ -1,6 +1,7 @@
 package org.tmoerman.brassica.algo
 
 import java.lang.Math.min
+import java.lang.System.currentTimeMillis
 
 import breeze.linalg.{CSCMatrix, DenseVector => BDV}
 import breeze.stats.{mean, stddev}
@@ -31,7 +32,7 @@ case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
     * @return Returns the optimized hyper parameters for one ExpressionByGene instance.
     */
   override def apply(expressionByGene: ExpressionByGene): Iterable[OptimizedHyperParams] = {
-    val rng = random(seed + partitionIndex)
+    val rng = random(seed + partitionIndex * 17 + currentTimeMillis)
     val targetGene = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
@@ -41,7 +42,7 @@ case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
 
     // optimize the params for the current n-fold CV sets
     val trials =
-      (1 to nrTrials)
+      (1 to nrTrialsPerBatch)
         .map(trial => {
           val sampledParams  = boosterParamSpace.map{ case (key, generator) => (key, generator(rng)) }
           val (rounds, loss) = computeCVLoss(nFoldDMatrices, sampledParams, params)
@@ -56,9 +57,9 @@ case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
     val best = trials.minBy(_._2._2)
 
     val losses = BDV(trials.map(_._2._2).toArray)
-    val mu = mean(losses)
-    val s  = stddev(losses)
-    def standardize(loss: Loss): Loss = (loss - mu) / s.toFloat
+    val mu     = mean(losses)
+    val stdev  = stddev(losses).toFloat
+    def standardize(loss: Loss): Loss = (loss - mu) / stdev
 
     if (onlyBestTrial) {
       val (sampledParams, (rounds, loss)) = best
