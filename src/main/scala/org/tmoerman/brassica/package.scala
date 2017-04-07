@@ -146,13 +146,12 @@ package object brassica {
     * @param rounds A putative sufficient nr of boosting rounds ~ to be computed with early stopping.
     * @param loss The loss function value.
     *
-    * @param best Indicates whether this optimization is the best among a bunch for the same target gene.
+    *
     */
   case class OptimizedHyperParams(target: Gene,
                                   metric: String,
                                   rounds: Round,
                                   loss: Loss,
-                                  best: Boolean = false,
                                   max_depth: Int,
                                   min_child_weight: Double,
                                   subsample: Double,

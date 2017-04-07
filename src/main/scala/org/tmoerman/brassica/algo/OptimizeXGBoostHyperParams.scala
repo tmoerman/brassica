@@ -57,18 +57,14 @@ case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
 
     disposeAll()
 
-    val best = trials.minBy(_._2._2)
-
     if (onlyBestTrial) {
-      val (sampledParams, (rounds, loss)) = best
-
-      val result = toOptimizedHyperParams(targetGene, sampledParams, rounds, loss, best = true, params)
-
-      Iterable(result)
+      val (sampledParams, (rounds, loss)) = trials.minBy(_._2._2)
+      
+      Iterable(toOptimizedHyperParams(targetGene, sampledParams, rounds, loss, params))
     } else {
       trials
-        .map{ case trial @ (sampledParams, (rounds, loss)) =>
-          toOptimizedHyperParams(targetGene, sampledParams, rounds, loss, trial == best, params)
+        .map{ case (sampledParams, (rounds, loss)) =>
+          toOptimizedHyperParams(targetGene, sampledParams, rounds, loss, params)
         }
     }
   }
@@ -250,7 +246,6 @@ object OptimizeXGBoostHyperParams {
                              sampledParams: BoosterParams,
                              round: Round,
                              loss: Loss,
-                             best: Boolean,
                              optimizationParams: XGBoostOptimizationParams): OptimizedHyperParams = {
     import optimizationParams._
 
@@ -259,7 +254,6 @@ object OptimizeXGBoostHyperParams {
       metric  = evalMetric,
       rounds  = round,
       loss    = loss,
-      best    = best,
       eta               = sampledParams("eta")              .asInstanceOf[Double],
       max_depth         = sampledParams("max_depth")        .asInstanceOf[Int],
       min_child_weight  = sampledParams("min_child_weight") .asInstanceOf[Double],
