@@ -7,7 +7,6 @@ import ml.dmlc.xgboost4j.java.Booster
 import ml.dmlc.xgboost4j.java.JXGBoostAccess.createBooster
 import ml.dmlc.xgboost4j.scala.DMatrix
 import ml.dmlc.xgboost4j.scala.XGBoostAccess.inner
-import org.apache.spark.ml.linalg.Vectors.dense
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.algo.OptimizeXGBoostHyperParams._
 import org.tmoerman.brassica.util.BreezeUtils.toDMatrix

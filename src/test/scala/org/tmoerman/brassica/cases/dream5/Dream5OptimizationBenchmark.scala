@@ -18,14 +18,16 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
 
   val optimizationParams: XGBoostOptimizationParams =
     XGBoostOptimizationParams(
-      nrTrials = 1,
+      nrTrials = 500,
       parallel = false,
       onlyBestTrial = false)
 
-  val n = 4
+  val nrCores = Runtime.getRuntime.availableProcessors()
 
-  val TF_50     = (  1 to   0 + n).map(i => s"G$i").toList
-  val NORMAL_50 = (501 to 500 + n).map(i => s"G$i").toList
+  println(s"available processors: $nrCores")
+
+  val TF_50     = (  1 to   0 + (nrCores / 2)).map(i => s"G$i").toList
+  val NORMAL_50 = (501 to 500 + (nrCores / 2)).map(i => s"G$i").toList
   val TARGETS   = TF_50 ::: NORMAL_50
 
   private def optimizeHyperParams(idx: Int): Unit = {
@@ -34,8 +36,6 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
     val (dataFile, tfFile) = network(idx)
 
     val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
-
-    println(s"default spark parallelism: ${spark.sparkContext.defaultParallelism}")
 
     val optimizedHyperParamsDS =
       ScenicPipeline
