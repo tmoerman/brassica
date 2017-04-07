@@ -146,9 +146,7 @@ package object brassica {
     * @param metric The evaluation metric, e.g. RMSE.
     * @param rounds A putative sufficient nr of boosting rounds ~ to be computed with early stopping.
     * @param loss The loss function value.
-    *
-    * @param keys Comma-delimited keys for the values dense vector.
-    * @param values The hyper parameter values encoded as an ML dense vector.
+    * @param stdLoss Standardized loss per target.
     *
     * @param best Indicates whether this optimization is the best among a bunch for the same target gene.
     */
@@ -156,14 +154,14 @@ package object brassica {
                                   metric: String,
                                   rounds: Round,
                                   loss: Loss,
+                                  stdLoss: Loss,
+                                  best: Boolean = false,
                                   max_depth: Int,
                                   min_child_weight: Double,
                                   gamma: Double,
                                   subsample: Double,
                                   colsample_bytree: Double,
-                                  eta: Double,
-                                  // values: MLVector,
-                                  best: Boolean = false) {
+                                  eta: Double) {
 
     // def toBoosterParams: BoosterParams = (keys.split("\t") zip values.toArray).toMap
 

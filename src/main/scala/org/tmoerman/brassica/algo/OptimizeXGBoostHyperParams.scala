@@ -2,7 +2,8 @@ package org.tmoerman.brassica.algo
 
 import java.lang.Math.min
 
-import breeze.linalg.CSCMatrix
+import breeze.linalg.{CSCMatrix, DenseVector => BDV}
+import breeze.stats.{mean, stddev}
 import ml.dmlc.xgboost4j.java.Booster
 import ml.dmlc.xgboost4j.java.JXGBoostAccess.createBooster
 import ml.dmlc.xgboost4j.scala.DMatrix
@@ -10,6 +11,7 @@ import ml.dmlc.xgboost4j.scala.XGBoostAccess.inner
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.algo.OptimizeXGBoostHyperParams._
 import org.tmoerman.brassica.util.BreezeUtils.toDMatrix
+
 
 /**
   * PartitionTask implementation for XGBoost hyper parameter optimization.
@@ -29,7 +31,7 @@ case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
     * @return Returns the optimized hyper parameters for one ExpressionByGene instance.
     */
   override def apply(expressionByGene: ExpressionByGene): Iterable[OptimizedHyperParams] = {
-    val rng = random(seed)
+    val rng = random(seed + partitionIndex)
     val targetGene = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
@@ -51,18 +53,23 @@ case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
 
     disposeAll()
 
-    val best = trials.minBy{ case (_, (_, loss)) => loss }
+    val best = trials.minBy(_._2._2)
+
+    val losses = BDV(trials.map(_._2._2).toArray)
+    val mu = mean(losses)
+    val s  = stddev(losses)
+    def standardize(loss: Loss): Loss = (loss - mu) / s.toFloat
 
     if (onlyBestTrial) {
       val (sampledParams, (rounds, loss)) = best
 
-      val result = toOptimizedHyperParams(targetGene, sampledParams, rounds, loss, best = true, params)
+      val result = toOptimizedHyperParams(targetGene, sampledParams, rounds, loss, standardize(loss), best = true, params)
 
       Iterable(result)
     } else {
       trials
         .map{ case trial @ (sampledParams, (rounds, loss)) =>
-          toOptimizedHyperParams(targetGene, sampledParams, rounds, loss, trial == best, params)
+          toOptimizedHyperParams(targetGene, sampledParams, rounds, loss, standardize(loss), trial == best, params)
         }
     }
   }
@@ -244,16 +251,18 @@ object OptimizeXGBoostHyperParams {
                              sampledParams: BoosterParams,
                              round: Round,
                              loss: Loss,
+                             stdLoss: Loss,
                              best: Boolean,
                              optimizationParams: XGBoostOptimizationParams): OptimizedHyperParams = {
     import optimizationParams._
 
     OptimizedHyperParams(
-      target = targetGene,
-      metric = evalMetric,
-      rounds = round,
-      loss   = loss,
-      best   = best,
+      target  = targetGene,
+      metric  = evalMetric,
+      rounds  = round,
+      loss    = loss,
+      stdLoss = stdLoss,
+      best    = best,
       eta               = sampledParams("eta")              .asInstanceOf[Double],
       max_depth         = sampledParams("max_depth")        .asInstanceOf[Int],
       min_child_weight  = sampledParams("min_child_weight") .asInstanceOf[Double],
