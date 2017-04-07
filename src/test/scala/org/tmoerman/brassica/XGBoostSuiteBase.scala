@@ -12,6 +12,15 @@ import org.scalatest.Suite
   */
 trait XGBoostSuiteBase extends DataFrameSuiteBase { self: Suite =>
 
+  // http://stackoverflow.com/questions/27220196/disable-scalatest-logging-statements-when-running-tests-from-maven
+  try {
+    org.slf4j.LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)
+      .asInstanceOf[ch.qos.logback.classic.Logger]
+      .setLevel(ch.qos.logback.classic.Level.WARN)
+  } catch {
+    case e: Throwable => Unit // nom nom nom
+  }
+
   override def conf =
     new SparkConf()
       .setMaster("local[*]")
