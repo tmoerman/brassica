@@ -25,25 +25,28 @@ case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
                                       partitionIndex: Int) extends PartitionTask[OptimizedHyperParams] {
   import params._
 
-  private[this] val cvSets = makeCVSets(nrFolds, regulatorCSC.rows, seed)
+  // TODO CV set should be unique per gene, but the same over different batches per gene
+  // private[this]
 
   /**
     * @param expressionByGene The target gene and expression.
     * @return Returns the optimized hyper parameters for one ExpressionByGene instance.
     */
   override def apply(expressionByGene: ExpressionByGene): Iterable[OptimizedHyperParams] = {
-    val rng = random(seed + partitionIndex * 17 + currentTimeMillis)
+
     val targetGene = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
     println(s"-> target: $targetGene, regulator: $targetIsRegulator, partition: $partitionIndex")
 
+    val cvSets = makeCVSets(nrFolds, regulatorCSC.rows, seed + targetGene.hashCode)
     val (nFoldDMatrices, disposeAll) = makeNFoldDMatrices(expressionByGene, regulators, regulatorCSC, cvSets)
 
     // optimize the params for the current n-fold CV sets
     val trials =
       (1 to nrTrialsPerBatch)
         .map(trial => {
+          val rng            = random(seed + trial*103 + partitionIndex*107 + currentTimeMillis)
           val sampledParams  = boosterParamSpace.map{ case (key, generator) => (key, generator(rng)) }
           val (rounds, loss) = computeCVLoss(nFoldDMatrices, sampledParams, params)
 
@@ -56,21 +59,16 @@ case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
 
     val best = trials.minBy(_._2._2)
 
-    val losses = BDV(trials.map(_._2._2).toArray)
-    val mu     = mean(losses)
-    val stdev  = stddev(losses).toFloat
-    def standardize(loss: Loss): Loss = (loss - mu) / stdev
-
     if (onlyBestTrial) {
       val (sampledParams, (rounds, loss)) = best
 
-      val result = toOptimizedHyperParams(targetGene, sampledParams, rounds, loss, standardize(loss), best = true, params)
+      val result = toOptimizedHyperParams(targetGene, sampledParams, rounds, loss, best = true, params)
 
       Iterable(result)
     } else {
       trials
         .map{ case trial @ (sampledParams, (rounds, loss)) =>
-          toOptimizedHyperParams(targetGene, sampledParams, rounds, loss, standardize(loss), trial == best, params)
+          toOptimizedHyperParams(targetGene, sampledParams, rounds, loss, trial == best, params)
         }
     }
   }
@@ -174,7 +172,7 @@ object OptimizeXGBoostHyperParams {
                 booster.update(train4j, round)
                 booster.evalSet(mats, NAMES, round)}
 
-          val (_, testLoss) = toLossScores(roundResults)
+          val (_, testLoss) = parseLossScores(roundResults)
 
           (round, testLoss)})
 
@@ -229,7 +227,7 @@ object OptimizeXGBoostHyperParams {
     * @param roundResults
     * @return Return the train and test CV evaluation scores.
     */
-  def toLossScores(roundResults: Iterable[String]): (Loss, Loss) = {
+  def parseLossScores(roundResults: Iterable[String]): (Loss, Loss) = {
     val averageEvalScores =
       roundResults
         .flatMap(foldResult => {
@@ -252,7 +250,6 @@ object OptimizeXGBoostHyperParams {
                              sampledParams: BoosterParams,
                              round: Round,
                              loss: Loss,
-                             stdLoss: Loss,
                              best: Boolean,
                              optimizationParams: XGBoostOptimizationParams): OptimizedHyperParams = {
     import optimizationParams._
@@ -262,12 +259,10 @@ object OptimizeXGBoostHyperParams {
       metric  = evalMetric,
       rounds  = round,
       loss    = loss,
-      stdLoss = stdLoss,
       best    = best,
       eta               = sampledParams("eta")              .asInstanceOf[Double],
       max_depth         = sampledParams("max_depth")        .asInstanceOf[Int],
       min_child_weight  = sampledParams("min_child_weight") .asInstanceOf[Double],
-      gamma             = sampledParams("gamma")            .asInstanceOf[Double],
       subsample         = sampledParams("subsample")        .asInstanceOf[Double],
       colsample_bytree  = sampledParams("colsample_bytree") .asInstanceOf[Double])
   }

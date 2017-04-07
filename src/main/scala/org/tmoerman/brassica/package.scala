@@ -62,7 +62,6 @@ package object brassica {
     // model complexity
     "max_depth"        -> UniformInt(3, 10),
     "min_child_weight" -> UniformDouble(1, 15),
-    "gamma"            -> UniformDouble(0, 1),
 
     // robustness to noise
     "subsample"        -> UniformDouble(0.5, 1.0),
@@ -146,7 +145,6 @@ package object brassica {
     * @param metric The evaluation metric, e.g. RMSE.
     * @param rounds A putative sufficient nr of boosting rounds ~ to be computed with early stopping.
     * @param loss The loss function value.
-    * @param stdLoss Standardized loss per target.
     *
     * @param best Indicates whether this optimization is the best among a bunch for the same target gene.
     */
@@ -154,11 +152,9 @@ package object brassica {
                                   metric: String,
                                   rounds: Round,
                                   loss: Loss,
-                                  stdLoss: Loss,
                                   best: Boolean = false,
                                   max_depth: Int,
                                   min_child_weight: Double,
-                                  gamma: Double,
                                   subsample: Double,
                                   colsample_bytree: Double,
                                   eta: Double) {
