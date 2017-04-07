@@ -2,7 +2,6 @@ package org.tmoerman
 
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
 import org.apache.spark.ml.feature.VectorSlicer
-import org.apache.spark.ml.linalg.Vectors.dense
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
 
@@ -63,7 +62,7 @@ package object brassica {
     // model complexity
     "max_depth"        -> UniformInt(3, 10),
     "min_child_weight" -> UniformDouble(1, 15),
-    "gamma"            -> UniformDouble(0, 15),
+    "gamma"            -> UniformDouble(0, 1),
 
     // robustness to noise
     "subsample"        -> UniformDouble(0.5, 1.0),

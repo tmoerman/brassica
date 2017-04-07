@@ -248,24 +248,18 @@ object OptimizeXGBoostHyperParams {
                              optimizationParams: XGBoostOptimizationParams): OptimizedHyperParams = {
     import optimizationParams._
 
-    val sorted = sampledParams.toSeq.sortBy(_._1)
-    val keys   = sorted.map(_._1).mkString(",")
-    val values = sorted.map(_._2.toString.toDouble).toArray
-
     OptimizedHyperParams(
       target = targetGene,
       metric = evalMetric,
       rounds = round,
       loss   = loss,
-      //keys   = keys,
-      //values = dense(values)
+      best   = best,
       eta               = sampledParams("eta")              .asInstanceOf[Double],
       max_depth         = sampledParams("max_depth")        .asInstanceOf[Int],
       min_child_weight  = sampledParams("min_child_weight") .asInstanceOf[Double],
       gamma             = sampledParams("gamma")            .asInstanceOf[Double],
       subsample         = sampledParams("subsample")        .asInstanceOf[Double],
-      colsample_bytree  = sampledParams("colsample_bytree") .asInstanceOf[Double],
-      best   = best)
+      colsample_bytree  = sampledParams("colsample_bytree") .asInstanceOf[Double])
   }
 
   /**
