@@ -18,12 +18,14 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
 
   val optimizationParams: XGBoostOptimizationParams =
     XGBoostOptimizationParams(
-      nrTrials = 500,
+      nrTrials = 1,
       parallel = false,
       onlyBestTrial = false)
 
-  val TF_50     = (  1 to  44).map(i => s"G$i").toList
-  val NORMAL_50 = (501 to 544).map(i => s"G$i").toList
+  val n = 4
+
+  val TF_50     = (  1 to   0 + n).map(i => s"G$i").toList
+  val NORMAL_50 = (501 to 500 + n).map(i => s"G$i").toList
   val TARGETS   = TF_50 ::: NORMAL_50
 
   private def optimizeHyperParams(idx: Int): Unit = {
@@ -43,13 +45,13 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
           params = optimizationParams,
           targets = TARGETS.toSet,
           nrPartitions = Some(spark.sparkContext.defaultParallelism))
-        .sort($"target", $"loss".desc)
-        //.cache()
+        .cache()
 
-//    optimizedHyperParamsDS
-//      .show()
+    optimizedHyperParamsDS
+      .sort($"target", $"loss".desc)
+      .show()
 
-//    optimizedHyperParamsDS
+    optimizedHyperParamsDS
       .write
       .mode(Overwrite)
       .parquet(writePath + s"network$idx")
