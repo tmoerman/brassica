@@ -5,6 +5,7 @@ import org.apache.spark.sql.functions._
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.PropsReader
 import org.tmoerman.brassica.{XGBoostRegressionParams, XGBoostSuiteBase, _}
+import org.apache.spark.sql.expressions.Window
 
 /**
   * @author Thomas Moerman
@@ -88,7 +89,8 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
   }
 
   "Normalizing Dream5 networks" should "work" in {
-    Seq(1, 3, 4).foreach(normalizeNetwork)
+    Seq(1, 3, 4).foreach(normalizeByRank)
+    // Seq(1, 3, 4).foreach(normalizeNetwork)
     // Seq(3).foreach(normalizeNetwork)
   }
 
@@ -97,7 +99,7 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 
     val parquet = s"${PropsReader.props("dream5Out")}/LOLz/Network$idx/"
 
-    val txt = s"${PropsReader.props("dream5Out")}/LOLz/Network${idx}norm/"
+    val txt = s"${PropsReader.props("dream5Out")}/LOLz/Network${idx}norm_max/"
 
     val ds =
       spark
@@ -106,18 +108,65 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
         .as[Regulation]
         .cache
 
-    val sumImportanceByTarget =
+    val aggImportanceByTarget =
       ds
       .groupBy($"target")
-      .agg(sum($"importance").as("sum_importance"))
+      .agg(
+        max($"importance").as("agg_importance"),
+        min($"importance"),
+        mean($"importance"),
+        stddev($"importance"),
+        sum($"importance")
+      )
+
+    aggImportanceByTarget.sort($"agg_importance".desc).show()
+    aggImportanceByTarget.sort($"agg_importance").show()
+
+    println(aggImportanceByTarget.count)
 
     ds
-      .join(sumImportanceByTarget, ds("target") === sumImportanceByTarget("target"), "inner")
-      .withColumn("norm_importance", $"importance" / $"sum_importance")
+      .join(aggImportanceByTarget, ds("target") === aggImportanceByTarget("target"), "inner")
+      .withColumn("norm_importance", $"importance" / $"agg_importance")
       .sort($"norm_importance".desc)
       .rdd
       .zipWithIndex
-      .filter(_._2 <= 10000).keys // keep top 100k regulations
+      .filter(_._2 < 100000).keys // keep top 100k regulations
+      .map(row => {
+        val regulator  = row.getAs[String]("regulator")
+        val target     = row.getAs[String]("target")
+        val normalized = row.getAs[Double]("norm_importance")
+
+        s"$regulator\t$target\t$normalized"
+      })
+      .repartition(1)
+      .saveAsTextFile(txt)
+  }
+
+  private def normalizeByRank(idx: Int): Unit = {
+    import spark.implicits._
+
+    val parquet = s"${PropsReader.props("dream5Out")}/LOLz/Network$idx/"
+
+    val txt = s"${PropsReader.props("dream5Out")}/LOLz/Network${idx}norm_rank/"
+
+    val ds =
+      spark
+        .read
+        .parquet(parquet)
+        .as[Regulation]
+        .cache
+
+    val w = Window.partitionBy($"target").orderBy($"importance".desc)
+
+    val top = 50d
+
+    ds
+      .withColumn("rank", rank.over(w))
+      .withColumn("norm_importance", (-$"rank" + 1 + top) / top)
+      .sort($"norm_importance".desc)
+      .rdd
+      .zipWithIndex
+      .filter(_._2 < 100000).keys // keep top 100k regulations
       .map(row => {
         val regulator  = row.getAs[String]("regulator")
         val target     = row.getAs[String]("target")
