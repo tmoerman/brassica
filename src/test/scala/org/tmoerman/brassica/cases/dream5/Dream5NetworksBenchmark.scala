@@ -1,8 +1,7 @@
 package org.tmoerman.brassica.cases.dream5
 
-import java.io.File
-
-import org.apache.commons.io.FileUtils.deleteDirectory
+import org.apache.spark.sql.SaveMode.Overwrite
+import org.apache.spark.sql.functions._
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.PropsReader
 import org.tmoerman.brassica.{XGBoostRegressionParams, XGBoostSuiteBase, _}
@@ -48,13 +47,12 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
       nrRounds = 50,
       boosterParams = boosterParamsLOLZ)
 
-  "Dream5 regulation inference" should "run" in {
+  "Dream5 regulation inference" should "run" ignore {
     Seq(1, 3, 4).foreach(computeNetwork)
     // Seq(3).foreach(computeNetwork)
   }
 
   private def computeNetwork(idx: Int): Unit = {
-    import spark.implicits._
 
     println(s"computing network $idx")
 
@@ -62,8 +60,8 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 
     val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-    val out = s"${PropsReader.props("dream5Out")}/LOLz/Network$idx/"
-    deleteDirectory(new File(out))
+    val parquet = s"${PropsReader.props("dream5Out")}/LOLz/Network$idx/"
+    // deleteDirectory(new File(parquet))
 
     val regulationDS =
       ScenicPipeline
@@ -77,7 +75,8 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 
     regulationDS
       .write
-      .parquet(out)
+      .mode(Overwrite)
+      .parquet(parquet)
 
 //    result
 //      .sort($"importance".desc)
@@ -86,6 +85,41 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 //      .repartition(1)
 //      .map(_.productIterator.mkString("\t"))
 //      .saveAsTextFile(out)
+  }
+  
+  "Normalizing Dream5 networks" should "work" in {
+    Seq(1, 3, 4).foreach(normalizeNetwork)
+    // Seq(3).foreach(normalizeNetwork)
+  }
+
+  private def normalizeNetwork(idx: Int): Unit = {
+    import spark.implicits._
+
+    val parquet = s"${PropsReader.props("dream5Out")}/LOLz/Network$idx/"
+
+    val txt = s"${PropsReader.props("dream5Out")}/LOLz/Network${idx}norm/"
+
+    spark
+      .read
+      .parquet(parquet)
+      .as[Regulation]
+      .groupBy($"target")
+      .agg(sum($"importance").as("sum_importance"))
+      .withColumn("norm_importance", $"importance" / $"sum_importance")
+      .sort($"norm_importance".desc)
+      .rdd
+      .zipWithIndex
+      .filter(_._2 <= 10000)
+      .keys
+      .map(row => {
+        val regulator  = row.getAs[String]("regulator")
+        val target     = row.getAs[String]("target")
+        val normalized = row.getAs[Float]("norm_importance")
+
+        s"$regulator\t$target\t$normalized"
+      })
+      .repartition(1)
+      .saveAsTextFile(txt)
   }
 
 }
