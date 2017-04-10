@@ -86,7 +86,7 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 //      .map(_.productIterator.mkString("\t"))
 //      .saveAsTextFile(out)
   }
-  
+
   "Normalizing Dream5 networks" should "work" in {
     Seq(1, 3, 4).foreach(normalizeNetwork)
     // Seq(3).foreach(normalizeNetwork)
@@ -99,18 +99,25 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 
     val txt = s"${PropsReader.props("dream5Out")}/LOLz/Network${idx}norm/"
 
-    spark
-      .read
-      .parquet(parquet)
-      .as[Regulation]
+    val ds =
+      spark
+        .read
+        .parquet(parquet)
+        .as[Regulation]
+        .cache
+
+    val sumImportanceByTarget =
+      ds
       .groupBy($"target")
       .agg(sum($"importance").as("sum_importance"))
+
+    ds
+      .join(sumImportanceByTarget, ds("target") === sumImportanceByTarget("target"), "inner")
       .withColumn("norm_importance", $"importance" / $"sum_importance")
       .sort($"norm_importance".desc)
       .rdd
       .zipWithIndex
-      .filter(_._2 <= 10000)
-      .keys
+      .filter(_._2 <= 10000).keys // keep top 100k regulations
       .map(row => {
         val regulator  = row.getAs[String]("regulator")
         val target     = row.getAs[String]("target")
