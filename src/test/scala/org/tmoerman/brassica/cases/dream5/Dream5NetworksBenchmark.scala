@@ -33,14 +33,24 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
     "colsample_bytree" -> 0.8
   )
 
+  val boosterParamsLOLZ = Map(
+    "seed" -> 777,
+    "silent" -> 1,
+    "eta" -> 0.15,
+    "subsample" -> 0.8,
+    "colsample_bytree" -> 0.8,
+    "min_child_weight" -> 6,
+    "max_depth" -> 6
+  )
+
   val params =
     XGBoostRegressionParams(
-      nrRounds = 125,
-      boosterParams = boosterParamsBAK)
+      nrRounds = 50,
+      boosterParams = boosterParamsLOLZ)
 
   "Dream5 regulation inference" should "run" in {
-    // Seq(1, 3, 4).foreach(computeNetwork)
-    Seq(3).foreach(computeNetwork)
+    Seq(1, 3, 4).foreach(computeNetwork)
+    // Seq(3).foreach(computeNetwork)
   }
 
   private def computeNetwork(idx: Int): Unit = {
@@ -52,8 +62,8 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 
     val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-//    val out = s"${PropsReader.props("dream5Out")}Network$idx/"
-//    deleteDirectory(new File(out))
+    val out = s"${PropsReader.props("dream5Out")}/LOLz/Network$idx/"
+    deleteDirectory(new File(out))
 
     val regulationDS =
       ScenicPipeline
@@ -61,14 +71,14 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
           expressionByGene,
           candidateRegulators = tfs.toSet,
           params = params,
-          targets = Set("G3"),
+          // targets = Set("G3"),
           nrPartitions = Some(spark.sparkContext.defaultParallelism))
         .cache()
 
     regulationDS
-      .sort($"importance".desc)
-      .show(100)
-    
+      .write
+      .parquet(out)
+
 //    result
 //      .sort($"importance".desc)
 //      .rdd
