@@ -121,7 +121,7 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
       .map(row => {
         val regulator  = row.getAs[String]("regulator")
         val target     = row.getAs[String]("target")
-        val normalized = row.getAs[Float]("norm_importance")
+        val normalized = row.getAs[Double]("norm_importance")
 
         s"$regulator\t$target\t$normalized"
       })
