@@ -43,9 +43,9 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
         (cachedRegulatorDMatrix, () => Unit)
       }
     regulatorDMatrix.setLabel(expressionByGene.response)
-
+    
     // train the model
-    val booster = XGBoost.train(regulatorDMatrix, boosterParams, nrRounds)
+    val booster = XGBoost.train(regulatorDMatrix, boosterParams.withDefaults, nrRounds)
     val result  = toRegulations(targetGene, cleanedDMatrixGenesToIndices, booster)
 
     // clean up resources

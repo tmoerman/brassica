@@ -149,7 +149,9 @@ object OptimizeXGBoostHyperParams {
     val foldsAndBoosters: List[(DMatrix, DMatrix, Booster)] =
       nFoldDMatrixPairs
         .map{ case (train, test) =>
-          val booster = createBooster(withDefaults(sampledBoosterParams, optimizationParams), train, test)
+          val params = (sampledBoosterParams + ("eval_metric" -> evalMetric)).withDefaults
+          val booster = createBooster(params, train, test)
+
           (train, test, booster)
         }
 
@@ -183,19 +185,6 @@ object OptimizeXGBoostHyperParams {
   }
 
   /**
-    * @return Returns sampled Booster params with extra defaults.
-    */
-  def withDefaults(sampledBoosterParams: BoosterParams,
-                   optimizationParams: XGBoostOptimizationParams): BoosterParams = {
-
-    import optimizationParams._
-
-    val base = sampledBoosterParams + ("eval_metric" -> evalMetric) + ("silent" -> 1)
-
-    if (parallel) base else base + ("nthread" -> 1)
-  }
-
-  /**
     * Compute test losses until the delta between the window head and tail is smaller than a configured early stop delta.
     *
     * @param testLossesByRound A lazy Stream of test losses by round.
@@ -203,21 +192,21 @@ object OptimizeXGBoostHyperParams {
     * @return Returns the last or early pair of test loss by round.
     */
   def takeUntilEarlyStop(testLossesByRound: Stream[(Round, Loss)],
-                         optimizationParams: XGBoostOptimizationParams): (Round, Loss) = {
+                         optimizationParams: XGBoostOptimizationParams): (Round, Loss) =
+    optimizationParams
+      .earlyStopParams
+      .map{ case EarlyStopParams(earlyStopWindow, earlyStopDelta) =>
+        testLossesByRound
+          .sliding(earlyStopWindow, 1)
+          .takeWhile(window => {
+            val windowDelta = window.head._2 - window.last._2
 
-    import optimizationParams._
-
-    testLossesByRound
-      .sliding(earlyStopWindow, 1)
-      .takeWhile(window => {
-        val windowDelta = window.head._2 - window.last._2
-
-        windowDelta > earlyStopDelta
-      })
-      .map(window => window(window.length / 2))
-      .toIterable
-      .last
-  }
+            windowDelta > earlyStopDelta
+          })
+          .map(window => window(window.length / 2))
+          .toIterable
+          .last }
+      .getOrElse(testLossesByRound.last)
 
   /**
     * @param roundResults

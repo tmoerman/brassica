@@ -56,6 +56,10 @@ package object brassica {
     "silent" -> 1
   )
 
+  implicit class BoosterParamsFunctions(boosterParams: BoosterParams) {
+    def withDefaults: BoosterParams = boosterParams + ("silent" -> 1) + ("nthread" -> 1)
+  }
+
   val DEFAULT_BOOSTER_PARAM_SPACE: BoosterParamSpace = Map(
     // FIXME float instead of double -> reduces space when saved as a Dataset
 
@@ -172,15 +176,28 @@ package object brassica {
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS)
 
   /**
+    * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the specified
+    * delta, over a window of boosting rounds of specified size. The boosting round halfway of the window is returned as
+    * final result.
+    *
+    * @param size The size of the window.
+    * @param lossDelta The loss delta over the window.
+    */
+  case class EarlyStopParams(size: Int = 10, lossDelta: Float = 0.01f)
+
+  /**
     * Data structure holding parameters for XGBoost regression optimization.
     *
     * @param boosterParamSpace The space of booster parameters to search through for an optimal set.
-    * @param evalMetric The n-fold evaluation metric.
+    * @param evalMetric The n-fold evaluation metric, default "rmse".
+    * @param nrTrialsPerBatch The number of random search trials per batch. Typically one batch per target is used,
+    *                         and batches are parallelized in different partitions.
+    * @param nrBatches The number of batches. Increase when partitioning trials for the same target.
     * @param nrFolds The nr of cross validation folds in which to splice the training data.
+    * @param maxNrRounds The maximum number of boosting rounds.
+    * @param earlyStopParams Optional early stopping parameters.
     * @param seed The seed for computing the random n folds.
     * @param onlyBestTrial Specifies whether to return only the best trial or all trials for a target gene.
-    * @param parallel Whether to run the optimization per partition in parallel or not
-    *                 (mostly not because we run multiple optimizations in parallel).
     */
   case class XGBoostOptimizationParams(boosterParamSpace: BoosterParamSpace = DEFAULT_BOOSTER_PARAM_SPACE,
                                        evalMetric: String = DEFAULT_EVAL_METRIC,
@@ -188,13 +205,11 @@ package object brassica {
                                        nrBatches: Int = 1,
                                        nrFolds: Int = DEFAULT_NR_FOLDS,
 
-                                       maxNrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS, // TODO replace by early stopping
-                                       earlyStopWindow: Int = 10,
-                                       earlyStopDelta: Float = 0.01f,
+                                       maxNrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
+                                       earlyStopParams: Option[EarlyStopParams] = Some(EarlyStopParams()),
 
                                        seed: Long = DEFAULT_SEED,
-                                       onlyBestTrial: Boolean = true,
-                                       parallel: Boolean = false) {
+                                       onlyBestTrial: Boolean = true) {
 
     assert(nrFolds > 0, s"nr folds must be greater than 0 (specified: $nrFolds) ")
 
