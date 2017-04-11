@@ -162,7 +162,7 @@ package object brassica {
                                   colsample_bytree: Double,
                                   eta: Double) {
 
-    // def toBoosterParams: BoosterParams = (keys.split("\t") zip values.toArray).toMap
+    def toBoosterParams: BoosterParams = ???
 
   }
 
