@@ -4,7 +4,9 @@ import breeze.linalg.CSCMatrix
 import ml.dmlc.xgboost4j.scala.{Booster, XGBoost}
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.expressions.Window
-import org.apache.spark.sql.functions.{sum, rank}
+import org.apache.spark.sql.functions.{rank, sum}
+import org.apache.spark.sql.types.DataTypes.FloatType
+import org.apache.spark.sql.types.{DataType, DataTypes}
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.algo.InferXGBoostRegulations._
 import org.tmoerman.brassica.util.BreezeUtils.toDMatrix
@@ -107,7 +109,7 @@ object InferXGBoostRegulations {
     ds
       .join(aggImportanceByTarget, ds("target") === aggImportanceByTarget("target"), "inner")
       .withColumn("normalized_importance", $"importance" / $"agg_importance")
-      .select($"regulator", $"target", $"normalized_importance".as("importance"))
+      .select(ds("regulator"), ds("target"), $"normalized_importance".as("importance").cast(FloatType))
       .as[Regulation]
   }
 
@@ -126,8 +128,7 @@ object InferXGBoostRegulations {
       .withColumn("rank", rank.over(w))
       .withColumn("normalized_importance", (-$"rank" + 1 + maxRank) / maxRank)
       .sort($"normalized_importance".desc)
-      //.select($"regulator", $"target", $"normalized_importance".as("importance"))
-      .select($"regulator", $"target", $"importance")
+      .select(ds("regulator"), ds("target"), $"importance".cast(FloatType))
       .as[Regulation]
   }
 
