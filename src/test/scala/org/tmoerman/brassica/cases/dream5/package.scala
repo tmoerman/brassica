@@ -1,5 +1,6 @@
 package org.tmoerman.brassica.cases
 
+import java.lang.Math.log10
 import org.tmoerman.brassica.util.PropsReader._
 
 /**
@@ -32,5 +33,7 @@ package object dream5 {
 
   def yeastData  = s"$wd$nw4/net4_expression_data.tsv"
   def yeastTFs   = s"$wd$nw4/net4_transcription_factors.tsv"
+
+  def score(p_ROC: Seq[Double], p_PR: Seq[Double]) = - (p_ROC.map(log10).sum + p_PR.map(log10).sum) / (2 * p_ROC.size)
 
 }
