@@ -22,7 +22,7 @@ class ZeiselFilteredOptimizationBenchmark extends FlatSpec with XGBoostSuiteBase
 
   val optimizationParams: XGBoostOptimizationParams =
     XGBoostOptimizationParams(
-      nrTrialsPerBatch = 10000 / 88,
+      nrTrialsPerBatch = 200,
       nrBatches = 88,
       onlyBestTrial = false)
 
