@@ -1,5 +1,7 @@
 package org.tmoerman.brassica.cases.dream5
 
+import java.lang.Runtime.getRuntime
+
 import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.PropsReader.props
@@ -22,7 +24,7 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
       nrBatches = 88,
       onlyBestTrial = false)
 
-  val nrCores = Runtime.getRuntime.availableProcessors()
+  val nrCores = getRuntime.availableProcessors
 
 //  val TF_50     = (  1 to   0 + (nrCores / 2)).map(i => s"G$i").toList
 //  val NORMAL_50 = (501 to 500 + (nrCores / 2)).map(i => s"G$i").toList
@@ -35,16 +37,16 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
 
     val (dataFile, tfFile) = network(idx)
 
-    val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
+    val (expressionsByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
     val optimizedHyperParamsDS =
       ScenicPipeline
         .optimizeHyperParams(
-          expressionByGene,
+          expressionsByGene,
           candidateRegulators = tfs.toSet,
           params = optimizationParams,
           targets = TARGETS.toSet,
-          nrPartitions = Some(spark.sparkContext.defaultParallelism))
+          nrPartitions = Some(nrCores))
         .cache()
 
     optimizedHyperParamsDS

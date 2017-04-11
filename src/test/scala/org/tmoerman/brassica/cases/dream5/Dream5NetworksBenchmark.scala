@@ -53,7 +53,7 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
 
     val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-    val path = s"${PropsReader.props("dream5Out")}/Try2/Network${idx}norm_max/"
+    val path = s"${PropsReader.props("dream5Out")}/Try2/Network${idx}norm/"
 
     val regulationDS =
       ScenicPipeline

@@ -8,7 +8,8 @@ genie3 = src/test/resources/genie3/data.txt
 
 # source: TODO
 zeisel = /media/tmo/data/work/datasets/zeisel/expression_mRNA_17-Aug-2014.txt
-zeiselFiltered = /media/tmo/data/work/datasets/zeisel/expression_sara_filtered.txt
+zeiselFiltered             = /media/tmo/data/work/datasets/zeisel/expression_sara_filtered.txt
+zeiselFilteredOptimization = /media/tmo/data/work/datasets/zeisel/filtered/optimization
 zeiselParquet = src/test/resources/parquet/zeisel
 
 # source: TODO
