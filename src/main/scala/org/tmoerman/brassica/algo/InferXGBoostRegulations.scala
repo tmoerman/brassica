@@ -153,8 +153,8 @@ object InferXGBoostRegulations {
     */
   def saveTxt(path: String)(ds: Dataset[Regulation]): Unit =
     ds
-      .map(_.productIterator.mkString("\t"))
       .rdd
+      .map(_.productIterator.mkString("\t"))
       .repartition(1)
       .saveAsTextFile(path)
 

@@ -45,7 +45,7 @@ class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matche
       (3, paramsBio),
       (4, paramsBio)).foreach(t => computeNetwork(t._1, t._2))
   }
-  
+
   private def computeNetwork(idx: Int, regressionParams: XGBoostRegressionParams): Unit = {
     println(s"computing network $idx")
 
