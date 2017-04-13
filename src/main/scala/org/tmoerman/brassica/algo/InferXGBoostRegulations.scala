@@ -6,7 +6,6 @@ import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{rank, sum}
 import org.apache.spark.sql.types.DataTypes.FloatType
-import org.apache.spark.sql.types.{DataType, DataTypes}
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.algo.InferXGBoostRegulations._
 import org.tmoerman.brassica.util.BreezeUtils.toDMatrix

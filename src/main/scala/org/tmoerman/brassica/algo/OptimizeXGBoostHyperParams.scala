@@ -3,8 +3,7 @@ package org.tmoerman.brassica.algo
 import java.lang.Math.min
 import java.lang.System.currentTimeMillis
 
-import breeze.linalg.{CSCMatrix, DenseVector => BDV}
-import breeze.stats.{mean, stddev}
+import breeze.linalg.CSCMatrix
 import ml.dmlc.xgboost4j.java.Booster
 import ml.dmlc.xgboost4j.java.JXGBoostAccess.createBooster
 import ml.dmlc.xgboost4j.scala.DMatrix

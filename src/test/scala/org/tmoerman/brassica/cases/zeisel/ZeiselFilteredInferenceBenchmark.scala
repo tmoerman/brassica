@@ -12,7 +12,7 @@ import org.tmoerman.brassica.{XGBoostRegressionParams, ScenicPipeline, XGBoostSu
 /**
   * @author Thomas Moerman
   */
-class ZeiselFilteredBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
+class ZeiselFilteredInferenceBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   val boosterParams = Map(
     "seed" -> 777,

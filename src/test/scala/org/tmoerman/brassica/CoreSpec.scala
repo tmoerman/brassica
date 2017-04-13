@@ -24,4 +24,16 @@ class CoreSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
     sliced.head.values.toDense.toArray shouldBe Array(0d, 1d)
   }
 
+  behavior of "randomCellIndices"
+
+  it should "return a random subset of a small range" in {
+    val selection = randomSubset(5, 0 until 10)
+    selection.size shouldBe 5
+  }
+
+  it should "return a random subset of a large range" in {
+    val selection = randomSubset(100000, 0 until 1300000)
+    selection.size shouldBe 100000
+  }
+
 }

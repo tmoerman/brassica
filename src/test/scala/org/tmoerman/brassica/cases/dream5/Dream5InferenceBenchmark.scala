@@ -11,7 +11,7 @@ import org.tmoerman.brassica.{XGBoostRegressionParams, XGBoostSuiteBase, _}
 /**
   * @author Thomas Moerman
   */
-class Dream5NetworksBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
+class Dream5InferenceBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   val boosterParamsSilico = Map(
     "seed" -> 777,

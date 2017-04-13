@@ -175,7 +175,8 @@ object ScenicPipeline {
 
         Iterator(matrixBuilder.result)
       }
-      .reduce(_ += _)
+      //.reduce(_ += _)
+      .treeReduce(_ + _) // https://issues.apache.org/jira/browse/SPARK-2174
   }
 
 }

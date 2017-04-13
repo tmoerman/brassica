@@ -99,20 +99,14 @@ package object brassica {
       * @param cellIndices The cells to slice from the Dataset.
       * @return Returns the Dataset with values sliced in function of the specified Seq of cell indices.
       */
-    def slice(cellIndices: Seq[CellIndex]): Dataset[ExpressionByGene] = {
-      val slicer =
-        new VectorSlicer()
-          .setInputCol("values")
-          .setOutputCol("sliced")
-          .setIndices(cellIndices.toArray)
-
-      Some(ds)
-        .map(slicer.transform)
-        .map(_.select($"gene", $"sliced"))
-        .map(_.withColumnRenamed("sliced", "values"))
-        .map(_.as[ExpressionByGene])
-        .get
-    }
+    def slice(cellIndices: Seq[CellIndex]): Dataset[ExpressionByGene] =
+      new VectorSlicer()
+        .setInputCol("values")
+        .setOutputCol("sliced")
+        .setIndices(cellIndices.toArray)
+        .transform(ds)
+        .select($"gene", $"sliced".as("values"))
+        .as[ExpressionByGene]
 
     import org.apache.spark.ml.linalg.BreezeMLConversions._
 
@@ -224,5 +218,20 @@ package object brassica {
     rng.nextLong // get rid of first, low entropy}
     rng
   }
+
+  /**
+    * @param keep The amount to keep from the range.
+    * @param range The range to choose from.
+    * @param seed A random seed.
+    * @return Returns the random subset.
+    */
+  def randomSubset(keep: Count, range: Range, seed: Long = DEFAULT_SEED): Seq[CellIndex] = {
+    assert(keep <= range.size, s"keep ($keep) should be smaller than or equal to range size (${range.size})")
+
+    val all: Seq[CellIndex] = range
+
+    random(seed).shuffle(all).take(keep).sorted
+  }
+
 
 }
