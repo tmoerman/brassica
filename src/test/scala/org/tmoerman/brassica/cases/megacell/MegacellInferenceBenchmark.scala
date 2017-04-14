@@ -21,14 +21,14 @@ class MegacellInferenceBenchmark extends FlatSpec with XGBoostSuiteBase with Mat
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 50,
+      nrRounds = 25,
       boosterParams = boosterParamsBio)
 
   val full = props("megacellFull")
   val out  = props("megacellOut")
 
   "Megacell Gene Network Inference" should "work on 10K cells" in {
-    inferSub(10000)
+    inferSub(50000)
   }
 
   private def inferSub(nrCells: CellCount) = {
@@ -52,7 +52,7 @@ class MegacellInferenceBenchmark extends FlatSpec with XGBoostSuiteBase with Mat
           params = params,
           nrPartitions = Some(spark.sparkContext.defaultParallelism))
         .cache()
-    
+
     regulationsDS
       .write
       .parquet(out + s"subset_$nrCells")
