@@ -19,11 +19,11 @@ class MegacellOptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with 
     "min_child_weight" -> UniformDouble(1, 15),
 
     // robustness to noise
-    "subsample"        -> Constantly(0.8f),
-    "colsample_bytree" -> Constantly(0.8f),
-
+    "subsample"        -> Constantly(0.8d),
+    "colsample_bytree" -> Constantly(0.8d),
+    
     // learning rate
-    "eta"              -> Constantly(0.15f)
+    "eta"              -> Constantly(0.15d)
   )
 
   val optimizationParams =
