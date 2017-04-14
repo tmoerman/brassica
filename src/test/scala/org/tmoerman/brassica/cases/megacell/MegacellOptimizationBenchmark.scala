@@ -15,7 +15,7 @@ class MegacellOptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with 
 
   val minChildDepthSpace: BoosterParamSpace = Map(
     // model complexity
-    "max_depth"        -> Constantly(6f),
+    "max_depth"        -> Constantly(6),
     "min_child_weight" -> UniformDouble(1, 15),
 
     // robustness to noise
