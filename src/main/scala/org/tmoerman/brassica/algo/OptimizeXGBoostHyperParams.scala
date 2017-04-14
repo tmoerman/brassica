@@ -56,7 +56,7 @@ case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
 
           val (rounds, loss) = computeCVLoss(nFoldDMatrices, sampledParams, params)
 
-          println(s"target: $targetGene \t trial: $trial \t loss: $loss \t $sampledParams \t partition: $partitionIndex")
+          println(s"target: $targetGene \t trial: $trial \t loss: $loss \t rounds: $rounds \t $sampledParams \t partition: $partitionIndex")
 
           (sampledParams, (rounds, loss))
         })
