@@ -64,6 +64,7 @@ class MegacellOptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with 
           expressionsByGene = sliced,
           candidateRegulators = TFs,
           params = optimizationParams.copy(extraBoosterParams = Map(XGB_THREADS -> nrThreadsPerRegression)),
+          targets = targets,
           nrPartitions = Some(nrCores / nrThreadsPerRegression))
         .cache()
 
