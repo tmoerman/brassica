@@ -6,6 +6,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.cases.zeisel.ZeiselFilteredReader
 import org.tmoerman.brassica.util.PropsReader.props
 import org.tmoerman.brassica._
+import org.tmoerman.brassica.algo.OptimizeXGBoostHyperParams.Constantly
 
 /**
   * @author Thomas Moerman
@@ -14,15 +15,15 @@ class MegacellOptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with 
 
   val minChildDepthSpace: BoosterParamSpace = Map(
     // model complexity
-    "max_depth"        -> RandomChoice(Seq(6f)),
+    "max_depth"        -> Constantly(6f),
     "min_child_weight" -> UniformDouble(1, 15),
 
     // robustness to noise
-    "subsample"        -> RandomChoice(Seq(0.8f)),
-    "colsample_bytree" -> RandomChoice(Seq(0.8f)),
+    "subsample"        -> Constantly(0.8f),
+    "colsample_bytree" -> Constantly(0.8f),
 
     // learning rate
-    "eta"              -> RandomChoice(Seq(0.15f))
+    "eta"              -> Constantly(0.15f)
   )
 
   val optimizationParams =

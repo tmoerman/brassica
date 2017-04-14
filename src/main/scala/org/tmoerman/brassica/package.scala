@@ -239,5 +239,4 @@ package object brassica {
     random(seed).shuffle(all).take(keep).sorted
   }
 
-
 }

@@ -4,6 +4,7 @@ import java.lang.Math.min
 import java.lang.System.currentTimeMillis
 
 import breeze.linalg.CSCMatrix
+import com.eharmony.spotz.optimizer.hyperparam.RandomSampler
 import ml.dmlc.xgboost4j.java.Booster
 import ml.dmlc.xgboost4j.java.JXGBoostAccess.createBooster
 import ml.dmlc.xgboost4j.scala.DMatrix
@@ -11,6 +12,8 @@ import ml.dmlc.xgboost4j.scala.XGBoostAccess.inner
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.algo.OptimizeXGBoostHyperParams._
 import org.tmoerman.brassica.util.BreezeUtils.toDMatrix
+
+import scala.util.Random
 
 /**
   * PartitionTask implementation for XGBoost hyper parameter optimization.
@@ -298,6 +301,10 @@ object OptimizeXGBoostHyperParams {
       .map{ case (cellIndex, idx) => (cellIndex, idx % denominator) }
       .groupBy{ case (_, fold) => fold }
       .mapValues(_.map(_._1).sorted)
+  }
+
+  case class Constantly[T](t: T) extends RandomSampler[T] {
+    override def apply(rng: Random): T = t
   }
 
 }
