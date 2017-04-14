@@ -12,7 +12,6 @@ import org.tmoerman.brassica._
 import org.tmoerman.brassica.algo.OptimizeXGBoostHyperParams._
 import org.tmoerman.brassica.util.BreezeUtils.toDMatrix
 
-
 /**
   * PartitionTask implementation for XGBoost hyper parameter optimization.
   *
@@ -21,7 +20,7 @@ import org.tmoerman.brassica.util.BreezeUtils.toDMatrix
 case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
                                      (regulators: List[Gene],
                                       regulatorCSC: CSCMatrix[Expression],
-                                      partitionIndex: Int) extends PartitionTask[OptimizedHyperParams] {
+                                      partitionIndex: Int) extends PartitionTask[HyperParamsLoss] {
   import params._
 
   // TODO CV set should be unique per gene, but the same over different batches per gene
@@ -31,7 +30,7 @@ case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
     * @param expressionByGene The target gene and expression.
     * @return Returns the optimized hyper parameters for one ExpressionByGene instance.
     */
-  override def apply(expressionByGene: ExpressionByGene): Iterable[OptimizedHyperParams] = {
+  override def apply(expressionByGene: ExpressionByGene): Iterable[HyperParamsLoss] = {
 
     val targetGene = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
@@ -45,8 +44,13 @@ case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
     val trials =
       (1 to nrTrialsPerBatch)
         .map(trial => {
-          val rng            = random(seed + trial*103 + partitionIndex*107 + currentTimeMillis)
-          val sampledParams  = boosterParamSpace.map{ case (key, generator) => (key, generator(rng)) }
+          val rng = random(seed + trial*103 + partitionIndex*107 + currentTimeMillis)
+
+          val sampledParams =
+            boosterParamSpace
+              .map{ case (key, generator) => (key, generator(rng)) }
+              .foldLeft(extraBoosterParams)((m, t) => m + t) // merge the maps
+
           val (rounds, loss) = computeCVLoss(nFoldDMatrices, sampledParams, params)
 
           println(s"target: $targetGene \t trial: $trial \t loss: $loss \t $sampledParams \t partition: $partitionIndex")
@@ -234,10 +238,10 @@ object OptimizeXGBoostHyperParams {
                              sampledParams: BoosterParams,
                              round: Round,
                              loss: Loss,
-                             optimizationParams: XGBoostOptimizationParams): OptimizedHyperParams = {
+                             optimizationParams: XGBoostOptimizationParams): HyperParamsLoss = {
     import optimizationParams._
 
-    OptimizedHyperParams(
+    HyperParamsLoss(
       target  = targetGene,
       metric  = evalMetric,
       rounds  = round,

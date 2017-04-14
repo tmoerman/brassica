@@ -17,8 +17,9 @@ megacell = /media/tmo/data/work/datasets/megacell/1M_neurons_filtered_gene_bc_ma
 megacellRowsParquet    = src/test/resources/parquet/megacell_rows
 megacellColumnsParquet = src/test/resources/parquet/megacell
 
-megacellFull = /media/tmo/data/work/datasets/megacell/parquet_full
-megacellOut  = /media/tmo/data/work/datasets/megacell/out
+megacellFull         = /media/tmo/data/work/datasets/megacell/parquet_full
+megacellOut          = /media/tmo/data/work/datasets/megacell/out
+megacellOptimization = /media/tmo/data/work/datasets/megacell/optimization
 
 # source:
 dream5Training     = /media/tmo/data/work/datasets/dream5/training data/

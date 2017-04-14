@@ -52,7 +52,7 @@ object ScenicPipeline {
                           candidateRegulators: Set[Gene],
                           targets: Set[Gene] = Set.empty,
                           params: XGBoostOptimizationParams = XGBoostOptimizationParams(),
-                          nrPartitions: Option[Int] = None): Dataset[OptimizedHyperParams] = {
+                          nrPartitions: Option[Int] = None): Dataset[HyperParamsLoss] = {
 
     import expressionsByGene.sparkSession.implicits._
 
@@ -87,6 +87,8 @@ object ScenicPipeline {
     import spark.implicits._
 
     val regulators   = expressionsByGene.genes.filter(candidateRegulators.contains)
+
+    // TODO data is not always sparse!!!
     val regulatorCSC = reduceToRegulatorCSCMatrix(expressionsByGene, regulators)
 
     val regulatorsBroadcast   = sc.broadcast(regulators)
@@ -175,8 +177,8 @@ object ScenicPipeline {
 
         Iterator(matrixBuilder.result)
       }
-      //.reduce(_ += _)
-      .treeReduce(_ + _) // https://issues.apache.org/jira/browse/SPARK-2174
+      .reduce(_ += _)
+      //.treeReduce(_ + _) // https://issues.apache.org/jira/browse/SPARK-2174
   }
 
 }

@@ -20,7 +20,7 @@ package object brassica {
   type Index = Long
   type Gene  = String
 
-  type BoosterParams = Map[String, _]
+  type BoosterParams = Map[String, Any]
   type BoosterParamSpace = Map[String, RandomSampler[_]]
 
   type CellIndex = Int
@@ -52,17 +52,22 @@ package object brassica {
   val DEFAULT_SEED               = 666L
   val DEFAULT_EVAL_METRIC        = "rmse"
 
+  val XGB_THREADS = "nthread"
+  val XGB_SILENT  = "silent"
+
   val DEFAULT_BOOSTER_PARAMS: BoosterParams = Map(
-    "silent" -> 1
+    XGB_SILENT -> 1
   )
 
   implicit class BoosterParamsFunctions(boosterParams: BoosterParams) {
-    def withDefaults: BoosterParams = boosterParams + ("silent" -> 1) + ("nthread" -> 1)
+    def withDefaults: BoosterParams =
+      if (boosterParams.contains(XGB_THREADS))
+        boosterParams + (XGB_SILENT -> 1)
+      else
+        boosterParams + (XGB_SILENT -> 1) + (XGB_THREADS -> 1)
   }
 
   val DEFAULT_BOOSTER_PARAM_SPACE: BoosterParamSpace = Map(
-    // FIXME float instead of double -> reduces space when saved as a Dataset
-
     // model complexity
     "max_depth"        -> UniformInt(3, 10),
     "min_child_weight" -> UniformDouble(1, 15),
@@ -146,15 +151,15 @@ package object brassica {
     *
     *
     */
-  case class OptimizedHyperParams(target: Gene,
-                                  metric: String,
-                                  rounds: Round,
-                                  loss: Loss,
-                                  max_depth: Int,
-                                  min_child_weight: Double,
-                                  subsample: Double,
-                                  colsample_bytree: Double,
-                                  eta: Double) {
+  case class HyperParamsLoss(target: Gene,
+                             metric: String,
+                             rounds: Round,
+                             loss: Loss,
+                             max_depth: Int,
+                             min_child_weight: Double,
+                             subsample: Double,
+                             colsample_bytree: Double,
+                             eta: Double) {
 
     def toBoosterParams: BoosterParams = ???
 
@@ -194,6 +199,7 @@ package object brassica {
     * @param onlyBestTrial Specifies whether to return only the best trial or all trials for a target gene.
     */
   case class XGBoostOptimizationParams(boosterParamSpace: BoosterParamSpace = DEFAULT_BOOSTER_PARAM_SPACE,
+                                       extraBoosterParams: BoosterParams = Map.empty,
                                        evalMetric: String = DEFAULT_EVAL_METRIC,
                                        nrTrialsPerBatch: Int = 1000,
                                        nrBatches: Int = 1,

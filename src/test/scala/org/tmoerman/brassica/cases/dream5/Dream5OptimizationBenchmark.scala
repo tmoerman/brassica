@@ -39,7 +39,7 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
 
     val (expressionsByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-    val optimizedHyperParamsDS =
+    val hyperParamsLossDS =
       ScenicPipeline
         .optimizeHyperParams(
           expressionsByGene,
@@ -49,11 +49,11 @@ class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Ma
           nrPartitions = Some(nrCores))
         .cache()
 
-    optimizedHyperParamsDS
+    hyperParamsLossDS
       .sort($"target", $"loss".desc)
       .show()
 
-    optimizedHyperParamsDS
+    hyperParamsLossDS
       .write
       .mode(Overwrite)
       .parquet(writePath + s"network${idx}_small")
