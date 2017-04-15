@@ -9,6 +9,29 @@ import org.scalatest.{FlatSpec, Matchers}
   */
 class BreezeLab extends FlatSpec with Matchers {
 
+  "converting a slice matrix back into a CSC matrix" should "work" in {
+    val b = new CSCMatrix.Builder[Int](rows = 4, cols = 4)
+    b.add(0,0,1)
+    b.add(1,1,1)
+    b.add(2,2,2)
+    b.add(3,3,3)
+    val m = b.result
+
+    val sliced = m.apply(0 until 4, Seq(1, 2))
+
+    println(sliced.toDenseMatrix)
+
+    val zero = new CSCMatrix.Builder[Int](rows = sliced.rows, cols = sliced.cols)
+    val m2 =
+      sliced
+        .activeIterator
+        .filter(_._2 != 0)
+        .foldLeft(zero){ case (b, ((x, y), v)) => b.add(x, y, v); b }
+        .result
+
+    println(m2.toDenseMatrix)
+  }
+
   "adding two CSC matrices" should "work" in {
     val b1 = new CSCMatrix.Builder[Int](rows = 4, cols = 4)
     b1.add(0,0,1)
