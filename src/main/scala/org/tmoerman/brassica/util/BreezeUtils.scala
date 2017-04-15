@@ -6,6 +6,7 @@ import breeze.storage.Zero
 import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
 import ml.dmlc.xgboost4j.scala.DMatrix
 import org.tmoerman.brassica.Expression
+import org.tmoerman.brassica.util.TimeUtils.{pretty, profile}
 
 import scala.reflect.ClassTag
 
@@ -31,10 +32,32 @@ object BreezeUtils {
     horzcat(L_0s ::: v :: R_0s: _*)
   }
 
-  // TODO write tests for this !!
-  def toDMatrix(m: SliceMatrix[Int, Int, Expression]) = new DMatrix(m.activeValuesIterator.toArray, m.rows, m.cols, 0f)
+  /**
+    * @param sliced A Breeze SliceMatrix.
+    * @return Returns an XGBoost DMatrix.
+    */
+  def toDMatrix(sliced: SliceMatrix[Int, Int, Expression]): DMatrix = {
+    val (csc, duration) = profile {
+      val builder = new CSCMatrix.Builder[Expression](rows = sliced.rows, cols = sliced.cols)
 
-  // TODO write tests for this !!
-  def toDMatrix(csc: CSCMatrix[Expression]) = new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC)
+      sliced
+        .activeIterator
+        .filter(_._2 != 0f)
+        .foldLeft(builder){
+          case (bldr, ((r, c), v)) => bldr.add(r, c, v); bldr }
+        .result
+    }
+
+    println(s"creating CSCMatrix from SliceMatrix took ${pretty(duration)}")
+
+    toDMatrix(csc)
+  }
+
+  /**
+    * @param csc A Breeze CSCMatrix.
+    * @return Returns an XGBoost DMatrix.
+    */
+  def toDMatrix(csc: CSCMatrix[Expression]): DMatrix =
+    new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC)
 
 }
