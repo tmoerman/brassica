@@ -16,18 +16,15 @@ trait XGBoostSuiteBase extends DataFrameSuiteBase { self: Suite =>
   try {
     org.slf4j.LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)
       .asInstanceOf[ch.qos.logback.classic.Logger]
-      .setLevel(ch.qos.logback.classic.Level.WARN)
+      .setLevel(ch.qos.logback.classic.Level.INFO)
   } catch {
     case e: Throwable => Unit // nom nom nom
   }
 
-  override def conf =
+  override def conf: SparkConf =
     new SparkConf()
       .setMaster("local[*]")
       .setAppName("XGBoost-Spark")
-      .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-      //.set("spark.ui.enabled", "false")
       .set("spark.app.id", appID)
-      .registerKryoClasses(Array(classOf[Booster]))
 
 }
