@@ -163,7 +163,7 @@ object OptimizeXGBoostHyperParams {
 
     // compute test losses
     val testLossesByRound: Stream[(Round, Loss)] =
-      (0 until maxNrRounds)
+      (1 to maxNrRounds)
         .toStream
         .map(round => {
           val roundResults =
@@ -173,8 +173,10 @@ object OptimizeXGBoostHyperParams {
                 val test4j  = inner(test)
                 val mats    = Array(train4j, test4j)
 
-                booster.update(train4j, round)
-                booster.evalSet(mats, NAMES, round)}
+                val boostingRound = round - 1 // boosting rounds are 0 based, result is a count, i.e. 1 based
+
+                booster.update(train4j, boostingRound)
+                booster.evalSet(mats, NAMES, boostingRound)}
 
           val (_, testLoss) = parseLossScores(roundResults)
 
@@ -215,7 +217,7 @@ object OptimizeXGBoostHyperParams {
       .getOrElse(testLossesByRound.last)
 
   /**
-    * @param roundResults
+    * @param roundResults The String results emitted by XGBoost to parse.
     * @return Return the train and test CV evaluation scores.
     */
   def parseLossScores(roundResults: Iterable[String]): (Loss, Loss) = {
@@ -245,15 +247,15 @@ object OptimizeXGBoostHyperParams {
     import optimizationParams._
 
     HyperParamsLoss(
-      target  = targetGene,
-      metric  = evalMetric,
-      rounds  = round,
-      loss    = loss,
-      eta               = sampledParams("eta")              .asInstanceOf[Double],
-      max_depth         = sampledParams("max_depth")        .asInstanceOf[Int],
-      min_child_weight  = sampledParams("min_child_weight") .asInstanceOf[Double],
-      subsample         = sampledParams("subsample")        .asInstanceOf[Double],
-      colsample_bytree  = sampledParams("colsample_bytree") .asInstanceOf[Double])
+      target = targetGene,
+      metric = evalMetric,
+      rounds = round,
+      loss   = loss,
+      eta              = sampledParams("eta")             .toString.toDouble,
+      max_depth        = sampledParams("max_depth")       .toString.toInt,
+      min_child_weight = sampledParams("min_child_weight").toString.toDouble,
+      subsample        = sampledParams("subsample")       .toString.toDouble,
+      colsample_bytree = sampledParams("colsample_bytree").toString.toDouble)
   }
 
   /**
