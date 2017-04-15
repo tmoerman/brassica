@@ -87,25 +87,4 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
 
   val zeiselParquet = props("zeiselParquet")
 
-  it should "run the old Spark scenic pipeline" in {
-    val (df, genes) = ZeiselReaderOld.fromParquet(spark, zeiselParquet, zeiselMrna)
-
-    val TFs = ZeiselReaderOld.readTFs(mouseTFs).toSet
-
-    val (grn, info) =
-      ScenicPipelineOld.apply(
-        spark,
-        df,
-        genes,
-        nrRounds = 25,
-        candidateRegulators = TFs,
-        params = boosterParams,
-        targets = Set("Gad1"),
-        nrWorkers = Some(8))
-
-    grn.show()
-
-    println(info.mkString("\n"))
-  }
-
 }
