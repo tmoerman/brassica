@@ -60,11 +60,13 @@ package object brassica {
   )
 
   implicit class BoosterParamsFunctions(boosterParams: BoosterParams) {
+
     def withDefaults: BoosterParams =
-      if (boosterParams.contains(XGB_THREADS))
-        boosterParams + (XGB_SILENT -> 1)
-      else
-        boosterParams + (XGB_SILENT -> 1) + (XGB_THREADS -> 1)
+      Some(boosterParams)
+        .map(p => if (p contains XGB_THREADS) p else p + (XGB_THREADS -> 1))
+        .map(p => if (p contains XGB_SILENT)  p else p + (XGB_SILENT -> 1))
+        .get
+
   }
 
   val DEFAULT_BOOSTER_PARAM_SPACE: BoosterParamSpace = Map(
@@ -232,6 +234,7 @@ package object brassica {
     * @return Returns the random subset.
     */
   def randomSubset(keep: Count, range: Range, seed: Long = DEFAULT_SEED): Seq[CellIndex] = {
+    // TODO default to all if condition violated
     assert(keep <= range.size, s"keep ($keep) should be smaller than or equal to range size (${range.size})")
 
     val all: Seq[CellIndex] = range
