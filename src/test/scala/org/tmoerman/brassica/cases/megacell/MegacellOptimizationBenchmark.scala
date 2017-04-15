@@ -29,18 +29,20 @@ class MegacellOptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with 
   val optimizationParams =
     XGBoostOptimizationParams(
       boosterParamSpace = minChildDepthSpace,
-      nrTrialsPerBatch = 20,
-      nrBatches = 25,
+      nrTrialsPerBatch = 5,
+      maxNrRounds = 20,
+      //earlyStopParams = None,
+      //nrBatches = 1,
       onlyBestTrial = false
     )
 
   val full         = props("megacellFull")
   val optimization = props("megacellOptimization")
 
-  val targets = Set("Sox10") // "Tgfbi", "Gm11266", "Akirin1", "Abcb7", "Clca3b", "Yipf3")
+  val targets = Set("Sox10", "Tgfbi", "Gm11266", "Akirin1", "Abcb7", "Clca3b", "Yipf3")
 
-  "Megacell min_child_depth and rounds optimization on 50k cells" should "work" in {
-    optimizeSub(10000)
+  "Megacell min_child_depth and rounds optimization on many cells" should "work" in {
+    optimizeSub(100000)
   }
 
   private def optimizeSub(nrCells: CellCount) = {
@@ -57,7 +59,7 @@ class MegacellOptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with 
     val sliced = expressionsByGene.slice(subset_10k).cache
 
     val nrCores = spark.sparkContext.defaultParallelism
-    val nrThreadsPerRegression = 4
+    val nrThreadsPerRegression = 44
 
     val hyperParamsLossDS =
       ScenicPipeline

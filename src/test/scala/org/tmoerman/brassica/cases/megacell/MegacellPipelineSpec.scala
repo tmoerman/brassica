@@ -30,37 +30,37 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
 
     // TODO slice the input Dataset
 
-    val result =
-      MegacellPipeline
-        .apply(
-          spark,
-          hdf5 = megacell,
-          parquet = megacellColumnsParquet + "_10k",
-          candidateRegulators = TFs,
-          targets = Set("Gad1"),
-          params = params)
-
-    println(params)
-
-    result.show()
+//    val result =
+//      MegacellPipeline
+//        .apply(
+//          spark,
+//          hdf5 = megacell,
+//          parquet = megacellColumnsParquet + "_10k",
+//          candidateRegulators = TFs,
+//          targets = Set("Gad1"),
+//          params = params)
+//
+//    println(params)
+//
+//    result.show()
   }
 
   it should "run the emembarrassingly parallel pipeline on top 1.3m" in {
     val TFs = MegacellReader.readTFs(mouseTFs).toSet
 
-    val result =
-      MegacellPipeline
-        .apply(
-          spark,
-          hdf5 = megacell,
-          parquet = megacellColumnsParquet + "_full",
-          candidateRegulators = TFs,
-          targets = Set("Gad1"),
-          params = params)
-
-    println(params)
-
-    result.show()
+//    val result =
+//      MegacellPipeline
+//        .apply(
+//          spark,
+//          hdf5 = megacell,
+//          parquet = megacellColumnsParquet + "_full",
+//          candidateRegulators = TFs,
+//          targets = Set("Gad1"),
+//          params = params)
+//
+//    println(params)
+//
+//    result.show()
   }
 
   it should "compare embarassingly parallel pipeline" in {
@@ -87,22 +87,22 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
 
     val TFs = MegacellReader.readTFs(mouseTFs).toSet
 
-    val (_, duration2) = TimeUtils.profile {
-      val result = MegacellPipeline
-        .apply(
-          spark,
-          hdf5 = megacell,
-          parquet = megacellColumnsParquet + "_10k",
-          candidateRegulators = TFs,
-          targets = Set("Gad1"),
-          params = params,
-          nrPartitions = None)
-
-      result.show()
-    }
+//    val (_, duration2) = TimeUtils.profile {
+//      val result = MegacellPipeline
+//        .apply(
+//          spark,
+//          hdf5 = megacell,
+//          parquet = megacellColumnsParquet + "_10k",
+//          candidateRegulators = TFs,
+//          targets = Set("Gad1"),
+//          params = params,
+//          nrPartitions = None)
+//
+//      result.show()
+//    }
 
     // println(duration1.toSeconds, duration2.toSeconds)
-    println(duration2.toSeconds)
+    // println(duration2.toSeconds)
 
     println(params)
   }

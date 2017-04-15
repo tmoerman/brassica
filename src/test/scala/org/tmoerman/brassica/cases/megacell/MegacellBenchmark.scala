@@ -1,7 +1,7 @@
 package org.tmoerman.brassica.cases.megacell
 
 import org.scalatest.FlatSpec
-import org.tmoerman.brassica.{XGBoostRegressionParams, XGBoostSuiteBase}
+import org.tmoerman.brassica.{ScenicPipeline, XGBoostRegressionParams, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -29,19 +29,21 @@ class MegacellBenchmark extends FlatSpec with XGBoostSuiteBase {
   "the Megacell emb.par pipeline from parquet" should "run" in {
     val TFs = MegacellReader.readTFs(mouseTFs).toSet
 
-    val result =
-      MegacellPipeline
-        .apply(
-          spark,
-          hdf5 = megacell,
-          parquet = path,
-          candidateRegulators = TFs,
-          targets = Set("Gad1"),
-          params = params)
+    // FIXME
 
-    println(params)
-
-    result.show()
+//    val result =
+//      ScenicPipeline
+//        .inferRegulations(
+//          spark,
+//          hdf5 = megacell,
+//          parquet = path,
+//          candidateRegulators = TFs,
+//          targets = Set("Gad1"),
+//          params = params)
+//
+//    println(params)
+//
+//    result.show()
   }
 
 }
