@@ -21,17 +21,20 @@ resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/mave
 // Change this to another test framework if you prefer
 libraryDependencies ++= Seq(
 
-  "ml.dmlc"      % "xgboost4j"       % "0.7",
-  "ml.dmlc"      % "xgboost4j-spark" % "0.7",
+  "ml.dmlc"        % "xgboost4j"  % "0.7"
+    exclude("com.esotericsoftware.kryo", "kryo"),
 
-  "com.eharmony" % "spotz-core"      % "1.0.0",
+  "com.eharmony"   % "spotz-core" % "1.0.0",
+  "com.jsuereth"  %% "scala-arm"  % "2.0",
 
-  "com.esotericsoftware.kryo" % "kryo"       % "2.21", // old version, cfr. XGBoost
-  "LLNL"                      % "spark-hdf5" % "0.0.4",
-
-  "com.jsuereth"    %% "scala-arm"          % "2.0",
-  "org.scalactic"   %% "scalactic"          % "3.0.1",
+  "org.scalactic" %% "scalactic"  % "3.0.1",
+  "LLNL"         % "spark-hdf5"      % "0.0.4"  % "provided",
 
   "com.holdenkarau" %% "spark-testing-base" % "2.0.0_0.6.0" % "test"
 
+
 )
+
+// assembly config
+assemblyJarName := "gradinets.jar"
+test in assembly := {}
