@@ -62,17 +62,7 @@ object ScenicPipeline {
 
     computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions, Some(multiplex))(partitionTaskFactory)
   }
-
-  /**
-    * @param expressionsByGene
-    * @param candidateRegulators
-    * @param targets
-    * @param nrPartitions
-    * @param multiplexer TODO document
-    * @param partitionTaskFactory
-    * @tparam T Generic result Product (Tuple) type.
-    * @return Returns a Dataset of T instances.
-    */
+  
   def computePartitioned[T : Encoder : ClassTag](
     expressionsByGene: Dataset[ExpressionByGene],
     candidateRegulators: Set[Gene],
@@ -87,9 +77,7 @@ object ScenicPipeline {
     import spark.implicits._
 
     val regulators   = expressionsByGene.genes.filter(candidateRegulators.contains)
-
-    // TODO data is not always sparse!!!
-    val regulatorCSC = reduceToRegulatorCSCMatrix(expressionsByGene, regulators)
+    val regulatorCSC = reduceToRegulatorCSCMatrix(expressionsByGene, regulators) // TODO data is not always sparse!!!
 
     val regulatorsBroadcast   = sc.broadcast(regulators)
     val regulatorCSCBroadcast = sc.broadcast(regulatorCSC)
@@ -177,8 +165,7 @@ object ScenicPipeline {
 
         Iterator(matrixBuilder.result)
       }
-      .reduce(_ += _)
-      //.treeReduce(_ + _) // https://issues.apache.org/jira/browse/SPARK-2174
+      .treeReduce(_ + _) // https://issues.apache.org/jira/browse/SPARK-2174
   }
 
 }
