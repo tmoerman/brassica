@@ -36,5 +36,5 @@ libraryDependencies ++= Seq(
 )
 
 // assembly config
-assemblyJarName := "gradinets.jar"
+assemblyJarName := "GRNBoost.jar"
 test in assembly := {}

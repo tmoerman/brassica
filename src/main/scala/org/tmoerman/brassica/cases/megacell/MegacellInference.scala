@@ -4,7 +4,8 @@ import java.io.File
 
 import org.apache.commons.io.FileUtils
 import org.apache.spark.sql.SparkSession
-import org.tmoerman.brassica.{ExpressionByGene, ScenicPipeline, XGB_THREADS, XGBoostRegressionParams, randomSubset}
+import org.tmoerman.brassica._
+import org.tmoerman.brassica.cases.DataReader._
 
 /**
   * @author Thomas Moerman
@@ -58,13 +59,13 @@ object MegacellInference {
       SparkSession
         .builder
         .master("local[*]")
-        .appName("GRADINETS")
+        .appName(GRN_BOOST)
         .getOrCreate()
 
     import spark.implicits._
 
     val ds = spark.read.parquet(parquet).as[ExpressionByGene].cache
-    val TFs = MegacellReader.readTFs(mouseTFs).toSet
+    val TFs = readTFs(mouseTFs).toSet
 
     val totalCellCount = ds.head.values.size
 

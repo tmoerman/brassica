@@ -14,6 +14,8 @@ import scala.util.Random
   */
 package object brassica {
 
+  val GRN_BOOST = "GRNBoost"
+
   type Path = String
 
   type Count = Int
