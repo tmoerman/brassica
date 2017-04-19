@@ -5,6 +5,8 @@ import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.algo.OptimizeXGBoostHyperParams.Constantly
+import org.tmoerman.brassica.cases.DataReader
+import org.tmoerman.brassica.cases.DataReader.readTFs
 import org.tmoerman.brassica.cases.zeisel.ZeiselFilteredReader
 import org.tmoerman.brassica.util.PropsReader.props
 
@@ -48,7 +50,7 @@ class MegacellOptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with 
   private def optimizeSub(nrCells: CellCount) = {
     import spark.implicits._
 
-    val TFs = ZeiselFilteredReader.readTFs(mouseTFs).toSet
+    val TFs = readTFs(mouseTFs).toSet
 
     val expressionsByGene = spark.read.parquet(full).as[ExpressionByGene]
 

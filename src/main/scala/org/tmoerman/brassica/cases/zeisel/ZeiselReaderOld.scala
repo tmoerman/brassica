@@ -8,7 +8,7 @@ import org.tmoerman.brassica.cases.zeisel.ZeiselReader.NR_META_FEATURES
 /**
   * @author Thomas Moerman
   */
-object ZeiselReaderOld extends DataReader {
+object ZeiselReaderOld {
 
   private[zeisel] val FEAT_INDEX_OFFSET = NR_META_FEATURES + 1
   private[zeisel] val OBSERVATION_INDEX_OFFSET  = 2

@@ -4,6 +4,8 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.PropsReader.props
 import org.tmoerman.brassica.{XGBoostRegressionParams, ScenicPipeline, XGBoostSuiteBase}
 
+import org.tmoerman.brassica.cases.DataReader._
+
 /**
   * @author Thomas Moerman
   */
@@ -30,9 +32,9 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with XGBoostSuiteBase with Mat
       boosterParams = boosterParams)
 
   it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
-    val TFs = ZeiselFilteredReader.readTFs(mouseTFs).toSet
+    val TFs = readTFs(mouseTFs).toSet
 
-    val expressionByGene = ZeiselFilteredReader.apply(spark, zeiselFiltered)
+    val expressionByGene = readText(spark, zeiselFiltered)
 
     val result =
       ScenicPipeline

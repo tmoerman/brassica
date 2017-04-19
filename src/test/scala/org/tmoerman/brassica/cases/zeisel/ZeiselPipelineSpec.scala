@@ -2,7 +2,7 @@ package org.tmoerman.brassica.cases.zeisel
 
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica._
-import org.tmoerman.brassica.util.PropsReader
+import org.tmoerman.brassica.cases.DataReader._
 import org.tmoerman.brassica.util.PropsReader.props
 
 /**
@@ -32,7 +32,7 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
   val mouseTFs = props("mouseTFs")
 
   it should "run the embarrassingly parallel pipeline from raw" in {
-    val TFs = ZeiselReader.readTFs(mouseTFs).toSet
+    val TFs = readTFs(mouseTFs).toSet
 
     val expressionByGene = ZeiselReader.apply(spark, zeiselMrna)
 
@@ -50,7 +50,7 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
   }
 
   it should "run on a slice of the cells" in {
-    val TFs = ZeiselReader.readTFs(mouseTFs).toSet
+    val TFs = readTFs(mouseTFs).toSet
 
     val expressionByGene = ZeiselReader.apply(spark, zeiselMrna).slice(0 until 1000)
 
@@ -68,9 +68,9 @@ class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
   }
 
   it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
-    val TFs = ZeiselReader.readTFs(mouseTFs).toSet
+    val TFs = readTFs(mouseTFs).toSet
 
-    val expressionByGene = ZeiselFilteredReader.apply(spark, zeiselFiltered)
+    val expressionByGene = readText(spark, zeiselFiltered)
 
     val result =
       ScenicPipeline

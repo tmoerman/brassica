@@ -4,10 +4,12 @@ import java.io.File
 
 import org.apache.commons.io.FileUtils.deleteDirectory
 import org.scalatest.{FlatSpec, Matchers}
+import org.tmoerman.brassica.cases.DataReader
+import org.tmoerman.brassica.cases.DataReader.readTFs
 import org.tmoerman.brassica.cases.zeisel.ZeiselReader.ZEISEL_GENE_COUNT
 import org.tmoerman.brassica.util.PropsReader.props
 import org.tmoerman.brassica.util.{PropsReader, TimeUtils}
-import org.tmoerman.brassica.{XGBoostRegressionParams, ScenicPipeline, XGBoostSuiteBase}
+import org.tmoerman.brassica.{ScenicPipeline, XGBoostRegressionParams, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -33,7 +35,7 @@ class ZeiselBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
   val mouseTFs = props("mouseTFs")
 
   "the Zeisel emb.par pipeline from parquet" should "run" in {
-    val TFs = ZeiselReader.readTFs(mouseTFs).toSet
+    val TFs = readTFs(mouseTFs).toSet
 
     val expressionByGene = ZeiselReader.apply(spark, zeiselMrna)
 

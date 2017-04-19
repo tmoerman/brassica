@@ -9,7 +9,7 @@ import org.tmoerman.brassica._
 /**
   * @author Thomas Moerman
   */
-object Genie3Reader extends DataReader {
+object Genie3Reader {
 
   /**
     * @param spark The SparkSession.

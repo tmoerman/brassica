@@ -2,6 +2,8 @@ package org.tmoerman.brassica.cases.megacell
 
 import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
+import org.tmoerman.brassica.cases.DataReader
+import org.tmoerman.brassica.cases.DataReader.readTFs
 import org.tmoerman.brassica.util.PropsReader.props
 import org.tmoerman.brassica.{ExpressionByGene, XGBoostRegressionParams, XGBoostSuiteBase, _}
 
@@ -34,7 +36,7 @@ class MegacellInferenceBenchmark extends FlatSpec with XGBoostSuiteBase with Mat
   private def inferSub(nrCells: CellCount) = {
     import spark.implicits._
 
-    val TFs = MegacellReader.readTFs(mouseTFs).toSet
+    val TFs = readTFs(mouseTFs).toSet
 
     val ds = spark.read.parquet(full).as[ExpressionByGene]
 

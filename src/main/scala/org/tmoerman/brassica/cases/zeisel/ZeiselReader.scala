@@ -1,11 +1,9 @@
 package org.tmoerman.brassica.cases.zeisel
 
-import breeze.linalg.{SparseVector => BSV}
 import org.apache.spark.ml.linalg.{Vectors, Vector => MLVector}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.tmoerman.brassica._
-import org.tmoerman.brassica.cases.DataReader
 
 /**
   * Read the Zeisel mRNA expression data a Spark SQL DataFrame.
@@ -14,7 +12,7 @@ import org.tmoerman.brassica.cases.DataReader
   *
   * @author Thomas Moerman
   */
-object ZeiselReader extends DataReader {
+object ZeiselReader {
 
   // TODO remove all the obsolete crap
 

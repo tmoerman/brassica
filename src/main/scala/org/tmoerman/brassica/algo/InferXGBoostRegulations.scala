@@ -22,13 +22,14 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
   private[this] val cachedRegulatorDMatrix = toDMatrix(regulatorCSC)
 
   /**
+    * @param expressionByGene The current target gene and its expression vector.
     * @return Returns the inferred Regulation instances for one ExpressionByGene instance.
     */
   override def apply(expressionByGene: ExpressionByGene): Iterable[Regulation] = {
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
-    println(s"-> target: $targetGene, regulator: $targetIsRegulator, partition: $partitionIndex")
+    println(s"-> target: $targetGene \t regulator: $targetIsRegulator \t partition: $partitionIndex")
 
     if (targetIsRegulator) {
       // drop the target gene column from the regulator CSC matrix and create a new DMatrix

@@ -1,6 +1,8 @@
 package org.tmoerman.brassica.cases.megacell
 
 import org.scalatest.{FlatSpec, Matchers}
+import org.tmoerman.brassica.cases.DataReader
+import org.tmoerman.brassica.cases.DataReader.readTFs
 import org.tmoerman.brassica.util.TimeUtils
 import org.tmoerman.brassica.{XGBoostRegressionParams, XGBoostSuiteBase}
 
@@ -26,7 +28,7 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
       boosterParams = boosterParams)
 
   it should "run the embarrassingly parallel pipeline on top 10k" in {
-    val TFs = MegacellReader.readTFs(mouseTFs).toSet
+    val TFs = readTFs(mouseTFs).toSet
 
     // TODO slice the input Dataset
 
@@ -46,7 +48,7 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
   }
 
   it should "run the emembarrassingly parallel pipeline on top 1.3m" in {
-    val TFs = MegacellReader.readTFs(mouseTFs).toSet
+    val TFs = readTFs(mouseTFs).toSet
 
 //    val result =
 //      MegacellPipeline
@@ -85,7 +87,7 @@ class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers 
         .collect()
     }*/
 
-    val TFs = MegacellReader.readTFs(mouseTFs).toSet
+    val TFs = readTFs(mouseTFs).toSet
 
 //    val (_, duration2) = TimeUtils.profile {
 //      val result = MegacellPipeline

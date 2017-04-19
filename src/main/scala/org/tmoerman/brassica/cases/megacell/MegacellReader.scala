@@ -11,8 +11,8 @@ import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import org.tmoerman.brassica.cases.DataReader
-import org.tmoerman.brassica.{Gene, _}
+import org.tmoerman.brassica._
+import org.tmoerman.brassica.cases.DataReader._
 import resource._
 
 import scala.collection.JavaConversions._
@@ -27,7 +27,7 @@ import scala.util.Try
   *
   * @author Thomas Moerman
   */
-object MegacellReader extends DataReader {
+object MegacellReader {
 
   private[megacell] val MEGACELL_CELL_COUNT = 1300774
   private[megacell] val MEGACELL_GENE_COUNT = 27998

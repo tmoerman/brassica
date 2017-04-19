@@ -4,11 +4,14 @@ import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.cases.zeisel.ZeiselReader._
 import org.tmoerman.brassica.util.PropsReader.props
+import org.tmoerman.brassica.cases.DataReader._
 
 /**
   * @author Thomas Moerman
   */
 class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
+
+  val MOUSE_TF_COUNT = 1623
 
   behavior of "ZeiselReader"
 

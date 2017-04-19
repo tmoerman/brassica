@@ -6,6 +6,7 @@ import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.{ScenicPipeline, XGBoostOptimizationParams, XGBoostSuiteBase}
 import org.tmoerman.brassica.util.PropsReader.props
+import org.tmoerman.brassica.cases.DataReader._
 
 /**
   * @author Thomas Moerman
@@ -27,9 +28,9 @@ class ZeiselFilteredOptimizationBenchmark extends FlatSpec with XGBoostSuiteBase
       onlyBestTrial = false)
 
   "Zeisel filtered optimization" should "run" in {
-    val expressionsByGene = ZeiselFilteredReader.apply(spark, zeiselFiltered)
+    val expressionsByGene = readText(spark, zeiselFiltered)
 
-    val TFs = ZeiselFilteredReader.readTFs(mouseTFs).toSet
+    val TFs = readTFs(mouseTFs).toSet
 
     val optimizedHyperParamsDS =
       ScenicPipeline

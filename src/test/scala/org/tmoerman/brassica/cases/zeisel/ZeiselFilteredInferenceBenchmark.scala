@@ -5,9 +5,10 @@ import java.io.File
 import org.apache.commons.io.FileUtils._
 import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
+import org.tmoerman.brassica.cases.DataReader._
 import org.tmoerman.brassica.util.PropsReader.props
 import org.tmoerman.brassica.util.{PropsReader, TimeUtils}
-import org.tmoerman.brassica.{XGBoostRegressionParams, ScenicPipeline, XGBoostSuiteBase}
+import org.tmoerman.brassica.{ScenicPipeline, XGBoostRegressionParams, XGBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
@@ -34,11 +35,11 @@ class ZeiselFilteredInferenceBenchmark extends FlatSpec with XGBoostSuiteBase wi
   val mouseTFs = props("mouseTFs")
 
   "the (filtered, cfr. Sara) Zeisel emb.par pipeline from parquet" should "run" in {
-    val TFs = ZeiselFilteredReader.readTFs(mouseTFs).toSet
+    val TFs = readTFs(mouseTFs).toSet
 
-    val ds = ZeiselFilteredReader.apply(spark, zeiselFiltered)
+    val ds = readText(spark, zeiselFiltered)
 
-    val genes = ZeiselFilteredReader.toGenes(spark, ds)
+    val genes = toGenes(spark, ds)
 
     val nrTargets = Seq(genes.size) // Seq(1, 5, 10, 25, 100, 250, 1000, 2500, 10000, genes.size)
     // val nrTargets = Nil // all
@@ -55,7 +56,7 @@ class ZeiselFilteredInferenceBenchmark extends FlatSpec with XGBoostSuiteBase wi
         deleteDirectory(new File(out))
 
         val (_, duration) = TimeUtils.profile {
-          val expressionByGene = ZeiselFilteredReader.apply(spark, zeiselFiltered)
+          val expressionByGene = readText(spark, zeiselFiltered)
 
           val result =
             ScenicPipeline
