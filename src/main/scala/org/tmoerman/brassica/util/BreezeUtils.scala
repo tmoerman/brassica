@@ -16,27 +16,6 @@ import scala.reflect.ClassTag
 object BreezeUtils {
 
   /**
-    * @param sliced A Breeze SliceMatrix.
-    * @return Returns an XGBoost DMatrix.
-    */
-  @deprecated("inefficient") def toDMatrix(sliced: SliceMatrix[Int, Int, Expression]): DMatrix = {
-    val (csc, duration) = profile {
-      val builder = new CSCMatrix.Builder[Expression](rows = sliced.rows, cols = sliced.cols)
-
-      sliced
-        .activeIterator
-        .filter(_._2 != 0f)
-        .foldLeft(builder){
-          case (bldr, ((r, c), v)) => bldr.add(r, c, v); bldr }
-        .result
-    }
-
-    println(s"creating CSCMatrix from SliceMatrix took ${pretty(duration)}")
-
-    toDMatrix(csc)
-  }
-
-  /**
     * @param csc A Breeze CSCMatrix.
     * @return Returns an XGBoost DMatrix.
     */

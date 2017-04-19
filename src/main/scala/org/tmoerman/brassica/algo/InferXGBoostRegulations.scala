@@ -8,7 +8,7 @@ import org.apache.spark.sql.functions.{rank, sum}
 import org.apache.spark.sql.types.DataTypes.FloatType
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.algo.InferXGBoostRegulations._
-import org.tmoerman.brassica.util.BreezeUtils.toDMatrix
+import org.tmoerman.brassica.util.BreezeUtils._
 
 /**
   * @author Thomas Moerman
@@ -25,38 +25,37 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
     * @return Returns the inferred Regulation instances for one ExpressionByGene instance.
     */
   override def apply(expressionByGene: ExpressionByGene): Iterable[Regulation] = {
-    val targetGene = expressionByGene.gene
+    val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
     println(s"-> target: $targetGene, regulator: $targetIsRegulator, partition: $partitionIndex")
 
-    // remove the target gene column if target gene is a regulator
-    val cleanedDMatrixGenesToIndices =
-      regulators
-        .zipWithIndex
-        .filterNot { case (gene, _) => gene == targetGene } // remove the target from the predictors
+    if (targetIsRegulator) {
+      // drop the target gene column from the regulator CSC matrix and create a new DMatrix
+      val targetColumnIndex = regulators.zipWithIndex.find(_._1 == targetGene).get._2
+      val cleanRegulatorDMatrix = toDMatrix(regulatorCSC dropColumn targetColumnIndex)
 
-    // slice the target gene column from the regulator CSC matrix and create a new DMatrix
-    val (regulatorDMatrix, disposeAll) =
-      if (targetIsRegulator) {
-        val cleanRegulatorCSC = regulatorCSC(0 until regulatorCSC.rows, cleanedDMatrixGenesToIndices.map(_._2))
-        val cleanRegulatorDMatrix = toDMatrix(cleanRegulatorCSC)
+      // set the response labels and train the model
+      cleanRegulatorDMatrix.setLabel(expressionByGene.response)
+      val booster = XGBoost.train(cleanRegulatorDMatrix, boosterParams.withDefaults, nrRounds)
+      val result = toRegulations(targetGene, regulators.filterNot(_ == targetGene), booster)
 
-        (cleanRegulatorDMatrix, () => cleanRegulatorDMatrix.delete())
-      } else {
-        (cachedRegulatorDMatrix, () => Unit)
-      }
-    regulatorDMatrix.setLabel(expressionByGene.response)
+      // clean up resources
+      booster.dispose
+      cleanRegulatorDMatrix.delete()
 
-    // train the model
-    val booster = XGBoost.train(regulatorDMatrix, boosterParams.withDefaults, nrRounds)
-    val result  = toRegulations(targetGene, cleanedDMatrixGenesToIndices, booster)
+      result
+    } else {
+      // set the response labels and train the model
+      cachedRegulatorDMatrix.setLabel(expressionByGene.response)
+      val booster = XGBoost.train(cachedRegulatorDMatrix, boosterParams.withDefaults, nrRounds)
+      val result = toRegulations(targetGene, regulators, booster)
 
-    // clean up resources
-    booster.dispose
-    disposeAll()
+      // clean up resources
+      booster.dispose
 
-    result
+      result
+    }
   }
 
   override def dispose(): Unit = {
@@ -73,17 +72,12 @@ object InferXGBoostRegulations {
   /**
     * @return Returns a Regulation instance.
     */
-  def toRegulations(targetGene: Gene,
-                    cleanedDMatrixGenesToIndices: List[(Gene, Int)],
-                    booster: Booster): Seq[Regulation] = {
-
-    val cleanedDMatrixGenes = cleanedDMatrixGenesToIndices.map(_._1)
-
+  def toRegulations(targetGene: Gene, regulators: List[Gene], booster: Booster): Seq[Regulation] = {
     booster
       .getFeatureScore()
       .map { case (feature, score) =>
         val featureIndex  = feature.substring(1).toInt
-        val regulatorGene = cleanedDMatrixGenes(featureIndex)
+        val regulatorGene = regulators(featureIndex)
         val importance    = score.toFloat
 
         Regulation(regulatorGene, targetGene, importance)

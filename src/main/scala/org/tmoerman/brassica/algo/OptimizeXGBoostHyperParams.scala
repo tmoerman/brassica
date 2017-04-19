@@ -11,9 +11,9 @@ import ml.dmlc.xgboost4j.scala.DMatrix
 import ml.dmlc.xgboost4j.scala.XGBoostAccess.inner
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.algo.OptimizeXGBoostHyperParams._
-import org.tmoerman.brassica.util.BreezeUtils.toDMatrix
 
 import scala.util.Random
+import org.tmoerman.brassica.util.BreezeUtils._
 
 /**
   * PartitionTask implementation for XGBoost hyper parameter optimization.
@@ -27,7 +27,6 @@ case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
   import params._
 
   // TODO CV set should be unique per gene, but the same over different batches per gene
-  // private[this]
 
   /**
     * @param expressionByGene The target gene and expression.
@@ -98,21 +97,15 @@ object OptimizeXGBoostHyperParams {
                          regulatorCSC: CSCMatrix[Expression],
                          cvSets: List[CVSet]): (List[(DMatrix, DMatrix)], () => Unit) = {
 
-    val targetGene = expressionByGene.gene
+    val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
-
-    // remove the target gene column if target gene is a regulator
-    val cleanedDMatrixGenesToIndices =
-      regulators
-        .zipWithIndex
-        .filterNot { case (gene, _) => gene == targetGene } // remove the target from the predictors
 
     // slice the target gene column from the regulator CSC matrix and create a new DMatrix
     val regulatorDMatrix =
       if (targetIsRegulator) {
-        val regulatorCSCMinusTarget = regulatorCSC(0 until regulatorCSC.rows, cleanedDMatrixGenesToIndices.map(_._2))
+        val targetColumnIndex = regulators.zipWithIndex.find(_._1 == targetGene).get._2
 
-        toDMatrix(regulatorCSCMinusTarget)
+        toDMatrix(regulatorCSC dropColumn targetColumnIndex)
       } else {
         toDMatrix(regulatorCSC)
       }

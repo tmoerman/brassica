@@ -1,12 +1,12 @@
 package org.tmoerman.brassica.cases.megacell
 
-import com.eharmony.spotz.optimizer.hyperparam.{RandomChoice, UniformDouble}
+import com.eharmony.spotz.optimizer.hyperparam.UniformDouble
 import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.cases.zeisel.ZeiselFilteredReader
-import org.tmoerman.brassica.util.PropsReader.props
 import org.tmoerman.brassica._
 import org.tmoerman.brassica.algo.OptimizeXGBoostHyperParams.Constantly
+import org.tmoerman.brassica.cases.zeisel.ZeiselFilteredReader
+import org.tmoerman.brassica.util.PropsReader.props
 
 /**
   * @author Thomas Moerman
