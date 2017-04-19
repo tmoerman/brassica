@@ -16,27 +16,10 @@ import scala.reflect.ClassTag
 object BreezeUtils {
 
   /**
-    * @param cols The number of columns in the CSCMatrix
-    * @param idx The column index for the specified SparseVector in the resulting CSCMatrix.
-    * @param v The SparseVector to insert at position idx.
-    * @tparam T Generic numeric type
-    * @return Returns a CSCMatrix with cols columns and rows equal to the length of the specified SparseVector.
-    */
-  def asCSCMatrix[@specialized(Double, Int, Float, Long) T:ClassTag:Zero](cols: Int, idx: Int, v: SparseVector[T]): CSCMatrix[T] = {
-    val L = idx
-    val R = cols - idx - 1
-
-    val L_0s = List.tabulate(L)(_ => zeros[T](v.length))
-    val R_0s = List.tabulate(R)(_ => zeros[T](v.length))
-
-    horzcat(L_0s ::: v :: R_0s: _*)
-  }
-
-  /**
     * @param sliced A Breeze SliceMatrix.
     * @return Returns an XGBoost DMatrix.
     */
-  def toDMatrix(sliced: SliceMatrix[Int, Int, Expression]): DMatrix = {
+  @deprecated("inefficient") def toDMatrix(sliced: SliceMatrix[Int, Int, Expression]): DMatrix = {
     val (csc, duration) = profile {
       val builder = new CSCMatrix.Builder[Expression](rows = sliced.rows, cols = sliced.cols)
 
@@ -59,5 +42,44 @@ object BreezeUtils {
     */
   def toDMatrix(csc: CSCMatrix[Expression]): DMatrix =
     new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC)
+
+  /**
+    * @param csc The CSCMatrix to pimp
+    * @tparam T Generic numerical type
+    * @return Returns a pimped CSCMatrix.
+    */
+  implicit def pimp[@specialized(Double, Int, Float, Long) T:ClassTag:Zero](csc: CSCMatrix[T]): CSCMatrixFunctions[T] =
+    new CSCMatrixFunctions[T](csc)
+
+}
+
+class CSCMatrixFunctions[@specialized(Double, Int, Float, Long) T:ClassTag:Zero](m: CSCMatrix[T]) {
+
+  /**
+    * Efficient implementation of a specialized "slice", where only one column is removed from the CSCMatrix.
+    *
+    * @param colIdx Index of the column to drop from the CSCMatrix
+    * @return Returns a new CSCMatrix without the column with specified index.
+    */
+  def dropColumn(colIdx: Int): CSCMatrix[T] = {
+    assert(colIdx < m.cols, s"Cannot drop col $colIdx from CSCMatrix with ${m.cols} columns")
+
+    val colPtr_L = m.colPtrs(colIdx)
+    val colPrt_R = m.colPtrs(colIdx + 1)
+    val colSize  = colPrt_R - colPtr_L
+
+    val data2        = { val (l, r) = punch(m.data,       colPtr_L, colSize); l ++ r }
+    val rowIndices2  = { val (l, r) = punch(m.rowIndices, colPtr_L, colSize); l ++ r }
+    val colPointers2 = { val (l, r) = punch(m.colPtrs,    colIdx,      1);       l ++ r.map(_ - colSize) }
+
+    new CSCMatrix[T](data2, m.rows, m.cols - 1, colPointers2, rowIndices2)
+  }
+
+  private[util] def punch[@specialized(Double, Int, Float, Long) T:ClassTag:Zero](a: Array[T], keep: Int, drop: Int) = {
+    val (left, t) = a.splitAt(keep)
+    val (_, rest) = t.splitAt(drop)
+
+    (left, rest)
+  }
 
 }

@@ -2,40 +2,54 @@ package org.tmoerman.brassica.util
 
 import breeze.linalg.CSCMatrix
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.Expression
+
+import BreezeUtils._
 
 /**
   * @author Thomas Moerman
   */
 class BreezeUtilsSpec extends FlatSpec with Matchers {
 
-  // TODO specify test correctly
-  "toDMatrix" should "work correctly" in {
+  "dropping a column from a CSCMatrix" should "work" in {
+    val csc = CSCMatrix(
+      (6, 0, 0, 0),
+      (0, 7, 0, 0),
+      (0, 0, 0, 0),
+      (0, 0, 8, 0),
+      (0, 0, 0, 0),
+      (9, 0, 0, 9))
 
-    val builder = new CSCMatrix.Builder[Expression](rows = 10, cols = 4)
+    csc.dropColumn(0) shouldBe CSCMatrix(
+      (0, 0, 0),
+      (7, 0, 0),
+      (0, 0, 0),
+      (0, 8, 0),
+      (0, 0, 0),
+      (0, 0, 9))
 
-    builder.add(0, 0, 6f)
-    builder.add(1, 1, 7f)
-    builder.add(2, 2, 8f)
-    builder.add(3, 3, 9f)
+    csc.dropColumn(1) shouldBe CSCMatrix(
+      (6, 0, 0),
+      (0, 0, 0),
+      (0, 0, 0),
+      (0, 8, 0),
+      (0, 0, 0),
+      (9, 0, 9))
 
-    val csc = builder.result
+    csc.dropColumn(2) shouldBe CSCMatrix(
+      (6, 0, 0),
+      (0, 7, 0),
+      (0, 0, 0),
+      (0, 0, 0),
+      (0, 0, 0),
+      (9, 0, 9))
 
-    val sliced = csc(0 until 10, Seq(1, 2))
-    val dense = sliced.toDenseMatrix
-
-    val arrSliced = sliced.activeValuesIterator.toList
-
-    // TODO 1 of these is obviously wrong!!
-    println(sliced.rows, sliced.cols, sliced.activeValuesIterator.toList)
-    println(dense.rows, dense.cols, dense.data.toList)
-
-    val dm = BreezeUtils.toDMatrix(sliced)
-    //dm.setLabel(Array(1, 1, 1, 1, 0, 0, 0, 0, 0, 0))
-
-    println(dm.toString)
-
-    dm.delete()
+    csc.dropColumn(3) shouldBe CSCMatrix(
+      (6, 0, 0),
+      (0, 7, 0),
+      (0, 0, 0),
+      (0, 0, 8),
+      (0, 0, 0),
+      (9, 0, 0))
   }
 
 }
