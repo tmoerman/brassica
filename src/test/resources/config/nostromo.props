@@ -15,10 +15,6 @@ zeiselParquet = src/test/resources/parquet/zeisel
 # Macosko
 macoskoFull           = /media/tmo/data/work/datasets/macosko/in/allEsetMR.tsv
 macoskoSampled        = /media/tmo/data/work/datasets/macosko/in/sampledEsetMR.tsv
-
-macoskoParquetFull    = /media/tmo/data/work/datasets/macosko/parquet/full/
-macoskoParquetSampled = /media/tmo/data/work/datasets/macosko/parquet/sampled/
-
 macoskoOutFull        = /media/tmo/data/work/datasets/macosko/out/full/
 macoskoOutSampled     = /media/tmo/data/work/datasets/macosko/out/sampled/
 

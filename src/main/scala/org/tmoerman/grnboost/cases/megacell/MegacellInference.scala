@@ -27,11 +27,11 @@ object MegacellInference {
 
   def main(args: Array[String]): Unit = {
     // FIXME better arg parsing
-    val parquet   = args(0)
-    val mouseTFs  = args(1)
-    val out       = args(2)
-    val nrCells   = if (args(3).toLowerCase == "all") None else Some(args(3).toInt)
-    val nrTargets = if (args(4).toLowerCase == "all") None else Some(args(4).toInt)
+    val parquet      = args(0)
+    val mouseTFs     = args(1)
+    val out          = args(2)
+    val nrCells      = if (args(3).toLowerCase == "all") None else Some(args(3).toInt)
+    val nrTargets    = if (args(4).toLowerCase == "all") None else Some(args(4).toInt)
     val nrPartitions = args(5).toInt
     val nrThreads    = args(6).toInt
     val nrRounds     = args(7).toInt
@@ -44,7 +44,9 @@ object MegacellInference {
         |* output          = $out
         |* nr cells        = $nrCells
         |* nr target genes = $nrTargets
+        |* nr partitions   = $nrPartitions
         |* nr xgb threads  = $nrThreads
+        |* nr xgb rounds   = $nrRounds
       """.stripMargin
 
     println(parsed)
@@ -56,9 +58,8 @@ object MegacellInference {
     val spark =
       SparkSession
         .builder
-        .master("local[*]") // TODO master input parameter?
         .appName(GRN_BOOST)
-        .getOrCreate()
+        .getOrCreate
 
     import spark.implicits._
 

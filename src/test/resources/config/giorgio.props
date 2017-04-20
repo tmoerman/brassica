@@ -15,10 +15,6 @@ zeiselParquet = src/test/resources/parquet/zeisel
 # macosko
 macoskoFull           = /Users/tmo/Work/ghb2016/data/macosko/in/allEsetMR.tsv
 macoskoSampled        = /Users/tmo/Work/ghb2016/data/macosko/in/sampledEsetMR.tsv
-
-macoskoParquetFull    = /Users/tmo/Work/ghb2016/data/macosko/parquet/full/
-macoskoParquetSampled = /Users/tmo/Work/ghb2016/data/macosko/parquet/sampled/
-
 macoskoOutFull        = /Users/tmo/Work/ghb2016/data/macosko/out/full/
 macoskoOutSampled     = /Users/tmo/Work/ghb2016/data/macosko/out/sampled/
 

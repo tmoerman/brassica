@@ -16,7 +16,6 @@ object NormalizeRegulations {
     val spark =
       SparkSession
         .builder
-        //.master("local[*]") // TODO master input parameter?
         .appName(s"$GRN_BOOST - normalize regulations")
         .getOrCreate
 

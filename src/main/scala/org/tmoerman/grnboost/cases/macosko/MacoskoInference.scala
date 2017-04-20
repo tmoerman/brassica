@@ -22,18 +22,16 @@ object MacoskoInference {
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 12,
+      nrRounds = 50,
       boosterParams = boosterParams)
 
   def main(args: Array[String]): Unit = {
-    val in        = args(0)
-    val mouseTFs  = args(1)
-    val out       = args(2)
-    val nrCells   = if (args(3).toLowerCase == "all") None else Some(args(3).toInt)
-    val nrTargets = if (args(4).toLowerCase == "all") None else Some(args(4).toInt)
-    val nrPartitions = args(5).toInt
-    val nrThreads    = args(6).toInt
-    val nrRounds     = args(7).toInt
+    val in           = args(0)
+    val mouseTFs     = args(1)
+    val out          = args(2)
+    val nrPartitions = args(3).toInt
+    val nrThreads    = args(4).toInt
+    val nrRounds     = args(5).toInt
 
     val parsed =
       s"""
@@ -41,55 +39,38 @@ object MacoskoInference {
          |* in              = $in
          |* mouseTFs        = $mouseTFs
          |* output          = $out
-         |* nr cells        = $nrCells
-         |* nr target genes = $nrTargets
+         |* nr partitions   = $nrPartitions
          |* nr xgb threads  = $nrThreads
+         |* nr xgb rounds   = $nrRounds
       """.stripMargin
 
     println(parsed)
 
-    val outDir = s"$out/run_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets"
-
-    deleteDirectory(outDir)
+    deleteDirectory(out)
 
     val spark =
       SparkSession
         .builder
-        .master("local[*]")
         .appName(GRN_BOOST)
-        .getOrCreate()
+        .getOrCreate
 
     val ds  = readExpression(spark, in).cache
-    val TFs = readTFs(mouseTFs).map(_.toUpperCase).toSet
-
-    val totalCellCount = ds.head.values.size
-
-    val slicedByCells =
-      nrCells
-        .map(nr => {
-          val subset = randomSubset(nr, 0 until totalCellCount)
-          ds.slice(subset).cache
-        })
-        .getOrElse(ds)
-
-    val targetSet =
-      nrTargets
-        .map(nr => slicedByCells.take(nr).map(_.gene).toSet)
-        .getOrElse(Set.empty)
+    val TFs = readTFs(mouseTFs).map(_.toUpperCase).toSet // !!! uppercase for Macosko genes
 
     val regulations =
       GRNBoost
         .inferRegulations(
-          slicedByCells,
+          ds,
           candidateRegulators = TFs,
-          params = params.copy(nrRounds = nrRounds, boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads)),
-          targets = targetSet,
+          params = params.copy(
+            nrRounds = nrRounds,
+            boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads)),
           nrPartitions = Some(nrPartitions))
         .cache
 
     regulations
       .normalize
-      .saveTxt(outDir)
+      .saveTxt(out)
   }
 
 }
