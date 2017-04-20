@@ -5,12 +5,12 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.cases.DataReader
 import org.tmoerman.brassica.cases.DataReader.readTFs
 import org.tmoerman.brassica.util.PropsReader.props
-import org.tmoerman.brassica.{ExpressionByGene, XGBoostRegressionParams, XGBoostSuiteBase, _}
+import org.tmoerman.brassica.{ExpressionByGene, XGBoostRegressionParams, GRNBoostSuiteBase, _}
 
 /**
   * @author Thomas Moerman
   */
-class MegacellInferenceBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
+class MegacellInferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val boosterParamsBio = Map(
     "seed" -> 777,

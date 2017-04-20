@@ -3,13 +3,13 @@ package org.tmoerman.brassica.algo
 import java.lang.Math.min
 
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.XGBoostSuiteBase
+import org.tmoerman.brassica.GRNBoostSuiteBase
 import org.tmoerman.brassica.algo.OptimizeXGBoostHyperParams._
 
 /**
   * @author Thomas Moerman
   */
-class OptimizeXGBoostParamsSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
+class OptimizeXGBoostParamsSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   behavior of "creating folds"
 

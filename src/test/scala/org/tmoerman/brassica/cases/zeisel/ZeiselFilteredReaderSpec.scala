@@ -1,7 +1,7 @@
 package org.tmoerman.brassica.cases.zeisel
 
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.XGBoostSuiteBase
+import org.tmoerman.brassica.GRNBoostSuiteBase
 import org.tmoerman.brassica.util.PropsReader.props
 
 import org.tmoerman.brassica.cases.DataReader._
@@ -9,7 +9,7 @@ import org.tmoerman.brassica.cases.DataReader._
 /**
   * @author Thomas Moerman
   */
-class ZeiselFilteredReaderSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
+class ZeiselFilteredReaderSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val zeiselFiltered = props("zeiselFiltered")
 

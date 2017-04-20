@@ -4,12 +4,12 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.cases.DataReader
 import org.tmoerman.brassica.cases.DataReader.readTFs
 import org.tmoerman.brassica.util.TimeUtils
-import org.tmoerman.brassica.{XGBoostRegressionParams, XGBoostSuiteBase}
+import org.tmoerman.brassica.{XGBoostRegressionParams, GRNBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
   */
-class MegacellPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
+class MegacellPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   behavior of "Scenic pipeline on Megacell"
 

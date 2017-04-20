@@ -6,12 +6,12 @@ import org.apache.commons.io.FileUtils.deleteDirectory
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.algo.InferXGBoostRegulations._
 import org.tmoerman.brassica.util.PropsReader
-import org.tmoerman.brassica.{XGBoostRegressionParams, XGBoostSuiteBase, _}
+import org.tmoerman.brassica.{XGBoostRegressionParams, GRNBoostSuiteBase, _}
 
 /**
   * @author Thomas Moerman
   */
-class Dream5InferenceBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
+class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val boosterParamsSilico = Map(
     "seed" -> 777,

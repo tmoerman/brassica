@@ -8,7 +8,7 @@ import org.tmoerman.brassica.util.PropsReader.props
 /**
   * @author Thomas Moerman
   */
-class ZeiselPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
+class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   behavior of "Scenic pipeline on Zeisel"
 

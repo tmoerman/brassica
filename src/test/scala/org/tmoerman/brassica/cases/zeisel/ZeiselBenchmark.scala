@@ -9,12 +9,12 @@ import org.tmoerman.brassica.cases.DataReader.readTFs
 import org.tmoerman.brassica.cases.zeisel.ZeiselReader.ZEISEL_GENE_COUNT
 import org.tmoerman.brassica.util.PropsReader.props
 import org.tmoerman.brassica.util.{PropsReader, TimeUtils}
-import org.tmoerman.brassica.{ScenicPipeline, XGBoostRegressionParams, XGBoostSuiteBase}
+import org.tmoerman.brassica.{ScenicPipeline, XGBoostRegressionParams, GRNBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
   */
-class ZeiselBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
+class ZeiselBenchmark extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val boosterParams = Map(
     "seed" -> 777,

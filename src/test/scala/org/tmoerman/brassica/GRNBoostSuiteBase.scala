@@ -6,11 +6,11 @@ import org.apache.spark.SparkConf
 import org.scalatest.Suite
 
 /**
-  * Trait extending H. Karau's DataFrameSuiteBase, with conf overridden for XGBoost.
+  * Trait extending H. Karau's DataFrameSuiteBase, with conf overridden for GRNBoost.
   *
   * @author Thomas Moerman
   */
-trait XGBoostSuiteBase extends DataFrameSuiteBase { self: Suite =>
+trait GRNBoostSuiteBase extends DataFrameSuiteBase { self: Suite =>
 
   // http://stackoverflow.com/questions/27220196/disable-scalatest-logging-statements-when-running-tests-from-maven
   try {
@@ -24,7 +24,7 @@ trait XGBoostSuiteBase extends DataFrameSuiteBase { self: Suite =>
   override def conf: SparkConf =
     new SparkConf()
       .setMaster("local[*]")
-      .setAppName("XGBoost-Spark")
+      .setAppName(GRN_BOOST)
       .set("spark.app.id", appID)
 
 }

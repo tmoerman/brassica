@@ -3,7 +3,7 @@ package org.tmoerman.brassica.cases.zeisel
 import java.util.concurrent.TimeUnit._
 
 import org.scalatest.{Matchers, FlatSpec}
-import org.tmoerman.brassica.XGBoostSuiteBase
+import org.tmoerman.brassica.GRNBoostSuiteBase
 import org.tmoerman.brassica.util.TimeUtils
 
 import scala.concurrent.duration.Duration
@@ -11,7 +11,7 @@ import scala.concurrent.duration.Duration
 /**
   * @author Thomas Moerman
   */
-class ZeiselBenchmarkInspector extends FlatSpec with XGBoostSuiteBase with Matchers {
+class ZeiselBenchmarkInspector extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   "convert durations to seconds" should "run" in {
 

@@ -5,12 +5,12 @@ import java.lang.Runtime.getRuntime
 import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.PropsReader.props
-import org.tmoerman.brassica.{XGBoostSuiteBase, _}
+import org.tmoerman.brassica.{GRNBoostSuiteBase, _}
 
 /**
   * @author Thomas Moerman
   */
-class Dream5OptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
+class Dream5OptimizationBenchmark extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val writePath = props("dream5Optimization")
 

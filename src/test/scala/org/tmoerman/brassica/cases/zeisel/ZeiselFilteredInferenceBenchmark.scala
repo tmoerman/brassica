@@ -8,12 +8,12 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.cases.DataReader._
 import org.tmoerman.brassica.util.PropsReader.props
 import org.tmoerman.brassica.util.{PropsReader, TimeUtils}
-import org.tmoerman.brassica.{ScenicPipeline, XGBoostRegressionParams, XGBoostSuiteBase}
+import org.tmoerman.brassica.{ScenicPipeline, XGBoostRegressionParams, GRNBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
   */
-class ZeiselFilteredInferenceBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
+class ZeiselFilteredInferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val boosterParams = Map(
     "seed" -> 777,

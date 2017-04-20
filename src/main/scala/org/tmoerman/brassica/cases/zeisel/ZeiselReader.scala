@@ -7,9 +7,6 @@ import org.tmoerman.brassica._
 
 /**
   * Read the Zeisel mRNA expression data a Spark SQL DataFrame.
-  *
-  * See: http://spark.apache.org/docs/latest/sql-programming-guide.html
-  *
   * @author Thomas Moerman
   */
 object ZeiselReader {

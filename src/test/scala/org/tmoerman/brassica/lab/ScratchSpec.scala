@@ -5,7 +5,7 @@ import java.util.Calendar
 import org.scalatest.{Matchers, FlatSpec}
 
 /**
-  * Created by tmo on 14/02/17.
+  * @author Thomas Moerman
   */
 class ScratchSpec extends FlatSpec with Matchers {
 

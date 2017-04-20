@@ -13,7 +13,7 @@ import org.tmoerman.brassica.util.PropsReader.props
 /**
   * @author Thomas Moerman
   */
-class MegacellOptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
+class MegacellOptimizationBenchmark extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val minChildDepthSpace: BoosterParamSpace = Map(
     // model complexity

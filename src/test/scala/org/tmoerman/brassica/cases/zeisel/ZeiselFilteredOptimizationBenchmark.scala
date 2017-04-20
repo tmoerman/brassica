@@ -4,14 +4,14 @@ import java.lang.Runtime.getRuntime
 
 import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.{ScenicPipeline, XGBoostOptimizationParams, XGBoostSuiteBase}
+import org.tmoerman.brassica.{ScenicPipeline, XGBoostOptimizationParams, GRNBoostSuiteBase}
 import org.tmoerman.brassica.util.PropsReader.props
 import org.tmoerman.brassica.cases.DataReader._
 
 /**
   * @author Thomas Moerman
   */
-class ZeiselFilteredOptimizationBenchmark extends FlatSpec with XGBoostSuiteBase with Matchers {
+class ZeiselFilteredOptimizationBenchmark extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val zeiselFiltered = props("zeiselFiltered")
   val writePath      = props("zeiselFilteredOptimization")

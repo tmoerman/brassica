@@ -13,7 +13,7 @@ import org.scalatest.{Matchers, FlatSpec}
 import scala.collection.JavaConversions._
 
 /**
-  * Created by tmo on 14/02/17.
+  * @author Thomas Moerman
   */
 class VectorSlicerSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 

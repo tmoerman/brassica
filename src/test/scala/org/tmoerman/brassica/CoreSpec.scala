@@ -6,7 +6,7 @@ import org.scalatest.{FlatSpec, Matchers}
 /**
   * @author Thomas Moerman
   */
-class CoreSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
+class CoreSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   import spark.implicits._
 

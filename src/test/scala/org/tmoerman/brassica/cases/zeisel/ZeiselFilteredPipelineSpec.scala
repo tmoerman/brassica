@@ -2,14 +2,14 @@ package org.tmoerman.brassica.cases.zeisel
 
 import org.scalatest.{FlatSpec, Matchers}
 import org.tmoerman.brassica.util.PropsReader.props
-import org.tmoerman.brassica.{XGBoostRegressionParams, ScenicPipeline, XGBoostSuiteBase}
+import org.tmoerman.brassica.{XGBoostRegressionParams, ScenicPipeline, GRNBoostSuiteBase}
 
 import org.tmoerman.brassica.cases.DataReader._
 
 /**
   * @author Thomas Moerman
   */
-class ZeiselFilteredPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
+class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   behavior of "Scenic pipeline on Zeisel"
 

@@ -1,12 +1,12 @@
 package org.tmoerman.brassica.cases.dream5
 
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.brassica.{XGBoostRegressionParams, ScenicPipeline, XGBoostSuiteBase}
+import org.tmoerman.brassica.{XGBoostRegressionParams, ScenicPipeline, GRNBoostSuiteBase}
 
 /**
   * @author Thomas Moerman
   */
-class Dream5PipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
+class Dream5PipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val boosterParams = Map(
     "seed" -> 777,

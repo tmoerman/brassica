@@ -1,14 +1,14 @@
 package org.tmoerman.brassica.cases.megacell
 
 import org.scalatest.FlatSpec
-import org.tmoerman.brassica.{ScenicPipeline, XGBoostRegressionParams, XGBoostSuiteBase}
+import org.tmoerman.brassica.{ScenicPipeline, XGBoostRegressionParams, GRNBoostSuiteBase}
 
 import org.tmoerman.brassica.cases.DataReader._
 
 /**
   * @author Thomas Moerman
   */
-class MegacellBenchmark extends FlatSpec with XGBoostSuiteBase {
+class MegacellBenchmark extends FlatSpec with GRNBoostSuiteBase {
 
   val path = "/media/tmo/data/work/datasets/megacell_parquet_full"
   //val path = megacellColumnsParquet + "_10k"

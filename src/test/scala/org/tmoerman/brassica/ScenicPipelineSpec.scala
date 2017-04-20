@@ -10,7 +10,7 @@ import org.tmoerman.brassica.util.PropsReader
 /**
   * @author Thomas Moerman
   */
-class ScenicPipelineSpec extends FlatSpec with XGBoostSuiteBase with Matchers {
+class ScenicPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   private val zeiselMrna = PropsReader.props("zeisel")
 
