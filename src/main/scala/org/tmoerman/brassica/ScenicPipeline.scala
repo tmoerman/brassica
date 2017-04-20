@@ -62,7 +62,7 @@ object ScenicPipeline {
 
     computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions, Some(multiplex))(partitionTaskFactory)
   }
-  
+
   def computePartitioned[T : Encoder : ClassTag](
     expressionsByGene: Dataset[ExpressionByGene],
     candidateRegulators: Set[Gene],
@@ -70,14 +70,18 @@ object ScenicPipeline {
     nrPartitions: Option[Int],
     multiplexer: Option[(ExpressionByGene) => Iterable[ExpressionByGene]] = None)
    (partitionTaskFactory: (List[Gene], CSCMatrix[Expression], Int) => PartitionTask[T]): Dataset[T] = {
-
+    
     val spark = expressionsByGene.sparkSession
     val sc = spark.sparkContext
 
     import spark.implicits._
 
-    val regulators   = expressionsByGene.genes.filter(candidateRegulators.contains)
-    val regulatorCSC = reduceToRegulatorCSCMatrix(expressionsByGene, regulators) // TODO data is not always sparse!!!
+    val regulators = expressionsByGene.genes.filter(candidateRegulators.contains)
+
+    assert(regulators.nonEmpty,
+      s"no regulators w.r.t. specified candidate regulators ${candidateRegulators.take(3).mkString(",")}...")
+
+    val regulatorCSC = reduceToRegulatorCSCMatrix(expressionsByGene, regulators)
 
     val regulatorsBroadcast   = sc.broadcast(regulators)
     val regulatorCSCBroadcast = sc.broadcast(regulatorCSC)
@@ -143,9 +147,9 @@ object ScenicPipeline {
     val nrGenes = regulators.size
     val nrCells = expressionByGene.first.values.size
 
-    val regulatorIndexMap = regulators.zipWithIndex.toMap
+    val regulatorIndexMap       = regulators.zipWithIndex.toMap
     def isPredictor(gene: Gene) = regulatorIndexMap.contains(gene)
-    def cscIndex(gene: Gene) = regulatorIndexMap.apply(gene)
+    def cscIndex(gene: Gene)    = regulatorIndexMap.apply(gene)
 
     expressionByGene
       .rdd
