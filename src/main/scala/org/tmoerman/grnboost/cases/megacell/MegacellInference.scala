@@ -1,8 +1,6 @@
 package org.tmoerman.grnboost.cases.megacell
 
-import java.io.File
-
-import org.apache.commons.io.FileUtils
+import org.apache.commons.io.FileUtils.deleteDirectory
 import org.apache.spark.sql.SparkSession
 import org.tmoerman.grnboost._
 import org.tmoerman.grnboost.cases.DataReader._
@@ -53,12 +51,12 @@ object MegacellInference {
 
     val outDir = s"$out/run_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets"
 
-    FileUtils.deleteDirectory(new File(outDir))
+    deleteDirectory(outDir)
 
     val spark =
       SparkSession
         .builder
-        .master("local[*]")
+        .master("local[*]") // TODO master input parameter?
         .appName(GRN_BOOST)
         .getOrCreate()
 

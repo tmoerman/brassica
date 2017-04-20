@@ -27,44 +27,6 @@ class MegacellPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers
       nrRounds = 25,
       boosterParams = boosterParams)
 
-  it should "run the embarrassingly parallel pipeline on top 10k" in {
-    val TFs = readTFs(mouseTFs).toSet
-
-    // TODO slice the input Dataset
-
-//    val result =
-//      MegacellPipeline
-//        .apply(
-//          spark,
-//          hdf5 = megacell,
-//          parquet = megacellColumnsParquet + "_10k",
-//          candidateRegulators = TFs,
-//          targets = Set("Gad1"),
-//          params = params)
-//
-//    println(params)
-//
-//    result.show()
-  }
-
-  it should "run the emembarrassingly parallel pipeline on top 1.3m" in {
-    val TFs = readTFs(mouseTFs).toSet
-
-//    val result =
-//      MegacellPipeline
-//        .apply(
-//          spark,
-//          hdf5 = megacell,
-//          parquet = megacellColumnsParquet + "_full",
-//          candidateRegulators = TFs,
-//          targets = Set("Gad1"),
-//          params = params)
-//
-//    println(params)
-//
-//    result.show()
-  }
-
   it should "compare embarassingly parallel pipeline" in {
     val cellTop = Some(10000)
 

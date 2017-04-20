@@ -1,12 +1,9 @@
 package org.tmoerman.grnboost.cases.macosko
 
-import java.io.File
-
-import org.apache.commons.io.FileUtils
+import org.apache.commons.io.FileUtils.deleteDirectory
 import org.apache.spark.sql.SparkSession
-import org.tmoerman.grnboost.cases.DataReader
-import org.tmoerman.grnboost.cases.DataReader.readTFs
-import org.tmoerman.grnboost.{GRN_BOOST, GRNBoost, XGB_THREADS, XGBoostRegressionParams, randomSubset}
+import org.tmoerman.grnboost._
+import org.tmoerman.grnboost.cases.DataReader._
 
 /**
   * @author Thomas Moerman
@@ -53,7 +50,7 @@ object MacoskoInference {
 
     val outDir = s"$out/run_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets"
 
-    FileUtils.deleteDirectory(new File(outDir))
+    deleteDirectory(outDir)
 
     val spark =
       SparkSession
@@ -62,7 +59,7 @@ object MacoskoInference {
         .appName(GRN_BOOST)
         .getOrCreate()
 
-    val ds = DataReader.readTxt(spark, in).cache
+    val ds  = readExpression(spark, in).cache
     val TFs = readTFs(mouseTFs).map(_.toUpperCase).toSet
 
     val totalCellCount = ds.head.values.size
