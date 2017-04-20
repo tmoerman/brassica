@@ -37,7 +37,7 @@ class ZeiselFilteredInferenceBenchmark extends FlatSpec with GRNBoostSuiteBase w
   "the (filtered, cfr. Sara) Zeisel emb.par pipeline from parquet" should "run" in {
     val TFs = readTFs(mouseTFs).toSet
 
-    val ds = readTxt(spark, zeiselFiltered)
+    val ds = readExpression(spark, zeiselFiltered)
 
     val genes = toGenes(spark, ds)
 
@@ -56,7 +56,7 @@ class ZeiselFilteredInferenceBenchmark extends FlatSpec with GRNBoostSuiteBase w
         deleteDirectory(new File(out))
 
         val (_, duration) = TimeUtils.profile {
-          val expressionByGene = readTxt(spark, zeiselFiltered)
+          val expressionByGene = readExpression(spark, zeiselFiltered)
 
           val result =
             GRNBoost

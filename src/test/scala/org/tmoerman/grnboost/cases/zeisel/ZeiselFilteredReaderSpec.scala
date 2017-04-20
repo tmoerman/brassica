@@ -14,7 +14,7 @@ class ZeiselFilteredReaderSpec extends FlatSpec with GRNBoostSuiteBase with Matc
   val zeiselFiltered = props("zeiselFiltered")
 
   "reading the filtered zeisel data" should "work" in {
-    val ds = readTxt(spark, zeiselFiltered)
+    val ds = readExpression(spark, zeiselFiltered)
 
     ds.head.gene shouldBe "Tspan12"
 
@@ -24,7 +24,7 @@ class ZeiselFilteredReaderSpec extends FlatSpec with GRNBoostSuiteBase with Matc
   }
 
   "reading the filtered zeisel list of genes" should "work" in {
-    val ds = readTxt(spark, zeiselFiltered)
+    val ds = readExpression(spark, zeiselFiltered)
 
     val top5 = toGenes(spark, ds).take(5)
 

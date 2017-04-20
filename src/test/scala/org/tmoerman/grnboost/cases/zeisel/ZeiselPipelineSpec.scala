@@ -70,7 +70,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
     val TFs = readTFs(mouseTFs).toSet
 
-    val expressionByGene = readTxt(spark, zeiselFiltered)
+    val expressionByGene = readExpression(spark, zeiselFiltered)
 
     val result =
       GRNBoost

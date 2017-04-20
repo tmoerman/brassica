@@ -15,17 +15,43 @@ import scala.io.Source
 object DataReader {
 
   /**
-    * @param spark The SparkSession instance.
-    * @param path The file path.
-    * @return Returns a Dataset of ExpressionByGene read from the specified path.
+    * @param spark
+    * @param path
+    * @param delimiter
+    * @return
     */
-  def readTxt(spark: SparkSession, path: Path, delimiter: String = "\t"): Dataset[ExpressionByGene] = {
+  def readRegulation(spark: SparkSession,
+                     path: Path,
+                     delimiter: String = "\t"): Dataset[Regulation] = {
     import spark.implicits._
 
     spark
       .sparkContext
       .textFile(path)
-      .drop(1)
+      .map(_.split(delimiter).map(_.trim))
+      .map{
+        case Array(regulator, target, value) => Regulation(regulator, target, value.toFloat)
+        case _ => ???
+      }
+      .toDS
+  }
+
+  /**
+    * @param spark The SparkSession instance.
+    * @param path The file path.
+    * @param header Indicates whether the file has a header.
+    * @return Returns a Dataset of ExpressionByGene read from the specified path.
+    */
+  def readExpression(spark: SparkSession,
+                     path: Path,
+                     header: Boolean = true,
+                     delimiter: String = "\t"): Dataset[ExpressionByGene] = {
+    import spark.implicits._
+
+    spark
+      .sparkContext
+      .textFile(path)
+      .drop(if (header) 1 else 0)
       .map(_.split(delimiter).map(_.trim).toList)
       .map{
         case gene :: values =>

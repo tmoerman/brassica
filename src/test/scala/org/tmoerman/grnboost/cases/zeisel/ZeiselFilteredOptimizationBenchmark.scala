@@ -28,7 +28,7 @@ class ZeiselFilteredOptimizationBenchmark extends FlatSpec with GRNBoostSuiteBas
       onlyBestTrial = false)
 
   "Zeisel filtered optimization" should "run" in {
-    val expressionsByGene = readTxt(spark, zeiselFiltered)
+    val expressionsByGene = readExpression(spark, zeiselFiltered)
 
     val TFs = readTFs(mouseTFs).toSet
 

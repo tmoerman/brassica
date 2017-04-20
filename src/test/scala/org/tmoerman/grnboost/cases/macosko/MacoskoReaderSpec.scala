@@ -16,14 +16,14 @@ class MacoskoReaderSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   val macoskoFull    = props("macoskoFull")
 
   "reading the sampled Macosko expression set" should "work" in {
-    val ds = DataReader.readTxt(spark, macoskoSampled)
+    val ds = DataReader.readExpression(spark, macoskoSampled)
 
     // ds.first.values.size shouldBe ???
     ds.count shouldBe MACOSKO_NR_GENES
   }
 
   "reading the full Macosko expression set" should "work" in {
-    val ds = DataReader.readTxt(spark, macoskoFull)
+    val ds = DataReader.readExpression(spark, macoskoFull)
 
     // ds.count shouldBe MACOSKO_NR_GENES
   }

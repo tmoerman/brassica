@@ -11,8 +11,6 @@ import org.tmoerman.grnboost._
   */
 object ZeiselReader {
 
-  // TODO remove all the obsolete crap
-
   /**
     * Type representing a Line of the Zeisel mRNA expression file.
     * The raw file has row ~ features, and cols ~ values per cell
