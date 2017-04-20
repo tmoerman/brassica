@@ -91,7 +91,7 @@ package object grnboost {
     * @param values The sparse expression vector.
     */
   case class ExpressionByGene(gene: Gene, values: MLVector) { // TODO rename values -> "expression"
-    def response: Array[Expression] = values.toArray.map(_.toFloat) // TODO test case
+    def response: Array[Expression] = values.toArray.map(_.toFloat)
   }
 
   /**
@@ -170,7 +170,7 @@ package object grnboost {
         .toDS
 
     /**
-      * Repartition to 1 and save to a single file.
+      * Repartition to 1 and save to a single text file.
       */
     def saveTxt(path: String, delimiter: String = "\t"): Unit =
       ds
@@ -259,7 +259,7 @@ package object grnboost {
     */
   def random(seed: Long = DEFAULT_SEED): Random = {
     val rng = new Random(seed)
-    rng.nextLong // get rid of first, low entropy}
+    rng.nextLong // get rid of first, low entropy
     rng
   }
 

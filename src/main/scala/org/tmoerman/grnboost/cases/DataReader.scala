@@ -22,32 +22,26 @@ object DataReader {
   def readTxt(spark: SparkSession, path: Path, delimiter: String = "\t"): Dataset[ExpressionByGene] = {
     import spark.implicits._
 
-    val lines =
-      spark
-        .sparkContext
-        .textFile(path)
-        .drop(1)
-        .map(_.split(delimiter).map(_.trim).toList)
+    spark
+      .sparkContext
+      .textFile(path)
+      .drop(1)
+      .map(_.split(delimiter).map(_.trim).toList)
+      .map{
+        case gene :: values =>
 
-    val expressionByGene =
-      lines
-        .map{
-          case gene :: values =>
+          val length = values.length
+          val tuples =
+            values
+              .zipWithIndex
+              .filterNot(_._1 == "0")
+              .map{ case (e, i) => (i, e.toDouble) }
 
-            val length = values.length
-            val tuples =
-              values
-                .zipWithIndex
-                .filterNot(_._1 == "0")
-                .map{ case (e, i) => (i, e.toDouble) }
+          ExpressionByGene(gene, Vectors.sparse(length, tuples))
 
-            ExpressionByGene(gene, Vectors.sparse(length, tuples))
-
-          case _ => ???
-        }
-        .toDS
-
-    expressionByGene
+        case _ => ???
+      }
+      .toDS
   }
 
   /**
@@ -58,7 +52,12 @@ object DataReader {
   def toGenes(spark: SparkSession, ds: Dataset[ExpressionByGene]): List[Gene] = {
     import spark.implicits._
 
-    ds.select($"gene").rdd.map(_.getString(0)).collect.toList
+    ds
+      .select($"gene")
+      .rdd
+      .map(_.getString(0))
+      .collect
+      .toList
   }
 
   /**
