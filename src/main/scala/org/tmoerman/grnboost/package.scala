@@ -140,8 +140,8 @@ package object grnboost {
     import ds.sparkSession.implicits._
 
     /**
-      * @return Returns a Dataset where the Regulation have been normalized by dividing the importance scores by the sum
-      *         of importance scores per target.
+      * @return Returns a Dataset where the Regulation have been normalized by dividing the importance scores
+      *         by the sum of importance scores per target.
       */
     def normalize: Dataset[Regulation] = {
       val aggImportanceByTarget =
@@ -213,9 +213,9 @@ package object grnboost {
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS)
 
   /**
-    * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the specified
-    * delta, over a window of boosting rounds of specified size. The boosting round halfway of the window is returned as
-    * final result.
+    * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the
+    * specified delta, over a window of boosting rounds of specified size. The boosting round halfway of the window
+    * is returned as final result.
     *
     * @param size The size of the window.
     * @param lossDelta The loss delta over the window.
@@ -265,17 +265,17 @@ package object grnboost {
 
   /**
     * @param keep The amount to keep from the range.
-    * @param range The range to choose from.
+    * @param range The cell index range to choose from.
     * @param seed A random seed.
     * @return Returns the random subset.
     */
   def randomSubset(keep: Count, range: Range, seed: Long = DEFAULT_SEED): Seq[CellIndex] = {
-    // TODO default to all if condition violated
-    assert(keep <= range.size, s"keep ($keep) should be smaller than or equal to range size (${range.size})")
+    val cellIndices: Seq[CellIndex] = range
 
-    val all: Seq[CellIndex] = range
-
-    random(seed).shuffle(all).take(keep).sorted
+    if (keep < range.size)
+      random(seed).shuffle(cellIndices).take(keep).sorted
+    else
+      random(seed).shuffle(cellIndices).sorted
   }
 
 }
