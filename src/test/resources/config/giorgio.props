@@ -12,6 +12,16 @@ zeiselFiltered =             /Users/tmo/Work/ghb2016/data/zeisel/expression_sara
 zeiselFilteredOptimization = /Users/tmo/Work/ghb2016/data/zeisel/filtered/optimization
 zeiselParquet = src/test/resources/parquet/zeisel
 
+# macosko
+macoskoFull           = /Users/tmo/Work/ghb2016/data/macosko/in/allEsetMR.tsv
+macoskoSampled        = /Users/tmo/Work/ghb2016/data/macosko/in/sampledEsetMR.tsv
+
+macoskoParquetFull    = /Users/tmo/Work/ghb2016/data/macosko/parquet/full/
+macoskoParquetSampled = /Users/tmo/Work/ghb2016/data/macosko/parquet/sampled/
+
+macoskoOutFull        = /Users/tmo/Work/ghb2016/data/macosko/out/full/
+macoskoOutSampled     = /Users/tmo/Work/ghb2016/data/macosko/out/sampled/
+
 # source: TODO
 megacell = /Users/tmo/work/ghb2016/data/bigsc/1M_neurons_filtered_gene_bc_matrices_h5.h5
 megacellRowsParquet = src/test/resources/parquet/megacell_rows

@@ -2,7 +2,7 @@ package ml.dmlc.xgboost4j.java
 
 import ml.dmlc.xgboost4j.scala.XGBoostAccess.inner
 import ml.dmlc.xgboost4j.scala.{DMatrix => ScalaDMatrix}
-import org.tmoerman.brassica.BoosterParams
+import org.tmoerman.grnboost.BoosterParams
 
 import scala.collection.JavaConverters._
 
