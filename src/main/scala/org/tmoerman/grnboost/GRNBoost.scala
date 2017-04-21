@@ -110,15 +110,16 @@ object GRNBoost {
           val regulatorCSC  = regulatorCSCBroadcast.value
           val partitionTask = partitionTaskFactory.apply(regulators, regulatorCSC, partitionIndex)
 
-          partitionIterator.flatMap(expressionByGene => {
-            val results = partitionTask(expressionByGene)
+          partitionIterator
+            .flatMap{ expressionByGene => {
+              val results = partitionTask(expressionByGene)
 
-            if (partitionIterator.isEmpty) {
-              partitionTask.dispose()
-            }
+              if (partitionIterator.isEmpty) {
+                partitionTask.dispose()
+              }
 
-            results
-          })
+              results
+            }}
         } else {
           Nil.iterator.asInstanceOf[Iterator[T]]
         }
