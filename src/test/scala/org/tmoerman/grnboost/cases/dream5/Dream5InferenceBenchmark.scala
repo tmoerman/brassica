@@ -68,7 +68,7 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
     import org.apache.spark.sql.functions._
 
     regulations
-      //.normalizeBy(avg)
+      .normalizeBy(avg)
       .truncate()
       .saveTxt(path)
   }
