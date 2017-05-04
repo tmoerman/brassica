@@ -139,7 +139,7 @@ package object grnboost {
     */
   implicit class RegulationDatasetFunctions(val ds: Dataset[Regulation]) {
     import ds.sparkSession.implicits._
-    
+
     /**
       * @return Returns a Dataset where the Regulation have been normalized by dividing the importance scores
       *         by the sum of importance scores per target.
@@ -229,7 +229,7 @@ package object grnboost {
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
                                      metric: FeatureImportanceMetric = GAIN,
-                                     normalizeBy: NormalizationAggregateFunction = AVG)
+                                     normalizeBy: NormalizationAggregateFunction = SUM)
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the
