@@ -65,8 +65,10 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
           nrPartitions = Some(spark.sparkContext.defaultParallelism))
         .cache()
 
+    import org.apache.spark.sql.functions._
+
     regulations
-      .normalize
+      //.normalizeBy(avg)
       .truncate()
       .saveTxt(path)
   }
