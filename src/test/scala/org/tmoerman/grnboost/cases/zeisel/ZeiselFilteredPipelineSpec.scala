@@ -5,6 +5,7 @@ import org.tmoerman.grnboost.util.PropsReader.props
 import org.tmoerman.grnboost.{XGBoostRegressionParams, GRNBoost, GRNBoostSuiteBase}
 
 import org.tmoerman.grnboost.cases.DataReader._
+import org.tmoerman.grnboost._
 
 /**
   * @author Thomas Moerman
@@ -28,8 +29,11 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Ma
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 50,
-      boosterParams = boosterParams)
+      nrRounds = 75,
+      boosterParams = boosterParams,
+      //metric = FREQ
+      metric = GAIN
+    )
 
   it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
     val TFs = readTFs(mouseTFs).toSet
@@ -41,12 +45,12 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Ma
         .inferRegulations(
           expressionByGene,
           candidateRegulators = TFs,
-          targets = Set("Gad1"),
+          targets = Set("Sox10"),
           params = params)
 
     println(params)
 
-    result.show
+    result.show(100)
   }
 
 }

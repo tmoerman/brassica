@@ -3,8 +3,8 @@ package org.tmoerman
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
-import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.functions.sum
+import org.apache.spark.sql.{Column, DataFrame, Dataset}
+import org.apache.spark.sql.functions.{count, _}
 import org.apache.spark.sql.types.DataTypes.FloatType
 
 import scala.util.Random
@@ -157,6 +157,23 @@ package object grnboost {
     }
 
     /**
+      * @param agg Spark SQL aggregation function
+      * @return
+      */
+    def normalizeBy(agg: Column => Column = avg): Dataset[Regulation] = {
+      val aggImportanceByTarget =
+        ds
+          .groupBy($"target")
+          .agg(agg($"importance").as("agg_importance"))
+
+      ds
+        .join(aggImportanceByTarget, ds("target") === aggImportanceByTarget("target"), "inner")
+        .withColumn("normalized_importance", $"importance" / $"agg_importance")
+        .select(ds("regulator"), ds("target"), $"normalized_importance".as("importance").cast(FloatType))
+        .as[Regulation]
+    }
+
+    /**
       * @param top The maximum amount of regulations to keep.
       * @return Returns the truncated Dataset.
       */
@@ -203,14 +220,21 @@ package object grnboost {
 
   }
 
+  sealed trait FeatureImportanceMetric
+  case object GAIN  extends FeatureImportanceMetric
+  case object COVER extends FeatureImportanceMetric
+  case object FREQ  extends FeatureImportanceMetric
+
   /**
     * Data structure holding parameters for XGBoost regression.
     *
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
+    * @param metric The feature importance metric, default = GAIN.
     */
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
-                                     nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS)
+                                     nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
+                                     metric: FeatureImportanceMetric = GAIN)
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the
