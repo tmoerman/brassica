@@ -3,9 +3,10 @@ package org.tmoerman
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
-import org.apache.spark.sql.{Column, DataFrame, Dataset}
-import org.apache.spark.sql.functions.{count, _}
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.DataTypes.FloatType
+import org.apache.spark.sql.{Column, Dataset}
+import org.apache.spark.sql.functions._
 
 import scala.util.Random
 
@@ -138,23 +139,12 @@ package object grnboost {
     */
   implicit class RegulationDatasetFunctions(val ds: Dataset[Regulation]) {
     import ds.sparkSession.implicits._
-
+    
     /**
       * @return Returns a Dataset where the Regulation have been normalized by dividing the importance scores
       *         by the sum of importance scores per target.
       */
-    def normalize: Dataset[Regulation] = {
-      val aggImportanceByTarget =
-        ds
-          .groupBy($"target")
-          .agg(sum($"importance").as("agg_importance"))
-
-      ds
-        .join(aggImportanceByTarget, ds("target") === aggImportanceByTarget("target"), "inner")
-        .withColumn("normalized_importance", $"importance" / $"agg_importance")
-        .select(ds("regulator"), ds("target"), $"normalized_importance".as("importance").cast(FloatType))
-        .as[Regulation]
-    }
+    def normalize(params: XGBoostRegressionParams) = normalizeBy(params.normalizeBy.fn)
 
     /**
       * @param agg Spark SQL aggregation function
@@ -225,6 +215,10 @@ package object grnboost {
   case object COVER extends FeatureImportanceMetric
   case object FREQ  extends FeatureImportanceMetric
 
+  sealed trait NormalizationAggregateFunction { def fn: Column => Column }
+  case object SUM extends NormalizationAggregateFunction { override def fn = sum }
+  case object AVG extends NormalizationAggregateFunction { override def fn = avg }
+
   /**
     * Data structure holding parameters for XGBoost regression.
     *
@@ -234,7 +228,8 @@ package object grnboost {
     */
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
-                                     metric: FeatureImportanceMetric = GAIN)
+                                     metric: FeatureImportanceMetric = GAIN,
+                                     normalizeBy: NormalizationAggregateFunction = AVG)
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the
