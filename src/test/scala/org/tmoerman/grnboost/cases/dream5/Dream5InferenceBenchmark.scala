@@ -66,7 +66,7 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
         .cache()
 
     regulations
-      .normalize
+      //.normalize
       .truncate()
       .saveTxt(path)
   }
