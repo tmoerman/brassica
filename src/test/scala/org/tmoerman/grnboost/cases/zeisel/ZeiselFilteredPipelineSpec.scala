@@ -47,10 +47,15 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Ma
           candidateRegulators = TFs,
           targets = Set("Sox10"),
           params = params)
+        .cache
 
     println(params)
 
-    result.show(100)
+    import org.apache.spark.sql.functions._
+
+    result
+      .normalizeBy(avg)
+      .show(100)
   }
 
 }
