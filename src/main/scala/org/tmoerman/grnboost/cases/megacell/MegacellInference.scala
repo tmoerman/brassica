@@ -94,7 +94,7 @@ object MegacellInference {
         .cache
 
     regulations
-      .normalize
+      .normalize(params)
       .saveTxt(outDir)
   }
 

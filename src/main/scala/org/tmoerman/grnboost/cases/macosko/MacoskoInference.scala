@@ -69,7 +69,7 @@ object MacoskoInference {
         .cache
 
     regulations
-      .normalize
+      .normalize(params)
       .saveTxt(out)
   }
 

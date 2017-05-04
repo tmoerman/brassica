@@ -18,9 +18,11 @@ object NormalizeRegulations {
         .builder
         .appName(s"$GRN_BOOST - normalize regulations")
         .getOrCreate
+    
+    import org.apache.spark.sql.functions._
 
     readRegulation(spark, in)
-      .normalize
+      .normalizeBy(avg)
       .saveTxt(out)
   }
 
