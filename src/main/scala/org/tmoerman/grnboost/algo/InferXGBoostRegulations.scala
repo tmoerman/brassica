@@ -93,8 +93,8 @@ object InferXGBoostRegulations {
 
         val importance = metric match {
           case FREQ  => freq.toFloat
-          case GAIN  => gain / freq
-          case COVER => cover / freq
+          case GAIN  => gain
+          case COVER => cover
         }
 
         Regulation(regulatorGene, targetGene, importance)
