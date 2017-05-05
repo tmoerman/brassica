@@ -12,6 +12,7 @@ $SPARK_HOME/bin/spark-submit \
   --conf spark.executor.memory=96g \
   --conf spark.driver.maxResultSize=20gb \
   --conf spark.network.timeout=10000000 \
+  --conf spark.eventLog.enabled=true \
   ./target/scala-2.11/GRNBoost.jar \
   /media/tmo/data/work/datasets/megacell/out/part-00000 \
   /media/tmo/data/work/datasets/megacell/norm
