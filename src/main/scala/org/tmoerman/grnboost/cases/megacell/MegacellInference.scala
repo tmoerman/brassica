@@ -4,6 +4,8 @@ import org.apache.commons.io.FileUtils.deleteDirectory
 import org.apache.spark.sql.SparkSession
 import org.tmoerman.grnboost._
 import org.tmoerman.grnboost.cases.DataReader._
+import org.tmoerman.grnboost.util.IOUtils
+import org.tmoerman.grnboost.util.IOUtils.writeToFile
 
 /**
   * @author Thomas Moerman
@@ -36,7 +38,7 @@ object MegacellInference {
     val nrThreads    = args(6).toInt
     val nrRounds     = args(7).toInt
 
-    val parsed =
+    val parsedArgs =
       s"""
         |Args:
         |* parquet         = $parquet
@@ -49,12 +51,15 @@ object MegacellInference {
         |* nr xgb rounds   = $nrRounds
       """.stripMargin
 
-    println(parsed)
+    val outDir     = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets"
+    val sampleFile = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.cell-ids.txt"
+    val infoFile   = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.info.txt"
 
-    val outDir = s"$out/run_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets"
+    println(parsedArgs)
+    writeToFile(infoFile, parsedArgs)
 
     deleteDirectory(outDir)
-
+    
     val spark =
       SparkSession
         .builder
@@ -68,12 +73,13 @@ object MegacellInference {
 
     val totalCellCount = ds.head.values.size
 
+    val cellIndicesSubset = nrCells.map(nr => randomSubset(nr, 0 until totalCellCount))
+
+    cellIndicesSubset.foreach(subset => writeToFile(sampleFile, subset.sorted.mkString("\n")))
+
     val slicedByCells =
-      nrCells
-        .map(nr => {
-          val subset = randomSubset(nr, 0 until totalCellCount)
-          ds.slice(subset).cache
-        })
+      cellIndicesSubset
+        .map(subset => ds.slice(subset).cache)
         .getOrElse(ds)
 
     val targetSet =

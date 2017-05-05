@@ -6,7 +6,6 @@ import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.DataTypes.FloatType
 import org.apache.spark.sql.{Column, Dataset}
-import org.apache.spark.sql.functions._
 
 import scala.util.Random
 
@@ -37,6 +36,10 @@ package object grnboost {
   type Expression = Float
   type Importance = Float
   type Loss       = Float
+
+  type Frequency = Int
+  type Gain      = Float
+  type Cover     = Float
 
   val VALUES      = "values"
   val GENE        = "gene"
@@ -134,6 +137,21 @@ package object grnboost {
                         importance: Importance)
 
   /**
+    * Raw XGBoost regression output data structure.
+    *
+    * @param regulator
+    * @param target
+    * @param frequency
+    * @param gain
+    * @param cover
+    */
+  case class RawRegulation(regulator: Gene,
+                           target: Gene,
+                           frequency: Frequency,
+                           gain: Gain,
+                           cover: Cover)
+
+  /**
     * Implicit pimp class for adding functions to Dataset[Regulation].
     * @param ds The Dataset of Regulation instances to pimp.
     */
@@ -144,13 +162,13 @@ package object grnboost {
       * @return Returns a Dataset where the Regulation have been normalized by dividing the importance scores
       *         by the sum of importance scores per target.
       */
-    def normalize(params: XGBoostRegressionParams) = normalizeBy(params.normalizeBy.fn)
+    @deprecated def normalize(params: XGBoostRegressionParams) = normalizeBy(params.normalizeBy.fn)
 
     /**
       * @param agg Spark SQL aggregation function
       * @return
       */
-    def normalizeBy(agg: Column => Column = avg): Dataset[Regulation] = {
+    @deprecated def normalizeBy(agg: Column => Column = avg): Dataset[Regulation] = {
       val aggImportanceByTarget =
         ds
           .groupBy($"target")
@@ -188,14 +206,6 @@ package object grnboost {
 
   }
 
-  /**
-    * @param target The target gene name.
-    * @param metric The evaluation metric, e.g. RMSE.
-    * @param rounds A putative sufficient nr of boosting rounds ~ to be computed with early stopping.
-    * @param loss The loss function value.
-    *
-    *
-    */
   case class HyperParamsLoss(target: Gene,
                              metric: String,
                              rounds: Round,
@@ -229,7 +239,7 @@ package object grnboost {
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
                                      metric: FeatureImportanceMetric = GAIN,
-                                     normalizeBy: NormalizationAggregateFunction = SUM)
+                                     normalizeBy: NormalizationAggregateFunction = AVG)
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the

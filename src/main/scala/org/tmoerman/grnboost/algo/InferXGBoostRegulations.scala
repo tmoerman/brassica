@@ -64,14 +64,36 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
 
 }
 
+
+//case class InferXGBoostRawRegulations(params: XGBoostRegressionParams)
+//                                     (regulators: List[Gene],
+//                                      regulatorCSC: CSCMatrix[Expression],
+//                                      pa )
+
+
 object InferXGBoostRegulations {
 
-  type Freq  = Int
-  type Gain  = Float
-  type Cover = Float
+  type Metrics = (Frequency, Gain, Cover)
 
-  type Metrics = (Freq, Gain, Cover)
   val ZERO = Map[GeneIndex, Metrics]() withDefaultValue (0, 0f, 0f)
+
+  /**
+    * @param targetGene
+    * @param regulators
+    * @param booster
+    * @return
+    */
+  def toRawRegulations(targetGene: Gene,
+                       regulators: List[Gene],
+                       booster: Booster): Seq[RawRegulation] = {
+    val boosterModelDump = booster.getModelDump(withStats = true)
+
+    parseBoosterMetrics(boosterModelDump)
+      .map{ case (featureIndex, (freq, gain, cover)) =>
+        RawRegulation(regulators(featureIndex), targetGene, freq, gain, cover)
+      }
+      .toSeq
+  }
 
   /**
     * @param targetGene The target gene.
@@ -80,10 +102,10 @@ object InferXGBoostRegulations {
     * @param metric The feature importance metric.
     * @return Returns the Regulations in function of specified metric, extracted from the specified trained booster model.
     */
-  def toRegulations(targetGene: Gene,
-                    regulators: List[Gene],
-                    booster: Booster,
-                    metric: FeatureImportanceMetric): Seq[Regulation] = {
+  @deprecated def toRegulations(targetGene: Gene,
+                                regulators: List[Gene],
+                                booster: Booster,
+                                metric: FeatureImportanceMetric): Seq[Regulation] = {
 
     val boosterModelDump = booster.getModelDump(withStats = true)
 
