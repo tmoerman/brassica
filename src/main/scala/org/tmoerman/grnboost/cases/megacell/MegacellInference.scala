@@ -4,7 +4,6 @@ import org.apache.commons.io.FileUtils.deleteDirectory
 import org.apache.spark.sql.SparkSession
 import org.tmoerman.grnboost._
 import org.tmoerman.grnboost.cases.DataReader._
-import org.tmoerman.grnboost.util.IOUtils
 import org.tmoerman.grnboost.util.IOUtils.writeToFile
 
 /**

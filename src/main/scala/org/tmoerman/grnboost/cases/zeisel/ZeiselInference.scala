@@ -23,7 +23,8 @@ object ZeiselInference {
   val params =
     XGBoostRegressionParams(
       nrRounds = 50,
-      boosterParams = boosterParams)
+      boosterParams = boosterParams,
+      normalizeBy = None)
 
   def main(args: Array[String]): Unit = {
     val in           = args(0)

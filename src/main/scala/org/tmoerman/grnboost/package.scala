@@ -162,7 +162,10 @@ package object grnboost {
       * @return Returns a Dataset where the Regulation have been normalized by dividing the importance scores
       *         by the sum of importance scores per target.
       */
-    @deprecated def normalize(params: XGBoostRegressionParams) = normalizeBy(params.normalizeBy.fn)
+    @deprecated def normalize(params: XGBoostRegressionParams) =
+      params.normalizeBy.map(n => normalizeBy(n.fn)).getOrElse(ds)
+
+    //normalizeBy(params.normalizeBy.fn)
 
     /**
       * @param agg Spark SQL aggregation function
@@ -239,7 +242,7 @@ package object grnboost {
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
                                      metric: FeatureImportanceMetric = GAIN,
-                                     normalizeBy: NormalizationAggregateFunction = AVG)
+                                     normalizeBy: Option[NormalizationAggregateFunction] = Some(SUM))
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the
