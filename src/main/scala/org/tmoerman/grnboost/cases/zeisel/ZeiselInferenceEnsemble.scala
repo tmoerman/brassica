@@ -8,7 +8,7 @@ import org.tmoerman.grnboost.cases.DataReader._
 /**
   * @author Thomas Moerman
   */
-class ZeiselInferenceEnsemble {
+object ZeiselInferenceEnsemble {
 
   val boosterParams = Map(
     "seed" -> 777,
