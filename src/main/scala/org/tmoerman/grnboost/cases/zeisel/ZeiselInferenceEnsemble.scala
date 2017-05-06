@@ -8,7 +8,7 @@ import org.tmoerman.grnboost.cases.DataReader._
 /**
   * @author Thomas Moerman
   */
-object ZeiselInference {
+class ZeiselInferenceEnsemble {
 
   val boosterParams = Map(
     "seed" -> 777,
@@ -16,7 +16,7 @@ object ZeiselInference {
     "subsample" -> 0.8,
     "colsample_bytree" -> 0.8,
     "min_child_weight" -> 6,
-    "max_depth" -> 6,
+    "max_depth" -> 4,
     "silent" -> 1
   )
 
@@ -32,6 +32,7 @@ object ZeiselInference {
     val nrPartitions = args(3).toInt
     val nrThreads    = args(4).toInt
     val nrRounds     = args(5).toInt
+    val ensembleSize  = args(6).toInt
 
     val parsed =
       s"""
@@ -42,6 +43,7 @@ object ZeiselInference {
          |* nr partitions   = $nrPartitions
          |* nr xgb threads  = $nrThreads
          |* nr xgb rounds   = $nrRounds
+         |* ensemble size   = $ensembleSize
       """.stripMargin
 
     println(parsed)
@@ -64,7 +66,8 @@ object ZeiselInference {
           candidateRegulators = TFs,
           params = params.copy(
             nrRounds = nrRounds,
-            boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads)),
+            boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads),
+            ensembleSize = ensembleSize),
           nrPartitions = Some(nrPartitions))
         .cache
 

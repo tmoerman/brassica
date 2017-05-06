@@ -1,7 +1,7 @@
 package org.tmoerman.grnboost.algo
 
 import breeze.linalg.CSCMatrix
-import ml.dmlc.xgboost4j.scala.{Booster, XGBoost}
+import ml.dmlc.xgboost4j.scala.{Booster, DMatrix, XGBoost}
 import org.tmoerman.grnboost._
 import org.tmoerman.grnboost.util.BreezeUtils._
 import InferXGBoostRegulations._
@@ -31,28 +31,41 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
       // drop the target gene column from the regulator CSC matrix and create a new DMatrix
       val targetColumnIndex = regulators.zipWithIndex.find(_._1 == targetGene).get._2
       val cleanRegulatorDMatrix = toDMatrix(regulatorCSC dropColumn targetColumnIndex)
+      val cleanRegulators = regulators.filterNot(_ == targetGene)
 
       // set the response labels and train the model
       cleanRegulatorDMatrix.setLabel(expressionByGene.response)
-      val booster = XGBoost.train(cleanRegulatorDMatrix, boosterParams.withDefaults, nrRounds)
-      val result  = toRegulations(targetGene, regulators.filterNot(_ == targetGene), booster, metric)
 
-      // clean up resources
-      booster.dispose
+      val result = inferRegulations(targetGene, cleanRegulators, cleanRegulatorDMatrix)
+
       cleanRegulatorDMatrix.delete()
 
       result
     } else {
       // set the response labels and train the model
       cachedRegulatorDMatrix.setLabel(expressionByGene.response)
-      val booster = XGBoost.train(cachedRegulatorDMatrix, boosterParams.withDefaults, nrRounds)
-      val result  = toRegulations(targetGene, regulators, booster, metric)
 
-      // clean up resources
-      booster.dispose
+      val result = inferRegulations(targetGene, regulators, cachedRegulatorDMatrix)
 
       result
     }
+  }
+
+  private def inferRegulations(targetGene: Gene,
+                               regulators: List[Gene],
+                               regulatorDMatrix: DMatrix): Seq[Regulation] = {
+
+    val seed = boosterParams.get("seed").map(_.toString.toLong).getOrElse(DEFAULT_SEED)
+    val rng = random(seed)
+
+    (1 to ensembleSize).flatMap(_ => {
+      val booster = XGBoost.train(regulatorDMatrix, boosterParams.withDefaults.withSeed(rng.nextLong), nrRounds)
+      val regulations = toRegulations(targetGene, regulators, booster, metric)
+
+      booster.dispose
+
+      regulations
+    })
   }
 
   /**

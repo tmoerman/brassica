@@ -75,6 +75,9 @@ package object grnboost {
         .map(p => if (p contains XGB_SILENT)  p else p + (XGB_SILENT -> 1))
         .get
 
+    def withSeed(seed: Long): BoosterParams =
+      boosterParams.updated("seed", seed)
+
   }
 
   val DEFAULT_BOOSTER_PARAM_SPACE: BoosterParamSpace = Map(
@@ -238,11 +241,13 @@ package object grnboost {
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
     * @param metric The feature importance metric, default = GAIN.
+    * @param ensembleSize The number of independent gradient boosted trees to grow.
     */
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
                                      metric: FeatureImportanceMetric = GAIN,
-                                     normalizeBy: Option[NormalizationAggregateFunction] = Some(SUM))
+                                     @deprecated("normalization for GAIN is not useful") normalizeBy: Option[NormalizationAggregateFunction] = None,
+                                     ensembleSize: Int = 1)
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the
