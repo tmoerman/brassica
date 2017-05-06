@@ -50,23 +50,31 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
       result
     }
   }
-
+  
   private def inferRegulations(targetGene: Gene,
                                regulators: List[Gene],
                                regulatorDMatrix: DMatrix): Seq[Regulation] = {
 
-    val seed = boosterParams.get("seed").map(_.toString.toInt).getOrElse(DEFAULT_SEED)
-    val rng = random(seed)
+    val boosters = trainBoosters(regulatorDMatrix)
 
-    (1 to ensembleSize).flatMap(_ => {
-      val booster = XGBoost.train(regulatorDMatrix, boosterParams.withDefaults.withSeed(rng.nextInt), nrRounds)
-      val regulations = toRegulations(targetGene, regulators, booster, metric)
+    val regulations = toRegulations(targetGene, regulators, boosters, metric)
 
-      booster.dispose
+    boosters.foreach(_.dispose)
 
-      regulations
-    })
+    regulations
   }
+
+  private def trainBoosters(regulatorDMatrix: DMatrix) =
+    if (ensembleSize > 1) {
+      val seed = boosterParams.get("seed").map(_.toString.toInt).getOrElse(DEFAULT_SEED)
+      val rng = random(seed)
+
+      Seq.tabulate(ensembleSize)(_ =>
+        XGBoost.train(regulatorDMatrix, boosterParams.withDefaults.withSeed(rng.nextInt), nrRounds))
+    } else {
+      Seq(
+        XGBoost.train(regulatorDMatrix, boosterParams.withDefaults, nrRounds))
+    }
 
   /**
     * Dispose the cached DMatrix.
@@ -76,13 +84,6 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
   }
 
 }
-
-
-//case class InferXGBoostRawRegulations(params: XGBoostRegressionParams)
-//                                     (regulators: List[Gene],
-//                                      regulatorCSC: CSCMatrix[Expression],
-//                                      pa )
-
 
 object InferXGBoostRegulations {
 
@@ -111,16 +112,16 @@ object InferXGBoostRegulations {
   /**
     * @param targetGene The target gene.
     * @param regulators The regulator gene names.
-    * @param booster The booster instance.
+    * @param boosters The booster instances.
     * @param metric The feature importance metric.
     * @return Returns the Regulations in function of specified metric, extracted from the specified trained booster model.
     */
   @deprecated def toRegulations(targetGene: Gene,
                                 regulators: List[Gene],
-                                booster: Booster,
+                                boosters: Seq[Booster],
                                 metric: FeatureImportanceMetric): Seq[Regulation] = {
 
-    val boosterModelDump = booster.getModelDump(withStats = true)
+    val boosterModelDump = boosters.flatMap(_.getModelDump(withStats = true))
 
     parseBoosterMetrics(boosterModelDump)
       .map{ case (featureIndex, (freq, gain, cover)) => {
@@ -146,7 +147,7 @@ object InferXGBoostRegulations {
     * @return Returns the feature importance metrics parsed from all trees (amount == nr boosting rounds) in the
     *         specified trained booster model.
     */
-  def parseBoosterMetrics(boosterModelDump: Array[String]): Map[GeneIndex, Metrics] =
+  def parseBoosterMetrics(boosterModelDump: Seq[String]): Map[GeneIndex, Metrics] =
     boosterModelDump
       .flatMap(parseTreeMetrics)
       .foldLeft(ZERO){ case (acc, (featureIndex, (freq, gain, cover))) =>
