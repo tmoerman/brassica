@@ -32,6 +32,7 @@ package object grnboost {
   type GeneIndex = Int
   type GeneCount = Int
   type Round     = Int
+  type Seed      = Int
 
   type Expression = Float
   type Importance = Float
@@ -57,7 +58,7 @@ package object grnboost {
 
   val DEFAULT_NR_FOLDS           = 10
   val DEFAULT_NR_TRIALS          = 1000L
-  val DEFAULT_SEED               = 666L
+  val DEFAULT_SEED               = 666
   val DEFAULT_EVAL_METRIC        = "rmse"
 
   val XGB_THREADS = "nthread"
@@ -75,7 +76,7 @@ package object grnboost {
         .map(p => if (p contains XGB_SILENT)  p else p + (XGB_SILENT -> 1))
         .get
 
-    def withSeed(seed: Long): BoosterParams =
+    def withSeed(seed: Seed): BoosterParams =
       boosterParams.updated("seed", seed)
 
   }
@@ -283,7 +284,7 @@ package object grnboost {
                                        maxNrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
                                        earlyStopParams: Option[EarlyStopParams] = Some(EarlyStopParams()),
 
-                                       seed: Long = DEFAULT_SEED,
+                                       seed: Seed = DEFAULT_SEED,
                                        onlyBestTrial: Boolean = true) {
 
     assert(nrFolds > 0, s"nr folds must be greater than 0 (specified: $nrFolds) ")
@@ -294,9 +295,9 @@ package object grnboost {
     * @param seed The random seed.
     * @return Returns a new Random initialized with a seed.
     */
-  def random(seed: Long = DEFAULT_SEED): Random = {
+  def random(seed: Long): Random = {
     val rng = new Random(seed)
-    rng.nextLong // get rid of first, low entropy
+    rng.nextInt // get rid of first, low entropy
     rng
   }
 
@@ -306,7 +307,7 @@ package object grnboost {
     * @param seed A random seed.
     * @return Returns the random subset.
     */
-  def randomSubset(keep: Count, range: Range, seed: Long = DEFAULT_SEED): Seq[CellIndex] = {
+  def randomSubset(keep: Count, range: Range, seed: Seed = DEFAULT_SEED): Seq[CellIndex] = {
     val cellIndices: Seq[CellIndex] = range
 
     if (keep < range.size)

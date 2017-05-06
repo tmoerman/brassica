@@ -258,7 +258,7 @@ object OptimizeXGBoostHyperParams {
     */
   def makeCVSets(nrFolds: Count,
                  nrSamples: Count,
-                 seed: Long = DEFAULT_SEED): List[CVSet] = {
+                 seed: Seed = DEFAULT_SEED): List[CVSet] = {
 
     val foldSlices = makeFoldSlices(nrFolds, nrSamples, seed)
 
@@ -281,7 +281,7 @@ object OptimizeXGBoostHyperParams {
     */
   def makeFoldSlices(nrFolds: Count,
                      nrSamples: Count,
-                     seed: Long = DEFAULT_SEED): Map[FoldNr, List[CellIndex]] = {
+                     seed: Seed = DEFAULT_SEED): Map[FoldNr, List[CellIndex]] = {
 
     assert(nrFolds > 1, s"nr folds must be greater than 1 (specified: $nrFolds)")
 

@@ -55,11 +55,11 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
                                regulators: List[Gene],
                                regulatorDMatrix: DMatrix): Seq[Regulation] = {
 
-    val seed = boosterParams.get("seed").map(_.toString.toLong).getOrElse(DEFAULT_SEED)
+    val seed = boosterParams.get("seed").map(_.toString.toInt).getOrElse(DEFAULT_SEED)
     val rng = random(seed)
 
     (1 to ensembleSize).flatMap(_ => {
-      val booster = XGBoost.train(regulatorDMatrix, boosterParams.withDefaults.withSeed(rng.nextLong), nrRounds)
+      val booster = XGBoost.train(regulatorDMatrix, boosterParams.withDefaults.withSeed(rng.nextInt), nrRounds)
       val regulations = toRegulations(targetGene, regulators, booster, metric)
 
       booster.dispose
