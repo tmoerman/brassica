@@ -27,7 +27,7 @@ object GRNBoost {
                        candidateRegulators: Set[Gene],
                        targets: Set[Gene] = Set.empty,
                        params: XGBoostRegressionParams = XGBoostRegressionParams(),
-                       nrPartitions: Option[Int] = None): Dataset[Regulation] = {
+                       nrPartitions: Option[Int] = None): Dataset[RawRegulation] = {
 
     import expressionsByGene.sparkSession.implicits._
 

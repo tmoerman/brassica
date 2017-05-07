@@ -204,7 +204,21 @@ package object grnboost {
     /**
       * Repartition to 1 and save to a single text file.
       */
-    def saveTxt(path: String, delimiter: String = "\t"): Unit =
+    def saveTxt(path: Path, delimiter: String = "\t"): Unit =
+      ds
+        .rdd
+        .map(_.productIterator.mkString(delimiter))
+        .repartition(1)
+        .saveAsTextFile(path)
+
+  }
+
+  implicit class RawRegulationDatasetFunctions(val ds: Dataset[RawRegulation]) {
+    import ds.sparkSession.implicits._
+
+    def normalize(params: XGBoostRegressionParams) = ds
+
+    def saveTxt(path: Path, delimiter: String = "\t"): Unit =
       ds
         .rdd
         .map(_.productIterator.mkString(delimiter))

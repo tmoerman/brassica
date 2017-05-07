@@ -32,7 +32,7 @@ class InferXGBoostRegulationsSpec extends FlatSpec with Matchers {
   }
 
   it should "parse booster metrics" in {
-    val metrics = parseBoosterMetrics(Array(treeDumpWithStats))
+    val metrics = aggregateBoosterMetrics(Array(treeDumpWithStats))
 
     val (f, g, c) = metrics(223)
 

@@ -54,7 +54,7 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Ma
     import org.apache.spark.sql.functions._
 
     result
-      .normalizeBy(avg)
+      .normalize(params)
       .show(100)
   }
 

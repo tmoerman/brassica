@@ -12,7 +12,7 @@ import InferXGBoostRegulations._
 case class InferXGBoostRegulations(params: XGBoostRegressionParams)
                                   (regulators: List[Gene],
                                    regulatorCSC: CSCMatrix[Expression],
-                                   partitionIndex: Int) extends PartitionTask[Regulation] {
+                                   partitionIndex: Int) extends PartitionTask[RawRegulation] {
   import params._
 
   private[this] val cachedRegulatorDMatrix = toDMatrix(regulatorCSC)
@@ -21,7 +21,7 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
     * @param expressionByGene The current target gene and its expression vector.
     * @return Returns the inferred Regulation instances for one ExpressionByGene instance.
     */
-  override def apply(expressionByGene: ExpressionByGene): Iterable[Regulation] = {
+  override def apply(expressionByGene: ExpressionByGene): Iterable[RawRegulation] = {
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
@@ -50,14 +50,14 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
       result
     }
   }
-  
+
   private def inferRegulations(targetGene: Gene,
                                regulators: List[Gene],
-                               regulatorDMatrix: DMatrix): Seq[Regulation] = {
+                               regulatorDMatrix: DMatrix): Seq[RawRegulation] = {
 
     val boosters = trainBoosters(regulatorDMatrix)
 
-    val regulations = toRegulations(targetGene, regulators, boosters, metric)
+    val regulations = toRawRegulations(targetGene, regulators, boosters)
 
     boosters.foreach(_.dispose)
 
@@ -94,19 +94,23 @@ object InferXGBoostRegulations {
   /**
     * @param targetGene
     * @param regulators
-    * @param booster
-    * @return
+    * @param boosters
+    * @return Returns the raw scores for regulation.
     */
   def toRawRegulations(targetGene: Gene,
                        regulators: List[Gene],
-                       booster: Booster): Seq[RawRegulation] = {
-    val boosterModelDump = booster.getModelDump(withStats = true)
+                       boosters: Seq[Booster]): Seq[RawRegulation] = {
 
-    parseBoosterMetrics(boosterModelDump)
-      .map{ case (featureIndex, (freq, gain, cover)) =>
-        RawRegulation(regulators(featureIndex), targetGene, freq, gain, cover)
-      }
+    val boosterModelDumps = boosters.flatMap(_.getModelDump(withStats = true))
+
+    aggregateBoosterMetrics(boosterModelDumps)
+      .map{ case (featureIndex, (freq, gain, cover)) => {
+        val regulatorGene = regulators(featureIndex)
+
+        RawRegulation(regulatorGene, targetGene, freq, gain, cover)
+      }}
       .toSeq
+      .sortBy(r => -(r.gain / r.frequency))
   }
 
   /**
@@ -121,9 +125,9 @@ object InferXGBoostRegulations {
                                 boosters: Seq[Booster],
                                 metric: FeatureImportanceMetric): Seq[Regulation] = {
 
-    val boosterModelDump = boosters.flatMap(_.getModelDump(withStats = true))
+    val boosterModelDumps = boosters.flatMap(_.getModelDump(withStats = true))
 
-    parseBoosterMetrics(boosterModelDump)
+    aggregateBoosterMetrics(boosterModelDumps)
       .map{ case (featureIndex, (freq, gain, cover)) => {
         val regulatorGene = regulators(featureIndex)
 
@@ -147,12 +151,12 @@ object InferXGBoostRegulations {
     * @return Returns the feature importance metrics parsed from all trees (amount == nr boosting rounds) in the
     *         specified trained booster model.
     */
-  def parseBoosterMetrics(boosterModelDump: Seq[String]): Map[GeneIndex, Metrics] =
+  def aggregateBoosterMetrics(boosterModelDump: Seq[String]): Map[GeneIndex, Metrics] =
     boosterModelDump
       .flatMap(parseTreeMetrics)
-      .foldLeft(ZERO){ case (acc, (featureIndex, (freq, gain, cover))) =>
-        val (f, g, c) = acc(featureIndex)
-        acc.updated(featureIndex, (f + freq, g + gain, c + cover))
+      .foldLeft(ZERO){ case (acc, (geneIndex, (freq, gain, cover))) =>
+        val (f, g, c) = acc(geneIndex)
+        acc.updated(geneIndex, (f + freq, g + gain, c + cover))
       }
 
   /**
@@ -167,7 +171,7 @@ object InferXGBoostRegulations {
         case array =>
           array(1).split("\\]") match {
             case Array(left, right) =>
-              val featureIndex = left.split("<")(0).substring(1).toInt
+              val geneIndex = left.split("<")(0).substring(1).toInt
 
               val stats = right.split(",")
 
@@ -175,7 +179,7 @@ object InferXGBoostRegulations {
               val gain  = stats.find(_.startsWith("gain")).map(_.split("=")(1)).get.toFloat
               val cover = stats.find(_.startsWith("cover")).map(_.split("=")(1)).get.toFloat
 
-              (featureIndex, (freq, gain, cover)) :: Nil
+              (geneIndex, (freq, gain, cover)) :: Nil
           }
       })
 
