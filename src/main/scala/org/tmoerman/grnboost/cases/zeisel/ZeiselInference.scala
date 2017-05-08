@@ -17,7 +17,7 @@ object ZeiselInference {
     "colsample_bytree" -> 0.5,
     // "min_child_weight" -> 6,
     "max_depth" -> 3,
-    "num_parallel_tree" -> 10,
+    "num_parallel_tree" -> 50,
     "silent" -> 1
   )
 
