@@ -16,14 +16,14 @@ object ZeiselInference {
     "subsample" -> 0.8,
     "colsample_bytree" -> 0.8,
     "min_child_weight" -> 6,
-    "max_depth" -> 6,
-    "num_parallel_tree" -> 10,
+    "max_depth" -> 3,
+    //"num_parallel_tree" -> 10,
     "silent" -> 1
   )
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 20,
+      nrRounds = 10,
       boosterParams = boosterParams)
 
   def main(args: Array[String]): Unit = {
