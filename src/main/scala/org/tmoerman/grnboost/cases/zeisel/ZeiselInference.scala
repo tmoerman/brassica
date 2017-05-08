@@ -9,21 +9,21 @@ import org.tmoerman.grnboost.cases.DataReader._
   * @author Thomas Moerman
   */
 object ZeiselInference {
-
+  
   val boosterParams = Map(
     "seed" -> 777,
     "eta" -> 0.15,
-    "subsample" -> 0.5,
-    "colsample_bytree" -> 0.5,
+    "subsample" -> 0.8,
+    "colsample_bytree" -> 0.8,
     // "min_child_weight" -> 6,
-    "max_depth" -> 3,
-    "num_parallel_tree" -> 50,
+    "max_depth" -> 5,
+    //"num_parallel_tree" -> 50,
     "silent" -> 1
   )
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 5,
+      nrRounds = 7,
       boosterParams = boosterParams)
 
   def main(args: Array[String]): Unit = {
