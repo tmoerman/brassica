@@ -3,7 +3,7 @@
 echo "SBT .jar assembly"
 sbt assembly
 
-echo "submitting macosko (sampled) inference job"
+echo "submitting Zeisel (filtered) inference job"
 $SPARK_HOME/bin/spark-submit \
   --class org.tmoerman.grnboost.cases.zeisel.ZeiselInference \
   --master local[*] \
@@ -18,5 +18,4 @@ $SPARK_HOME/bin/spark-submit \
   /home/tmo/work/batiskav/projects/brassica/src/test/resources/TF/mm9_TFs.txt \
   /media/tmo/data/work/datasets/zeisel/out/filtered \
   88 \
-  1 \
-  75
+  1

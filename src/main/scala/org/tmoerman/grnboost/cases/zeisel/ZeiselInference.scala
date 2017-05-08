@@ -17,7 +17,7 @@ object ZeiselInference {
     "colsample_bytree" -> 0.8,
     "min_child_weight" -> 6,
     "max_depth" -> 6,
-    "num_parallel_tree" -> 10,
+    // "num_parallel_tree" -> 10,
     "silent" -> 1
   )
 
@@ -32,7 +32,6 @@ object ZeiselInference {
     val out          = args(2)
     val nrPartitions = args(3).toInt
     val nrThreads    = args(4).toInt
-    val nrRounds     = args(5).toInt
 
     val parsed =
       s"""
@@ -42,7 +41,6 @@ object ZeiselInference {
          |* output          = $out
          |* nr partitions   = $nrPartitions
          |* nr xgb threads  = $nrThreads
-         |* nr xgb rounds   = $nrRounds
       """.stripMargin
 
     println(parsed)
@@ -64,7 +62,6 @@ object ZeiselInference {
           ds,
           candidateRegulators = TFs,
           params = params.copy(
-            nrRounds = nrRounds,
             boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads)),
           nrPartitions = Some(nrPartitions))
         .cache
