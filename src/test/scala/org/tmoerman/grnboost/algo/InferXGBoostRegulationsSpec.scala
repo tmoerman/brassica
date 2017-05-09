@@ -31,14 +31,26 @@ class InferXGBoostRegulationsSpec extends FlatSpec with Matchers {
     cover shouldBe 2394f
   }
 
-  it should "parse booster metrics" in {
-    val metrics = aggregateBoosterMetrics(Array(treeDumpWithStats))
+  behavior of "aggregating booster metrics"
+
+  it should "aggregate correctly for 1 tree" in {
+    val metrics = aggregateBoosterMetrics(Seq(treeDumpWithStats))
 
     val (f, g, c) = metrics(223)
 
     f shouldBe 2
     g shouldBe 1012.38f + 53.1558f
     c shouldBe 2394 + 1886
+  }
+
+  it should "aggregate correctly for multiple trees" in {
+    val metrics = aggregateBoosterMetrics(Seq(treeDumpWithStats, treeDumpWithStats))
+
+    val (f, g, c) = metrics(223)
+
+    f shouldBe 2 * (2)
+    g shouldBe 2 * (1012.38f + 53.1558f)
+    c shouldBe 2 * (2394 + 1886)
   }
 
 }

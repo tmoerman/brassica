@@ -262,7 +262,7 @@ package object grnboost {
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
                                      metric: FeatureImportanceMetric = GAIN,
                                      @deprecated("normalization for GAIN is not useful") normalizeBy: Option[NormalizationAggregateFunction] = None,
-                                     ensembleSize: Int = 1)
+                                     @deprecated("in xgb as num_parallel_trees -> to remove") ensembleSize: Int = 1)
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the

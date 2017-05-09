@@ -35,6 +35,19 @@ object BreezeUtils {
 class CSCMatrixFunctions[@specialized(Double, Int, Float, Long) T:ClassTag:Zero](m: CSCMatrix[T]) {
 
   /**
+    * @param colIdx
+    * @return
+    */
+  def getColumn(colIdx: Int): SparseVector[T] = {
+    assert(colIdx < m.cols, s"Cannot get col $colIdx from CSCMatrix with ${m.cols} columns")
+
+
+
+    //new SparseVector[T]()
+    ???
+  }
+
+  /**
     * Efficient implementation of a specialized "slice", where only one column is removed from the CSCMatrix.
     *
     * @param colIdx Index of the column to drop from the CSCMatrix
@@ -49,7 +62,7 @@ class CSCMatrixFunctions[@specialized(Double, Int, Float, Long) T:ClassTag:Zero]
 
     val data2        = { val (l, r) = punch(m.data,       colPtr_L, colSize); l ++ r }
     val rowIndices2  = { val (l, r) = punch(m.rowIndices, colPtr_L, colSize); l ++ r }
-    val colPointers2 = { val (l, r) = punch(m.colPtrs,    colIdx,      1);       l ++ r.map(_ - colSize) }
+    val colPointers2 = { val (l, r) = punch(m.colPtrs,    colIdx,      1);    l ++ r.map(_ - colSize) }
 
     new CSCMatrix[T](data2, m.rows, m.cols - 1, colPointers2, rowIndices2)
   }

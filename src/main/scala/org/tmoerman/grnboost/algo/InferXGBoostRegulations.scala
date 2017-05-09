@@ -64,6 +64,7 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
     regulations
   }
 
+  @deprecated("already available in xgb num_parallel_trees")
   private def trainBoosters(regulatorDMatrix: DMatrix) =
     if (ensembleSize > 1) {
       val seed = boosterParams.get("seed").map(_.toString.toInt).getOrElse(DEFAULT_SEED)
