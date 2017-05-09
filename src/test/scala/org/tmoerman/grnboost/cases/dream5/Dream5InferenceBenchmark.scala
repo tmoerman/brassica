@@ -12,47 +12,31 @@ import org.tmoerman.grnboost.{GRNBoostSuiteBase, XGBoostRegressionParams, _}
   */
 class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
-  val boosterParamsSilico = Map(
+  val boosterParams = Map(
     "seed" -> 777,
     "eta" -> 0.15,
-    "min_child_weight" -> 6,
-    "max_depth" -> 6
+    "max_depth" -> 5
   )
 
-  val paramsSilico =
+  val params =
     XGBoostRegressionParams(
-      nrRounds = 50,
-      boosterParams = boosterParamsSilico)
-
-  val boosterParamsBio = Map(
-    "seed" -> 777,
-    "eta" -> 0.15,
-    "subsample" -> 0.8,
-    "colsample_bytree" -> 0.8,
-    "min_child_weight" -> 6,
-    "max_depth" -> 6
-  )
-
-  val paramsBio =
-    XGBoostRegressionParams(
-      nrRounds = 50,
-      boosterParams = boosterParamsBio)
+      nrRounds = 7,
+      boosterParams = boosterParams)
 
   "Dream5 regulation inference" should "run" in {
-    Seq(
-      (1, paramsSilico),
-      (3, paramsBio),
-      (4, paramsBio)).foreach(t => computeNetwork(t._1, t._2))
+    Seq(1, 3, 4).foreach(n => computeNetwork(n, params))
   }
 
   private def computeNetwork(idx: Int, regressionParams: XGBoostRegressionParams): Unit = {
     println(s"computing network $idx")
 
+    import spark.implicits._
+
     val (dataFile, tfFile) = network(idx)
 
     val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-    val path = s"${PropsReader.props("dream5Out")}/Try2/Network${idx}norm/"
+    val path = s"${PropsReader.props("dream5Out")}/Shallow_boosters/Network${idx}norm/"
 
     deleteDirectory(new File(path))
 
@@ -63,15 +47,13 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
           candidateRegulators = tfs.toSet,
           params = regressionParams,
           nrPartitions = Some(spark.sparkContext.defaultParallelism))
-        .cache()
+        .cache
 
-    import org.apache.spark.sql.functions._
-
-//    FIXME incompatible with RawRegulations
-//    regulations
-//      .normalize(paramsBio)
-//      .truncate()
-//      .saveTxt(path)
+    regulations
+      .select($"regulator", $"target", $"gain".as("importance"))
+      .as[Regulation]
+      .truncate()
+      .saveTxt(path)
   }
 
 }
