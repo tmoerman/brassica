@@ -75,7 +75,7 @@ object ZeiselInference {
         .saveTxt(out)
     }
 
-    println(s"wall time: ${pretty(duration)}")
+    println(s"\nGRNBoost wall time: ${pretty(duration)}\n")
 
   }
 
