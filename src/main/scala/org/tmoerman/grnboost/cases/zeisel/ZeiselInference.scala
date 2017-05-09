@@ -14,18 +14,18 @@ object ZeiselInference {
 
   val boosterParams = Map(
     "seed" -> 777,
-    "eta" -> 0.15,
-    // "subsample" -> 0.8,
-    // "colsample_bytree" -> 0.8,
+    "eta" -> 1.0,
+    "subsample" -> 0.25,
+    "colsample_bytree" -> 0.25,
     // "min_child_weight" -> 6,
     "max_depth" -> 5,
-    //"num_parallel_tree" -> 50,
+    "num_parallel_tree" -> 200,
     "silent" -> 1
   )
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 7,
+      nrRounds = 1,
       boosterParams = boosterParams)
 
   def main(args: Array[String]): Unit = {
