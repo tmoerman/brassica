@@ -3,7 +3,7 @@
 echo "SBT .jar assembly"
 sbt assembly
 
-echo "submitting macosko (sampled) inference job"
+echo "submitting Macosko (full) inference job"
 $SPARK_HOME/bin/spark-submit \
   --class org.tmoerman.grnboost.cases.macosko.MacoskoInference \
   --master local[*] \
