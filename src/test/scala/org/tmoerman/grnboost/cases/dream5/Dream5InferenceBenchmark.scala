@@ -15,6 +15,7 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
   val boosterParams = Map(
     "seed" -> 777,
     "eta" -> 0.15,
+    "min_child_weight" -> 6,
     "max_depth" -> 5
   )
 
@@ -36,7 +37,7 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
 
     val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-    val path = s"${PropsReader.props("dream5Out")}/Shallow_boosters/Network${idx}norm/"
+    val path = s"${PropsReader.props("dream5Out")}/Shallow_boosters_2/Network${idx}norm/"
 
     deleteDirectory(new File(path))
 
