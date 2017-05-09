@@ -13,10 +13,10 @@ import org.tmoerman.grnboost.util.TimeUtils.pretty
 object ZeiselInference {
 
   val boosterParams = Map(
-    "seed" -> 666,
+    "seed" -> 777,
     "eta" -> 0.15,
-    "subsample" -> 0.8,
-    "colsample_bytree" -> 0.8,
+    // "subsample" -> 0.8,
+    // "colsample_bytree" -> 0.8,
     // "min_child_weight" -> 6,
     "max_depth" -> 5,
     //"num_parallel_tree" -> 50,
