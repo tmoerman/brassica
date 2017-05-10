@@ -14,42 +14,43 @@ object ZeiselInference {
 
   val boosterParams = Map(
     "seed" -> 777,
-    "eta" -> 1.0,
-    //"subsample" -> 0.25,
-    "colsample_bytree" -> 0.25,
-    // "min_child_weight" -> 6,
+    "eta" -> 0.3,
+    "subsample" -> 0.8,
+    // "colsample_bytree" -> 0.8,
+    "min_child_weight" -> 300,
     "max_depth" -> 5,
-    "num_parallel_tree" -> 200,
+    // "num_parallel_tree" -> 200,
     "silent" -> 1
   )
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 1,
+      nrRounds = 7,
       boosterParams = boosterParams)
 
   def main(args: Array[String]): Unit = {
 
-    val (_, duration) = TimeUtils.profile {
-      val in           = args(0)
-      val mouseTFs     = args(1)
-      val out          = args(2)
-      val nrPartitions = args(3).toInt
-      val nrThreads    = args(4).toInt
+    val in           = args(0)
+    val mouseTFs     = args(1)
+    val out          = args(2)
+    val nrPartitions = args(3).toInt
+    val nrThreads    = args(4).toInt
 
-      val parsed =
-        s"""
-           |Args:
-           |* in              = $in
-           |* mouseTFs        = $mouseTFs
-           |* output          = $out
-           |* nr partitions   = $nrPartitions
-           |* nr xgb threads  = $nrThreads
+    val parsed =
+      s"""
+         |Args:
+         |* in              = $in
+         |* mouseTFs        = $mouseTFs
+         |* output          = $out
+         |* nr partitions   = $nrPartitions
+         |* nr xgb threads  = $nrThreads
       """.stripMargin
 
-      println(parsed)
+    println(parsed)
 
-      deleteDirectory(out)
+    deleteDirectory(out)
+
+    val (_, duration) = TimeUtils.profile {
 
       val spark =
         SparkSession
