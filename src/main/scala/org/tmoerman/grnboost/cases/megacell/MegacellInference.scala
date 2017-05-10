@@ -74,9 +74,6 @@ object MegacellInference {
     val totalCellCount = ds.head.values.size
 
     val cellIndicesSubset = nrCells.map(nr => randomSubset(nr, 0 until totalCellCount))
-
-    writeToFile(sampleFile, cellIndicesSubset.toSeq.sorted.mkString("\n"))
-
     cellIndicesSubset.foreach(subset => writeToFile(sampleFile, subset.sorted.mkString("\n")))
 
     val (_, duration) = TimeUtils.profile {
