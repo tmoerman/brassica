@@ -5,6 +5,8 @@ import org.apache.spark.sql.SparkSession
 import org.tmoerman.grnboost._
 import org.tmoerman.grnboost.cases.DataReader._
 import org.tmoerman.grnboost.util.IOUtils.writeToFile
+import org.tmoerman.grnboost.util.TimeUtils
+import org.tmoerman.grnboost.util.TimeUtils.pretty
 
 /**
   * @author Thomas Moerman
@@ -13,21 +15,21 @@ object MegacellInference {
 
   val boosterParams = Map(
     "seed" -> 777,
-    "eta" -> 0.15,
+    "eta" -> 0.3,
     "subsample" -> 0.8,
-    "colsample_bytree" -> 0.8,
-    "min_child_weight" -> 6,
-    "max_depth" -> 6,
+    //"colsample_bytree" -> 0.8,
+    "min_child_weight" -> 1000, // 10% of input data set size
+    "max_depth" -> 5,
     "silent" -> 1
   )
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 12,
+      nrRounds = 7,
       boosterParams = boosterParams)
 
   def main(args: Array[String]): Unit = {
-    // FIXME better arg parsing
+
     val parquet      = args(0)
     val mouseTFs     = args(1)
     val out          = args(2)
@@ -35,7 +37,6 @@ object MegacellInference {
     val nrTargets    = if (args(4).toLowerCase == "all") None else Some(args(4).toInt)
     val nrPartitions = args(5).toInt
     val nrThreads    = args(6).toInt
-    val nrRounds     = args(7).toInt
 
     val parsedArgs =
       s"""
@@ -47,18 +48,18 @@ object MegacellInference {
         |* nr target genes = $nrTargets
         |* nr partitions   = $nrPartitions
         |* nr xgb threads  = $nrThreads
-        |* nr xgb rounds   = $nrRounds
       """.stripMargin
 
     val outDir     = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets"
-    val sampleFile = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.cell-ids.txt"
-    val infoFile   = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.info.txt"
+    val sampleFile = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.obs.sample.txt"
+    val infoFile   = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.param.info.txt"
+    val timingFile = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.timing.info.txt"
 
     println(parsedArgs)
-    writeToFile(infoFile, parsedArgs)
+    writeToFile(infoFile, parsedArgs + "\nbooster params:\n" + boosterParams.mkString("\n"))
 
     deleteDirectory(outDir)
-    
+
     val spark =
       SparkSession
         .builder
@@ -74,33 +75,42 @@ object MegacellInference {
 
     val cellIndicesSubset = nrCells.map(nr => randomSubset(nr, 0 until totalCellCount))
 
+    writeToFile(sampleFile, cellIndicesSubset.toSeq.sorted.mkString("\n"))
+
     cellIndicesSubset.foreach(subset => writeToFile(sampleFile, subset.sorted.mkString("\n")))
 
-    val slicedByCells =
-      cellIndicesSubset
-        .map(subset => ds.slice(subset).cache)
-        .getOrElse(ds)
+    val (_, duration) = TimeUtils.profile {
+      val slicedByCells =
+        cellIndicesSubset
+          .map(subset => ds.slice(subset).cache)
+          .getOrElse(ds)
 
-    val targetSet =
-      nrTargets
-        .map(nr => slicedByCells.take(nr).map(_.gene).toSet)
-        .getOrElse(Set.empty)
+      val targetSet =
+        nrTargets
+          .map(nr => slicedByCells.take(nr).map(_.gene).toSet)
+          .getOrElse(Set.empty)
 
-    val regulations =
-      GRNBoost
-        .inferRegulations(
-          slicedByCells,
-          candidateRegulators = TFs,
-          params = params.copy(
-            nrRounds = nrRounds,
-            boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads)),
-          targets = targetSet,
-          nrPartitions = Some(nrPartitions))
-        .cache
+      val regulations =
+        GRNBoost
+          .inferRegulations(
+            slicedByCells,
+            candidateRegulators = TFs,
+            params = params.copy(
+              boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads)),
+            targets = targetSet,
+            nrPartitions = Some(nrPartitions))
+          .cache
 
-    regulations
-      .normalize(params)
-      .saveTxt(outDir)
+      regulations
+        .normalize(params)
+        .saveTxt(outDir)
+    }
+
+    val timingInfo = s"\nGRNBoost wall time: ${pretty(duration)}\n"
+
+    println(timingInfo)
+    writeToFile(timingFile, timingInfo)
+
   }
 
 }

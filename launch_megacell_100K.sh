@@ -20,5 +20,4 @@ $SPARK_HOME/bin/spark-submit \
   100000 \
   ALL \
   11 \
-  8 \
-  20
+  8
