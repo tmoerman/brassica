@@ -2,6 +2,7 @@ package org.tmoerman.grnboost.cases.megacell
 
 import org.apache.commons.io.FileUtils.deleteDirectory
 import org.apache.spark.sql.SparkSession
+import org.joda.time.DateTime
 import org.tmoerman.grnboost._
 import org.tmoerman.grnboost.cases.DataReader._
 import org.tmoerman.grnboost.util.IOUtils.writeToFile
@@ -17,8 +18,8 @@ object MegacellInference {
     "seed" -> 777,
     "eta" -> 0.3,
     "subsample" -> 0.8,
-    //"colsample_bytree" -> 0.8,
-    "min_child_weight" -> 1000, // 10% of input data set size
+    // "colsample_bytree" -> 0.8,
+    // "min_child_weight" -> 1000, // 10% of input data set size
     "max_depth" -> 5,
     "silent" -> 1
   )
@@ -50,7 +51,7 @@ object MegacellInference {
         |* nr xgb threads  = $nrThreads
       """.stripMargin
 
-    val outDir     = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets"
+    val outDir     = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.${DateTime.now}"
     val sampleFile = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.obs.sample.txt"
     val infoFile   = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.param.info.txt"
     val timingFile = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.timing.info.txt"
@@ -58,7 +59,7 @@ object MegacellInference {
     println(parsedArgs)
     writeToFile(infoFile, parsedArgs + "\nbooster params:\n" + boosterParams.mkString("\n"))
 
-    deleteDirectory(outDir)
+    // deleteDirectory(outDir)
 
     val spark =
       SparkSession
@@ -99,7 +100,6 @@ object MegacellInference {
           .cache
 
       regulations
-        .normalize(params)
         .saveTxt(outDir)
     }
 

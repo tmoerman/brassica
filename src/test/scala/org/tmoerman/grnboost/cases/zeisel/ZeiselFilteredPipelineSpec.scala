@@ -30,10 +30,7 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Ma
   val params =
     XGBoostRegressionParams(
       nrRounds = 75,
-      boosterParams = boosterParams,
-      //metric = FREQ
-      metric = GAIN
-    )
+      boosterParams = boosterParams)
 
   it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
     val TFs = readTFs(mouseTFs).toSet
@@ -51,10 +48,7 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Ma
 
     println(params)
 
-    import org.apache.spark.sql.functions._
-
     result
-      .normalize(params)
       .show(100)
   }
 

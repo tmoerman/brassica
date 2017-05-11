@@ -72,7 +72,6 @@ object ZeiselInference {
           .cache
 
       regulations
-        .normalize(params)
         .saveTxt(out)
     }
 
