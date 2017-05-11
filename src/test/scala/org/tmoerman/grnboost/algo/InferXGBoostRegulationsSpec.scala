@@ -53,4 +53,36 @@ class InferXGBoostRegulationsSpec extends FlatSpec with Matchers {
     c shouldBe 2 * (2394 + 1886)
   }
 
+  behavior of "turning a list of elbow indices into a stream of elbow indicators"
+
+  it should "work for empty elbow list" in {
+    (0 until 5)
+      .zip(toElbowStream(Nil))
+      .toList shouldBe List.tabulate(5)(i => (i, None))
+  }
+
+  it should "work for 1 elbow" in {
+    (0 until 5)
+      .zip(toElbowStream(2 :: Nil))
+      .toList shouldBe
+      List(
+        (0, Some(0)),
+        (1, Some(0)),
+        (2, Some(0)),
+        (3, None),
+        (4, None))
+  }
+
+  it should "work for 2 elbows" in {
+    (0 until 5)
+      .zip(toElbowStream(1 :: 3 :: Nil))
+      .toList shouldBe
+      List(
+        (0, Some(0)),
+        (1, Some(0)),
+        (2, Some(1)),
+        (3, Some(1)),
+        (4, None))
+  }
+
 }
