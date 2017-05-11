@@ -5,6 +5,9 @@ import ml.dmlc.xgboost4j.scala.{Booster, DMatrix, XGBoost}
 import org.tmoerman.grnboost._
 import org.tmoerman.grnboost.util.BreezeUtils._
 import InferXGBoostRegulations._
+import org.tmoerman.grnboost.util.Elbow
+
+import scala.collection.immutable.Stream.continually
 
 /**
   * @author Thomas Moerman
@@ -55,27 +58,14 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
                                regulators: List[Gene],
                                regulatorDMatrix: DMatrix): Seq[RawRegulation] = {
 
-    val boosters = trainBoosters(regulatorDMatrix)
+    val booster = XGBoost.train(regulatorDMatrix, boosterParams.withDefaults, nrRounds)
 
-    val regulations = toRawRegulations(targetGene, regulators, boosters)
+    val regulations = toRawRegulations(targetGene, regulators, booster, params)
 
-    boosters.foreach(_.dispose)
+    booster.dispose
 
     regulations
   }
-
-  @deprecated("already available in xgb num_parallel_trees")
-  private def trainBoosters(regulatorDMatrix: DMatrix) =
-    if (ensembleSize > 1) {
-      val seed = boosterParams.get("seed").map(_.toString.toInt).getOrElse(DEFAULT_SEED)
-      val rng = random(seed)
-
-      Seq.tabulate(ensembleSize)(_ =>
-        XGBoost.train(regulatorDMatrix, boosterParams.withDefaults.withSeed(rng.nextInt), nrRounds))
-    } else {
-      Seq(
-        XGBoost.train(regulatorDMatrix, boosterParams.withDefaults, nrRounds))
-    }
 
   /**
     * Dispose the cached DMatrix.
@@ -95,54 +85,53 @@ object InferXGBoostRegulations {
   /**
     * @param targetGene
     * @param regulators
-    * @param boosters
+    * @param booster
     * @return Returns the raw scores for regulation.
     */
   def toRawRegulations(targetGene: Gene,
                        regulators: List[Gene],
-                       boosters: Seq[Booster]): Seq[RawRegulation] = {
+                       booster: Booster,
+                       params: XGBoostRegressionParams): Seq[RawRegulation] = {
+    import params._
 
-    val boosterModelDumps = boosters.flatMap(_.getModelDump(withStats = true))
+    val boosterModelDump = booster.getModelDump(withStats = true)
 
-    aggregateBoosterMetrics(boosterModelDumps)
-      .map{ case (featureIndex, (freq, gain, cover)) => {
-        val regulatorGene = regulators(featureIndex)
+    val rawRegulations =
+      aggregateBoosterMetrics(boosterModelDump)
+        .toSeq
+        .map{ case (featureIndex, (freq, gain, cover)) => {
+          val regulatorGene = regulators(featureIndex)
 
-        RawRegulation(regulatorGene, targetGene, freq, gain, cover)
-      }}
-      .toSeq
-      .sortBy(r => -(r.gain / r.frequency))
+          RawRegulation(regulatorGene, targetGene, freq, gain, cover)
+        }}
+        .sortBy(-_.gain)
+
+    if (elbowCutoff) {
+      val gains = rawRegulations.map(_.gain.toDouble)
+
+      val elbows = Elbow(gains, sensitivity = 0.5)
+
+      rawRegulations
+        .zip(toElbowStream(elbows))
+        .map{ case (reg, e) => if (e.isDefined) reg.copy(elbow = e) else reg }
+    } else {
+      rawRegulations
+    }
   }
 
   /**
-    * @param targetGene The target gene.
-    * @param regulators The regulator gene names.
-    * @param boosters The booster instances.
-    * @param metric The feature importance metric.
-    * @return Returns the Regulations in function of specified metric, extracted from the specified trained booster model.
+    * @param elbows
+    * @return Returns a lazy Stream of Elbow Option instances.
     */
-  @deprecated def toRegulations(targetGene: Gene,
-                                regulators: List[Gene],
-                                boosters: Seq[Booster],
-                                metric: FeatureImportanceMetric): Seq[Regulation] = {
-
-    val boosterModelDumps = boosters.flatMap(_.getModelDump(withStats = true))
-
-    aggregateBoosterMetrics(boosterModelDumps)
-      .map{ case (featureIndex, (freq, gain, cover)) => {
-        val regulatorGene = regulators(featureIndex)
-
-        val importance = metric match {
-          case FREQ  => freq.toFloat
-          case GAIN  => gain
-          case COVER => cover
-        }
-
-        Regulation(regulatorGene, targetGene, importance)
-      }}
-      .toSeq
-      .sortBy(-_.importance)
-  }
+  def toElbowStream(elbows: List[Int]): Stream[Option[Int]] =
+    (0 :: elbows.map(_ + 1)) // include the data point at index
+      .sliding(2, 1)
+      .zipWithIndex
+      .flatMap {
+        case (a :: b :: Nil, i) => Seq.fill(b-a)(Some(i))
+        case _                  => Nil // makes match exhaustive
+      }
+      .toStream ++ continually(None)
 
   /**
     * See Python implementation:

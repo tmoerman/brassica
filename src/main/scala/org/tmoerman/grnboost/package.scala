@@ -4,7 +4,6 @@ import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, Un
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.DataTypes.FloatType
 import org.apache.spark.sql.{Column, Dataset}
 
 import scala.util.Random
@@ -24,7 +23,7 @@ package object grnboost {
   type Index = Long
   type Gene  = String
 
-  type BoosterParams = Map[String, Any]
+  type BoosterParams     = Map[String, Any]
   type BoosterParamSpace = Map[String, RandomSampler[_]]
 
   type CellIndex = Int
@@ -56,10 +55,10 @@ package object grnboost {
 
   val DEFAULT_NR_BOOSTING_ROUNDS = 100
 
-  val DEFAULT_NR_FOLDS           = 10
-  val DEFAULT_NR_TRIALS          = 1000L
-  val DEFAULT_SEED               = 666
-  val DEFAULT_EVAL_METRIC        = "rmse"
+  val DEFAULT_NR_FOLDS    = 10
+  val DEFAULT_NR_TRIALS   = 1000L
+  val DEFAULT_SEED        = 666
+  val DEFAULT_EVAL_METRIC = "rmse"
 
   val XGB_THREADS = "nthread"
   val XGB_SILENT  = "silent"
@@ -148,12 +147,14 @@ package object grnboost {
     * @param frequency
     * @param gain
     * @param cover
+    * @param elbow
     */
   case class RawRegulation(regulator: Gene,
                            target: Gene,
                            frequency: Frequency,
                            gain: Gain,
-                           cover: Cover)
+                           cover: Cover,
+                           elbow: Option[Int] = None)
 
   /**
     * Implicit pimp class for adding functions to Dataset[Regulation].
@@ -161,32 +162,6 @@ package object grnboost {
     */
   implicit class RegulationDatasetFunctions(val ds: Dataset[Regulation]) {
     import ds.sparkSession.implicits._
-
-    /**
-      * @return Returns a Dataset where the Regulation have been normalized by dividing the importance scores
-      *         by the sum of importance scores per target.
-      */
-    @deprecated def normalize(params: XGBoostRegressionParams) =
-      params.normalizeBy.map(n => normalizeBy(n.fn)).getOrElse(ds)
-
-    //normalizeBy(params.normalizeBy.fn)
-
-    /**
-      * @param agg Spark SQL aggregation function
-      * @return
-      */
-    @deprecated def normalizeBy(agg: Column => Column = avg): Dataset[Regulation] = {
-      val aggImportanceByTarget =
-        ds
-          .groupBy($"target")
-          .agg(agg($"importance").as("agg_importance"))
-
-      ds
-        .join(aggImportanceByTarget, ds("target") === aggImportanceByTarget("target"), "inner")
-        .withColumn("normalized_importance", $"importance" / $"agg_importance")
-        .select(ds("regulator"), ds("target"), $"normalized_importance".as("importance").cast(FloatType))
-        .as[Regulation]
-    }
 
     /**
       * @param top The maximum amount of regulations to keep.
@@ -214,9 +189,6 @@ package object grnboost {
   }
 
   implicit class RawRegulationDatasetFunctions(val ds: Dataset[RawRegulation]) {
-    import ds.sparkSession.implicits._
-
-    def normalize(params: XGBoostRegressionParams) = ds
 
     def saveTxt(path: Path, delimiter: String = "\t"): Unit =
       ds
@@ -255,14 +227,11 @@ package object grnboost {
     *
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
-    * @param metric The feature importance metric, default = GAIN.
-    * @param ensembleSize The number of independent gradient boosted trees to grow.
+    * @param elbowCutoff Whether to use the elbow cutoff strategy.
     */
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
-                                     metric: FeatureImportanceMetric = GAIN,
-                                     @deprecated("normalization for GAIN is not useful") normalizeBy: Option[NormalizationAggregateFunction] = None,
-                                     @deprecated("in xgb as num_parallel_trees -> to remove") ensembleSize: Int = 1)
+                                     elbowCutoff: Boolean = true)
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the
