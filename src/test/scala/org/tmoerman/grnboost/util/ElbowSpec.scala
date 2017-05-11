@@ -19,10 +19,7 @@ class ElbowSpec extends FlatSpec with Matchers {
       4442390.0, 4406660.0, 4105080.0, 4027350.0, 3984360.0, 3902710.0, 3861890.0, 3806480.0, 3703310.0, 3632880.0,
       3608410.0, 3515740.0, 3479890.0, 3375980.0, 3234450.0, 3192080.0, 3124840.0, 3061080.0, 3021410.0, 2551210.0)
 
-    val x = (0 until y.size).map(_.toDouble).toArray
-    val result = Elbow.apply(x, y, sensitivity = 0.5)
-
-    result shouldBe List(4)
+    Elbow(y) shouldBe List(4)
   }
 
   it should "work for Plp1" in {
@@ -35,10 +32,7 @@ class ElbowSpec extends FlatSpec with Matchers {
       254837.0, 254780.0, 246330.0, 236240.0, 209310.3, 206505.0, 197553.0, 189387.0, 185197.0, 181773.0, 159570.0,
       157752.0, 157460.0)
 
-    val x = (0 until y.size).map(_.toDouble).toArray
-    val result = Elbow.apply(x, y, sensitivity = 0.5).reverse
-
-    result shouldBe List(3)
+    Elbow(y) shouldBe List(3)
   }
 
   it should "work for Dlx2" in {
@@ -49,10 +43,7 @@ class ElbowSpec extends FlatSpec with Matchers {
       11.2974, 11.2634, 11.0549, 10.7688, 9.41903, 9.33632, 9.24803, 7.9093, 7.39382, 5.53756, 5.41428, 5.0246, 4.60488,
       4.31194, 3.21423, 3.17762, 3.08699, 2.67289, 2.5579, 2.4921, 1.52926, 1.12223, 0.936489, 0.41906, 0.364906)
 
-    val x = (0 until y.size).map(_.toDouble).toArray
-    val result = Elbow.apply(x, y, sensitivity = 0.5)
-
-    result shouldBe List(4, 7)
+    Elbow(y) shouldBe List(4, 7)
   }
 
   it should "work for Kcnip1" in {
@@ -65,11 +56,7 @@ class ElbowSpec extends FlatSpec with Matchers {
       31.6034, 28.0721, 25.4633, 23.8836, 20.6222, 20.2263, 19.6476, 18.5002, 17.9151, 17.5321, 13.6905, 13.473041,
       11.5317)
 
-    val x = (0 until y.size).map(_.toDouble).toArray
-    val result = Elbow.apply(x, y, sensitivity = 0.5)
-
-    result shouldBe(List(5))
-    println(result.map(i => (i, y(i))))
+    Elbow(y) shouldBe(List(5))
   }
 
   it should "work for Sox10" in {
@@ -81,12 +68,7 @@ class ElbowSpec extends FlatSpec with Matchers {
       32.29641, 31.80048, 30.9151, 30.0954, 26.4378, 26.36477, 26.1202, 26.10356, 25.9791, 25.6089, 20.8128, 20.0301,
       19.6854, 19.2363, 18.9538, 17.4534, 17.0523, 16.2213, 15.8468, 15.6676, 15.074, 14.7446, 13.6792, 12.6271)
 
-    val x = (0 until y.size).map(_.toDouble).toArray
-    val result = Elbow(x, y, sensitivity = 0.5)
-
-    result shouldBe(List(2, 6))
+    Elbow(y) shouldBe(List(2, 6))
   }
-
-  // TODO add priority field to output
 
 }

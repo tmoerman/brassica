@@ -5,12 +5,17 @@ package org.tmoerman.grnboost.util
   */
 object Elbow {
 
-  def apply(x: Array[Double], y: Array[Double], sensitivity: Double = 1d, elbow: Boolean = true) =
+  def apply(y: Seq[Double], sensitivity: Double = 1d) = {
+    val x = (0 until y.size)
+
     new JKneedle(sensitivity)
-      .detectKneeOrElbowPoints(x, y.reverse, elbow)
+      .detectElbowPoints(
+        x.map(_.toDouble).toArray,
+        y.reverse.toArray)
       .toList
-      .map(i => y.size -i -1)
+      .map(i => x.last -i -1)
       .reverse
+  }
 
 //  type Index = Int
 //
