@@ -22,7 +22,7 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Ma
     "seed" -> 777,
     "silent" -> 1,
     "eta" -> 0.15,
-    "max_depth" -> 1,
+    "max_depth" -> 3,
     "subsample" -> 0.25,
     "colsample_bytree" -> 0.25,
     "num_parallel_tree" -> 25
