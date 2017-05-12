@@ -18,7 +18,7 @@ object ZeiselInference {
     "subsample"         -> 0.25,
     "colsample_bytree"  -> 0.25,
     "max_depth"         -> 1, // stumps
-    "num_parallel_tree" -> 25,
+    "num_parallel_tree" -> 50,
     "silent" -> 1
   )
 
