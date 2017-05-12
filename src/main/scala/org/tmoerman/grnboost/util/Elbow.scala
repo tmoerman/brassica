@@ -1,5 +1,7 @@
 package org.tmoerman.grnboost.util
 
+import scala.collection.immutable.Stream.continually
+
 /**
   * @author Thomas Moerman
   */
@@ -17,19 +19,18 @@ object Elbow {
       .reverse
   }
 
-//  type Index = Int
-//
-//  def detectKneeOrElbow(x: Seq[Double], y: Seq[Double], elbow: Boolean = true): Seq[Index] = {
-//    assert(x.size == y.size)
-//    assert(x.size > 1)
-//
-//
-//  }
-//
-//  def normalize(values: Seq[Double]): Seq[Double] = {
-//    val min = values.min
-//    val max = values.max
-//    values.map(v => (v - min) / (max - min))
-//  }
+  /**
+    * @param elbows
+    * @return Returns a lazy Stream of Elbow Option instances.
+    */
+  def toElbowGroups(elbows: List[Int]): Stream[Option[Int]] =
+    (0 :: elbows.map(_ + 1)) // include the data point at index
+      .sliding(2, 1)
+      .zipWithIndex
+      .flatMap {
+        case (a :: b :: Nil, i) => Seq.fill(b-a)(Some(i))
+        case _                  => Nil // makes match exhaustive
+      }
+      .toStream ++ continually(None)
 
 }

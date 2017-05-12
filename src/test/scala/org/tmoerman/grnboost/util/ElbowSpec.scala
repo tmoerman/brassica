@@ -1,6 +1,7 @@
 package org.tmoerman.grnboost.util
 
 import org.scalatest.{FlatSpec, Matchers}
+import org.tmoerman.grnboost.util.Elbow.toElbowGroups
 
 /**
   * @author Thomas Moerman
@@ -71,16 +72,36 @@ class ElbowSpec extends FlatSpec with Matchers {
     Elbow(y) shouldBe(List(2, 6))
   }
 
-  it should "work for Plp1 b" in {
-    val y = Array(2.419784E8, 5.5066068E7, 8397090.0, 4729530.0, 2486705.0, 414998.0, 333867.0, 79510.5, 65209.7, 64068.6, 60687.996, 33891.6, 27942.7, 18138.4, 17050.5, 12183.4, 11616.2, 7460.77, 3688.33)
+  behavior of "turning a list of elbow indices into a stream of elbow indicators"
 
-    println(Elbow(y))
+  it should "work for empty elbow list" in {
+    (0 until 5)
+      .zip(toElbowGroups(Nil))
+      .toList shouldBe List.tabulate(5)(i => (i, None))
   }
 
-  it should "work for Tspan2 b" in {
-    val y = Array(417819.72, 238880.14, 35848.45, 26674.44, 15101.2, 2077.916, 1612.69, 1068.302, 794.921, 395.677, 173.22, 160.377, 157.938, 144.437, 83.8967, 82.4526, 77.514, 53.4076, 50.1812, 47.8121)
+  it should "work for 1 elbow" in {
+    (0 until 5)
+      .zip(toElbowGroups(2 :: Nil))
+      .toList shouldBe
+      List(
+        (0, Some(0)),
+        (1, Some(0)),
+        (2, Some(0)),
+        (3, None),
+        (4, None))
+  }
 
-    println(Elbow(y))
+  it should "work for 2 elbows" in {
+    (0 until 5)
+      .zip(toElbowGroups(1 :: 3 :: Nil))
+      .toList shouldBe
+      List(
+        (0, Some(0)),
+        (1, Some(0)),
+        (2, Some(1)),
+        (3, Some(1)),
+        (4, None))
   }
 
 }

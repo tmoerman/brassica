@@ -1,10 +1,14 @@
 package org.tmoerman
 
+import java.lang.Math
+
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.FloatType
 import org.apache.spark.sql.{Column, Dataset}
+import org.tmoerman.grnboost.util.Elbow
 
 import scala.util.Random
 
@@ -144,21 +148,17 @@ package object grnboost {
     *
     * @param regulator
     * @param target
-    * @param frequency
     * @param gain
-    * @param cover
     * @param elbow
     */
   case class RawRegulation(regulator: Gene,
                            target: Gene,
-                           frequency: Frequency,
                            gain: Gain,
-                           cover: Cover,
                            elbow: Option[Int] = None)
 
   /**
-    * Implicit pimp class for adding functions to Dataset[Regulation].
-    * @param ds The Dataset of Regulation instances to pimp.
+    * Implicit pimp class.
+    * @param ds
     */
   implicit class RegulationDatasetFunctions(val ds: Dataset[Regulation]) {
     import ds.sparkSession.implicits._
@@ -188,8 +188,65 @@ package object grnboost {
 
   }
 
+  /**
+    * Implicit pimp class.
+    * @param ds
+    */
   implicit class RawRegulationDatasetFunctions(val ds: Dataset[RawRegulation]) {
 
+    import ds.sparkSession.implicits._
+
+    /**
+      * Sum the gain values across ensemble members
+      *
+      * @param params
+      * @return Returns a Dataset.
+      */
+    def sumGain(params: XGBoostRegressionParams): Dataset[RawRegulation] =
+      if (params.ensemble)
+        ds.groupBy("regulator", "target")
+          .agg(sum("gain").cast(FloatType).alias("gain"))
+          .withColumn("elbow", lit(null))
+          .as[RawRegulation]
+      else
+        ds
+
+    /**
+      * Add the elbow groups to the regulation connections.
+      *
+      * @param params
+      * @return Returns a Dataset.
+      */
+    def addElbowGroups(params: XGBoostRegressionParams): Dataset[RawRegulation] =
+      params
+        .elbow
+        .map(sensitivity =>
+          ds.rdd
+            .groupBy(_.target)
+            .values
+            .flatMap(it => {
+              it.toList match {
+                case Nil      => Nil
+                case x :: Nil => x.copy(elbow = Some(0)) :: Nil // elbow needs more than 1 y value
+                case list     =>
+                  val sorted = list.sortBy(-_.gain)
+                  val gains  = sorted.map(_.gain)
+                  val elbows = Elbow(gains.map(_.toDouble), sensitivity)
+
+                  sorted
+                    .zip(Elbow.toElbowGroups(elbows))
+                    .map{ case (reg, e) => if (e.isDefined) reg.copy(elbow = e) else reg }
+              }
+            })
+            .toDS
+        )
+        .getOrElse(ds)
+
+    /**
+      * Save the Dataset as a text file with specified delimiter
+      * @param path Target file path.
+      * @param delimiter Default tab.
+      */
     def saveTxt(path: Path, delimiter: String = "\t"): Unit =
       ds
         .rdd
@@ -218,20 +275,31 @@ package object grnboost {
   case object COVER extends FeatureImportanceMetric
   case object FREQ  extends FeatureImportanceMetric
 
-  sealed trait NormalizationAggregateFunction { def fn: Column => Column }
-  case object SUM extends NormalizationAggregateFunction { override def fn = sum }
-  case object AVG extends NormalizationAggregateFunction { override def fn = avg }
+//  sealed trait NormalizationAggregateFunction { def fn: Column => Column }
+//  case object SUM extends NormalizationAggregateFunction { override def fn = sum }
+//  case object AVG extends NormalizationAggregateFunction { override def fn = avg }
 
   /**
     * Data structure holding parameters for XGBoost regression.
     *
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
-    * @param elbowCutoff Whether to use the elbow cutoff strategy.
+    * @param elbow Whether to use the elbow cutoff strategy, contains sensitivity parameter.
     */
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
-                                     elbowCutoff: Boolean = true)
+                                     elbow: Option[Float] = Some(0.5f)) {
+
+    def ensemble = ensembleSize > 1
+
+    def ensembleSize =
+      boosterParams
+        .get("num_parallel_tree")
+        .map(_.toString.toInt)
+        .map(Math.max(_, 1))
+        .getOrElse(1)
+
+  }
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the

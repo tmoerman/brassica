@@ -3,9 +3,8 @@ package org.tmoerman.grnboost.algo
 import breeze.linalg.CSCMatrix
 import ml.dmlc.xgboost4j.scala.{Booster, DMatrix, XGBoost}
 import org.tmoerman.grnboost._
+import org.tmoerman.grnboost.algo.InferXGBoostRegulations._
 import org.tmoerman.grnboost.util.BreezeUtils._
-import InferXGBoostRegulations._
-import org.tmoerman.grnboost.util.Elbow
 
 import scala.collection.immutable.Stream.continually
 
@@ -78,9 +77,8 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
 
 object InferXGBoostRegulations {
 
-  type Metrics = (Frequency, Gain, Cover)
-
-  val ZERO = Map[GeneIndex, Metrics]() withDefaultValue (0, 0f, 0f)
+  type TreeDump  = String
+  type ModelDump = Seq[TreeDump]
 
   /**
     * @param targetGene
@@ -96,65 +94,51 @@ object InferXGBoostRegulations {
 
     val boosterModelDump = booster.getModelDump(withStats = true)
 
-    val rawRegulations =
-      aggregateBoosterMetrics(boosterModelDump)
-        .toSeq
-        .map{ case (featureIndex, (freq, gain, cover)) => {
-          val regulatorGene = regulators(featureIndex)
+    val ensembleModelDumps =
+      if (ensembleSize == 1)
+        Seq(boosterModelDump.toSeq)
+      else
+        for (tree <- 0 until ensembleSize) yield
+          for (rnd <- 0 until nrRounds) yield
+            boosterModelDump(rnd * ensembleSize + tree)
 
-          RawRegulation(regulatorGene, targetGene, freq, gain, cover)
-        }}
-        .sortBy(-_.gain)
-
-    if (elbowCutoff) {
-      val gains = rawRegulations.map(_.gain.toDouble)
-
-      val elbows = Elbow(gains, sensitivity = 0.5)
-
-      rawRegulations
-        .zip(toElbowStream(elbows))
-        .map{ case (reg, e) => if (e.isDefined) reg.copy(elbow = e) else reg }
-    } else {
-      rawRegulations
-    }
+    ensembleModelDumps
+      .map(aggregateGainByGene)
+      .flatMap(minMaxNormalize)
+      .map{ case (geneIndex, normalizedGain) =>
+        RawRegulation(regulators(geneIndex), targetGene, normalizedGain)
+      }
   }
 
-  /**
-    * @param elbows
-    * @return Returns a lazy Stream of Elbow Option instances.
-    */
-  def toElbowStream(elbows: List[Int]): Stream[Option[Int]] =
-    (0 :: elbows.map(_ + 1)) // include the data point at index
-      .sliding(2, 1)
-      .zipWithIndex
-      .flatMap {
-        case (a :: b :: Nil, i) => Seq.fill(b-a)(Some(i))
-        case _                  => Nil // makes match exhaustive
-      }
-      .toStream ++ continually(None)
+  private def minMaxNormalize[K](m: Map[K, Gain]) = {
+    val max = m.values.max
+    val min = m.values.min
+    def normalize(gain: Gain) = (gain - min) / (max - min)
+
+    m.mapValues(normalize)
+  }
 
   /**
     * See Python implementation:
     *   https://github.com/dmlc/xgboost/blob/d943720883f0e70ce1fbce809e373908b47bd506/python-package/xgboost/core.py#L1078
     *
-    * @param boosterModelDump Trained booster model dump.
+    * @param modelDump Trained booster or tree model dump.
     * @return Returns the feature importance metrics parsed from all trees (amount == nr boosting rounds) in the
     *         specified trained booster model.
     */
-  def aggregateBoosterMetrics(boosterModelDump: Seq[String]): Map[GeneIndex, Metrics] =
-    boosterModelDump
-      .flatMap(parseTreeMetrics)
-      .foldLeft(ZERO){ case (acc, (geneIndex, (freq, gain, cover))) =>
-        val (f, g, c) = acc(geneIndex)
-        acc.updated(geneIndex, (f + freq, g + gain, c + cover))
+  def aggregateGainByGene(modelDump: ModelDump): Map[GeneIndex, Gain] =
+    modelDump
+      .flatMap(parseGainScores)
+      .foldLeft(Map[GeneIndex, Gain]() withDefaultValue 0f) { case (acc, (geneIndex, gain)) =>
+        acc.updated(geneIndex, acc(geneIndex) + gain)
       }
 
   /**
-    * @param treeInfo
+    * @param treeDump
     * @return Returns the feature importance metrics parsed from one tree.
     */
-  def parseTreeMetrics(treeInfo: String): Array[(GeneIndex, Metrics)] =
-    treeInfo
+  def parseGainScores(treeDump: TreeDump): Array[(GeneIndex, Gain)] =
+    treeDump
       .split("\n")
       .flatMap(_.split("\\[") match {
         case Array(_) => Nil // leaf node, ignore
@@ -162,15 +146,9 @@ object InferXGBoostRegulations {
           array(1).split("\\]") match {
             case Array(left, right) =>
               val geneIndex = left.split("<")(0).substring(1).toInt
+              val gain     = right.split(",").find(_.startsWith("gain")).map(_.split("=")(1)).get.toFloat
 
-              val stats = right.split(",")
-
-              val freq  = 1
-              val gain  = stats.find(_.startsWith("gain")).map(_.split("=")(1)).get.toFloat
-              val cover = stats.find(_.startsWith("cover")).map(_.split("=")(1)).get.toFloat
-
-              (geneIndex, (freq, gain, cover)) :: Nil
+              (geneIndex, gain) :: Nil
           }
       })
-
 }
