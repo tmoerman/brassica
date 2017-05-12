@@ -15,21 +15,19 @@ object ZeiselInference {
   val boosterParams = Map(
     "seed" -> 777,
     "eta" -> 0.15,
-    "subsample" -> 0.5,
-    "max_depth" -> 2,
-    //"min_child_weight" -> 30,
+    "subsample"         -> 0.25,
+    "colsample_bytree"  -> 0.25,
+    "max_depth"         -> 1, // stumps
+    "num_parallel_tree" -> 25,
     "silent" -> 1
-    // "colsample_bytree" -> 0.8,
-    // "num_parallel_tree" -> 200,
   )
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 10,
+      nrRounds = 25,
       boosterParams = boosterParams)
 
   def main(args: Array[String]): Unit = {
-
     val in           = args(0)
     val mouseTFs     = args(1)
     val out          = args(2)
@@ -58,6 +56,8 @@ object ZeiselInference {
           .appName(GRN_BOOST)
           .getOrCreate
 
+      import spark.implicits._
+
       val ds  = readExpression(spark, in).cache
       val TFs = readTFs(mouseTFs).toSet
 
@@ -72,6 +72,9 @@ object ZeiselInference {
           .cache
 
       regulations
+        .sumGainScores(params)
+        .addElbowGroups(params)
+        .sort($"regulator", $"target", $"gain".desc)
         .saveTxt(out)
     }
 
