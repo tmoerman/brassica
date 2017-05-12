@@ -1,13 +1,11 @@
 package org.tmoerman
 
-import java.lang.Math
-
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.FloatType
-import org.apache.spark.sql.{Column, Dataset}
 import org.tmoerman.grnboost.util.Elbow
 
 import scala.util.Random
@@ -202,7 +200,7 @@ package object grnboost {
       * @param params
       * @return Returns a Dataset.
       */
-    def sumGain(params: XGBoostRegressionParams): Dataset[RawRegulation] =
+    def sumGainScores(params: XGBoostRegressionParams): Dataset[RawRegulation] =
       if (params.ensemble)
         ds.groupBy("regulator", "target")
           .agg(sum("gain").cast(FloatType).alias("gain"))
@@ -274,10 +272,6 @@ package object grnboost {
   case object GAIN  extends FeatureImportanceMetric
   case object COVER extends FeatureImportanceMetric
   case object FREQ  extends FeatureImportanceMetric
-
-//  sealed trait NormalizationAggregateFunction { def fn: Column => Column }
-//  case object SUM extends NormalizationAggregateFunction { override def fn = sum }
-//  case object AVG extends NormalizationAggregateFunction { override def fn = avg }
 
   /**
     * Data structure holding parameters for XGBoost regression.
