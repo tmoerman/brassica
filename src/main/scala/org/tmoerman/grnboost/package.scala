@@ -278,10 +278,12 @@ package object grnboost {
     *
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
+    * @param normalize
     * @param elbow Whether to use the elbow cutoff strategy, contains sensitivity parameter.
     */
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
+                                     normalize: Boolean = false,
                                      elbow: Option[Float] = Some(0.5f)) {
 
     def ensemble = ensembleSize > 1

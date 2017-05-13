@@ -103,20 +103,21 @@ object InferXGBoostRegulations {
             boosterModelDump(rnd * ensembleSize + tree)
 
     ensembleModelDumps
-      .map(aggregateGainByGene)
-      .flatMap(minMaxNormalize)
+      .map(aggregateGainByGene(params))
+      .flatMap(minMaxNormalize(params))
       .map{ case (geneIndex, normalizedGain) =>
         RawRegulation(regulators(geneIndex), targetGene, normalizedGain)
       }
   }
 
-  private def minMaxNormalize[K](m: Map[K, Gain]) = {
-    val max = m.values.max
-    val min = m.values.min
-    def normalize(gain: Gain) = (gain - min) / (max - min)
+  private def minMaxNormalize[K](params: XGBoostRegressionParams)(m: Map[K, Gain]) =
+    if (params.normalize) {
+      val max = m.values.max
+      val min = m.values.min
+      def normalize(gain: Gain) = (gain - min) / (max - min)
 
-    m.mapValues(normalize)
-  }
+      m.mapValues(normalize)
+    } else m
 
   /**
     * See Python implementation:
@@ -126,7 +127,7 @@ object InferXGBoostRegulations {
     * @return Returns the feature importance metrics parsed from all trees (amount == nr boosting rounds) in the
     *         specified trained booster model.
     */
-  def aggregateGainByGene(modelDump: ModelDump): Map[GeneIndex, Gain] =
+  def aggregateGainByGene(params: XGBoostRegressionParams)(modelDump: ModelDump): Map[GeneIndex, Gain] =
     modelDump
       .flatMap(parseGainScores)
       .foldLeft(Map[GeneIndex, Gain]() withDefaultValue 0f) { case (acc, (geneIndex, gain)) =>
