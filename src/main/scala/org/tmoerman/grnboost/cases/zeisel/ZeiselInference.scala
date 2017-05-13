@@ -15,8 +15,8 @@ object ZeiselInference {
   val boosterParams = Map(
     "seed" -> 777,
     "eta" -> 0.15,
-    "subsample"         -> 0.25,
-    "colsample_bytree"  -> 0.25,
+    "subsample"         -> 0.5,
+    "colsample_bytree"  -> 0.5,
     "max_depth"         -> 5,
     "num_parallel_tree" -> 10,
     "silent" -> 1
