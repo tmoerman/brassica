@@ -61,7 +61,7 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
       .addElbowGroups(params)
       .sort($"regulator", $"target", $"gain".desc)
       .rdd
-      .map(r => s"${r.regulator}\t${r.target}\n${r.gain}")
+      .map(r => s"${r.regulator}\t${r.target}\t${r.gain}")
       .repartition(1)
       .saveAsTextFile(path)
   }
