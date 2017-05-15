@@ -6,8 +6,6 @@ import org.tmoerman.grnboost._
 import org.tmoerman.grnboost.algo.InferXGBoostRegulations._
 import org.tmoerman.grnboost.util.BreezeUtils._
 
-import scala.collection.immutable.Stream.continually
-
 /**
   * @author Thomas Moerman
   */

@@ -200,7 +200,7 @@ package object grnboost {
       * @param params
       * @return Returns a Dataset.
       */
-    def sumGainScores(params: XGBoostRegressionParams): Dataset[RawRegulation] =
+    @deprecated def sumGainScores(params: XGBoostRegressionParams): Dataset[RawRegulation] =
       if (params.ensemble)
         ds.groupBy("regulator", "target")
           .agg(sum("gain").cast(FloatType).alias("gain"))
@@ -208,6 +208,10 @@ package object grnboost {
           .as[RawRegulation]
       else
         ds
+
+    def normalizeTargetGainOverSum(params: XGBoostRegressionParams) = ??? // TODO
+
+    def modifyRegulatorGainByVariance(params: XGBoostRegressionParams) = ??? // TODO
 
     /**
       * Add the elbow groups to the regulation connections.
