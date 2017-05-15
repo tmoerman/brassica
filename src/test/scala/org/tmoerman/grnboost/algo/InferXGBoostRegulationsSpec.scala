@@ -3,6 +3,7 @@ package org.tmoerman.grnboost.algo
 import java.io.File
 
 import org.scalatest.{FlatSpec, Matchers}
+import org.tmoerman.grnboost.XGBoostRegressionParams
 import org.tmoerman.grnboost.algo.InferXGBoostRegulations._
 
 import scala.io.Source
@@ -29,14 +30,16 @@ class InferXGBoostRegulationsSpec extends FlatSpec with Matchers {
 
   behavior of "aggregating booster metrics"
 
+  val params = XGBoostRegressionParams()
+
   it should "aggregate correctly for 1 tree" in {
-    val gains = aggregateGainByGene(Seq(treeDumpWithStats))
+    val gains = aggregateGainByGene(null)(Seq(treeDumpWithStats))
 
     gains(223) shouldBe 1012.38f + 53.1558f
   }
 
   it should "aggregate correctly for multiple trees" in {
-    val gains = aggregateGainByGene(Seq(treeDumpWithStats, treeDumpWithStats))
+    val gains = aggregateGainByGene(null)(Seq(treeDumpWithStats, treeDumpWithStats))
 
     gains(223) shouldBe 2 * (1012.38f + 53.1558f)
   }

@@ -44,7 +44,7 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
 
     val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-    val path = s"${PropsReader.props("dream5Out")}/Try/Network${idx}norm/"
+    val path = s"${PropsReader.props("dream5Out")}/Stumps/Network${idx}norm/"
 
     deleteDirectory(new File(path))
 
@@ -58,9 +58,8 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
         .cache
 
     regulations
-      .select($"regulator", $"target", $"gain".as("importance"))
-      .as[Regulation]
-      .truncate()
+      .addElbowGroups(params)
+      .sort($"regulator", $"target", $"gain".desc)
       .saveTxt(path)
   }
 
