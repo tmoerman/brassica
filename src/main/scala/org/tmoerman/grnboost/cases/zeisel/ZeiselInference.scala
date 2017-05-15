@@ -12,7 +12,7 @@ object ZeiselInference {
 
   val boosterParams = Map(
     "seed" -> 777,
-    "eta" -> 0.001,
+    "eta" -> 0.01,
     "subsample"         -> 0.8,  //
     "colsample_bytree"  -> 0.25, //
     "max_depth"         -> 1,    // stumps
@@ -54,7 +54,7 @@ object ZeiselInference {
     val TFs = readTFs(mouseTFs).toSet
 
     val profiles =
-      Seq(100, 250, 500, 1000, 2500, 5000).map { currentNrRounds =>
+      Seq(100, 250, 500, 1000, 2500).map { currentNrRounds =>
 
         print(s"Calculating GRN with $currentNrRounds boosting rounds...")
 
@@ -73,12 +73,11 @@ object ZeiselInference {
                 params = currentParams,
                 nrPartitions = Some(nrPartitions))
               .cache
-          
+
           regulations
-            //.sumGainScores(params)
             .addElbowGroups(params)
             .sort($"regulator", $"target", $"gain".desc)
-            .saveTxt(s"${out}stumps_${currentNrRounds}_rounds")
+            .saveTxt(s"${out}stumps_${currentNrRounds}_rounds_eta_0.01")
         }
 
         println(s"Calculation with $currentNrRounds boosting rounds: ${pretty(duration)}")
