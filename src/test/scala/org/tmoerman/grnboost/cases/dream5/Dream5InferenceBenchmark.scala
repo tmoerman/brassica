@@ -24,7 +24,7 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 100,
+      nrRounds = 1000,
       boosterParams = boosterParams)
 
   "Dream5 regulation inference" should "run" in {
@@ -44,7 +44,7 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
 
     val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-    val path = s"${PropsReader.props("dream5Out")}/Stumps2/Network${idx}norm/"
+    val path = s"${PropsReader.props("dream5Out")}/Stumps1000/Network${idx}norm/"
 
     deleteDirectory(new File(path))
 
