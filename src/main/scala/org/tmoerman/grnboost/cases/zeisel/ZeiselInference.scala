@@ -54,30 +54,36 @@ object ZeiselInference {
     val TFs = readTFs(mouseTFs).toSet
 
     val profiles =
-      Seq(100, 250, 500, 1000, 2500, 5000).map { nrRounds =>
+      Seq(100, 250, 500, 1000, 2500, 5000).map { currentNrRounds =>
 
-        print(s"Calculating GRN with $nrRounds boosting rounds...")
+        print(s"Calculating GRN with $currentNrRounds boosting rounds...")
 
         val (_, duration) = profile {
+
+          val currentParams =
+            params.copy(
+              nrRounds = currentNrRounds,
+              boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads))
 
           val regulations =
             GRNBoost
               .inferRegulations(
                 ds,
                 candidateRegulators = TFs,
-                params = params.copy(
-                  boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads)),
+                params = currentParams,
                 nrPartitions = Some(nrPartitions))
               .cache
-
+          
           regulations
             //.sumGainScores(params)
             .addElbowGroups(params)
             .sort($"regulator", $"target", $"gain".desc)
-            .saveTxt(s"${out}stumps_${nrRounds}_rounds")
+            .saveTxt(s"${out}stumps_${currentNrRounds}_rounds")
         }
 
-        (nrRounds, duration)
+        println(s"Calculation with $currentNrRounds boosting rounds: ${pretty(duration)}")
+
+        (currentNrRounds, duration)
       }
 
     profiles
