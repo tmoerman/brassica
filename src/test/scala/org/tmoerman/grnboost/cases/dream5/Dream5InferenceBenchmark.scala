@@ -14,16 +14,17 @@ import org.tmoerman.grnboost.{GRNBoostSuiteBase, XGBoostRegressionParams, _}
 class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val boosterParams = Map(
-    // "seed" -> 777,
-    "eta" -> 0.15,
-    // "subsample" -> 0.5,
-    "max_depth" -> 5,
-    "num_parallel_tree" -> 3
+    "seed" -> 777,
+    "eta" -> 0.001,
+    "subsample"         -> 0.8,  //
+    "colsample_bytree"  -> 0.25, //
+    "max_depth"         -> 1,    // stumps
+    "silent" -> 1
   )
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 7,
+      nrRounds = 100,
       boosterParams = boosterParams)
 
   "Dream5 regulation inference" should "run" in {
