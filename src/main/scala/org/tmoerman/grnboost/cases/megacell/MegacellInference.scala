@@ -14,16 +14,18 @@ object MegacellInference {
 
   val boosterParams = Map(
     "seed"              -> 777,
-    "eta"               -> 0.001,
+    "eta"               -> 0.01,
     "subsample"         -> 0.8,
     "colsample_bytree"  -> 0.25,
     "max_depth"         -> 1,
     "silent" -> 1
   )
 
+  val nrRounds = 100
+
   val params =
     XGBoostRegressionParams(
-      nrRounds = 500,
+      nrRounds = nrRounds,
       boosterParams = boosterParams)
 
   def main(args: Array[String]): Unit = {
@@ -48,10 +50,10 @@ object MegacellInference {
         |* nr xgb threads  = $nrThreads
       """.stripMargin
 
-    val outDir     = s"$out/stumps.1000.cells.${nrCells.getOrElse("ALL")}.${now}"
-    val sampleFile = s"$out/stumps.1000.cells.${nrCells.getOrElse("ALL")}.obs.sample.txt"
-    val infoFile   = s"$out/stumps.1000.cells.${nrCells.getOrElse("ALL")}.targets.param.info.txt"
-    val timingFile = s"$out/stumps.1000.cells.${nrCells.getOrElse("ALL")}.targets.timing.info.txt"
+    val outDir     = s"$out/stumps.$nrRounds.cells.${nrCells.getOrElse("ALL")}.${now}"
+    val sampleFile = s"$out/stumps.$nrRounds.cells.${nrCells.getOrElse("ALL")}.obs.sample.txt"
+    val infoFile   = s"$out/stumps.$nrRounds.cells.${nrCells.getOrElse("ALL")}.targets.param.info.txt"
+    val timingFile = s"$out/stumps.$nrRounds.cells.${nrCells.getOrElse("ALL")}.targets.timing.info.txt"
 
     println(parsedArgs)
     writeToFile(infoFile, parsedArgs + "\nbooster params:\n" + boosterParams.mkString("\n"))
