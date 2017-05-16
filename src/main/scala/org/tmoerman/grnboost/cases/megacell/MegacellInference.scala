@@ -21,7 +21,7 @@ object MegacellInference {
     "silent" -> 1
   )
 
-  val nrRounds = 100
+  val nrRounds = 250
 
   val params =
     XGBoostRegressionParams(
@@ -96,7 +96,7 @@ object MegacellInference {
             targets = targetSet,
             nrPartitions = Some(nrPartitions))
           .cache
-
+      
       regulations
         .sort($"regulator", $"target", $"gain".desc)
         .rdd
