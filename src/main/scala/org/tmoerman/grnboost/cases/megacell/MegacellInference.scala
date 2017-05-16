@@ -1,13 +1,11 @@
 package org.tmoerman.grnboost.cases.megacell
 
-import org.apache.commons.io.FileUtils.deleteDirectory
 import org.apache.spark.sql.SparkSession
-import org.joda.time.DateTime
+import org.joda.time.DateTime.now
 import org.tmoerman.grnboost._
 import org.tmoerman.grnboost.cases.DataReader._
 import org.tmoerman.grnboost.util.IOUtils.writeToFile
-import org.tmoerman.grnboost.util.TimeUtils
-import org.tmoerman.grnboost.util.TimeUtils.pretty
+import org.tmoerman.grnboost.util.TimeUtils._
 
 /**
   * @author Thomas Moerman
@@ -15,18 +13,17 @@ import org.tmoerman.grnboost.util.TimeUtils.pretty
 object MegacellInference {
 
   val boosterParams = Map(
-    "seed" -> 777,
-    "eta" -> 0.3,
-    "subsample" -> 0.8,
-    // "colsample_bytree" -> 0.8,
-    // "min_child_weight" -> 1000, // 10% of input data set size
-    "max_depth" -> 5,
+    "seed"              -> 777,
+    "eta"               -> 0.001,
+    "subsample"         -> 0.8,
+    "colsample_bytree"  -> 0.25,
+    "max_depth"         -> 1,
     "silent" -> 1
   )
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 7,
+      nrRounds = 500,
       boosterParams = boosterParams)
 
   def main(args: Array[String]): Unit = {
@@ -34,8 +31,8 @@ object MegacellInference {
     val parquet      = args(0)
     val mouseTFs     = args(1)
     val out          = args(2)
-    val nrCells      = if (args(3).toLowerCase == "all") None else Some(args(3).toInt)
-    val nrTargets    = if (args(4).toLowerCase == "all") None else Some(args(4).toInt)
+    val nrCells      = if (args(3).toUpperCase == "ALL") None else Some(args(3).toInt)
+    val nrTargets    = if (args(4).toUpperCase == "ALL") None else Some(args(4).toInt)
     val nrPartitions = args(5).toInt
     val nrThreads    = args(6).toInt
 
@@ -51,15 +48,13 @@ object MegacellInference {
         |* nr xgb threads  = $nrThreads
       """.stripMargin
 
-    val outDir     = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.${DateTime.now}"
-    val sampleFile = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.obs.sample.txt"
-    val infoFile   = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.param.info.txt"
-    val timingFile = s"$out/megacell_${nrCells.getOrElse("ALL")}cells_${nrTargets.getOrElse("ALL")}targets.timing.info.txt"
+    val outDir     = s"$out/stumps.1000.cells.${nrCells.getOrElse("ALL")}.${now}"
+    val sampleFile = s"$out/stumps.1000.cells.${nrCells.getOrElse("ALL")}.obs.sample.txt"
+    val infoFile   = s"$out/stumps.1000.cells.${nrCells.getOrElse("ALL")}.targets.param.info.txt"
+    val timingFile = s"$out/stumps.1000.cells.${nrCells.getOrElse("ALL")}.targets.timing.info.txt"
 
     println(parsedArgs)
     writeToFile(infoFile, parsedArgs + "\nbooster params:\n" + boosterParams.mkString("\n"))
-
-    // deleteDirectory(outDir)
 
     val spark =
       SparkSession
@@ -69,15 +64,16 @@ object MegacellInference {
 
     import spark.implicits._
 
-    val ds = spark.read.parquet(parquet).as[ExpressionByGene].cache
-    val TFs = readTFs(mouseTFs).toSet
+    val (_, duration) = profile {
 
-    val totalCellCount = ds.head.values.size
+      val ds = spark.read.parquet(parquet).as[ExpressionByGene].cache
+      val TFs = readTFs(mouseTFs).toSet
 
-    val cellIndicesSubset = nrCells.map(nr => randomSubset(nr, 0 until totalCellCount))
-    cellIndicesSubset.foreach(subset => writeToFile(sampleFile, subset.sorted.mkString("\n")))
+      val totalCellCount = ds.head.values.size
 
-    val (_, duration) = TimeUtils.profile {
+      val cellIndicesSubset = nrCells.map(nr => randomSubset(nr, 0 until totalCellCount))
+      cellIndicesSubset.foreach(subset => writeToFile(sampleFile, subset.sorted.mkString("\n")))
+
       val slicedByCells =
         cellIndicesSubset
           .map(subset => ds.slice(subset).cache)
@@ -100,14 +96,19 @@ object MegacellInference {
           .cache
 
       regulations
-        .saveTxt(outDir)
+        .sort($"regulator", $"target", $"gain".desc)
+        .rdd
+        .map(r => s"${r.regulator}\t${r.target}\t${r.gain}")
+        .repartition(1)
+        .saveAsTextFile(outDir)
     }
 
-    val timingInfo = s"\nGRNBoost wall time: ${pretty(duration)}\n"
+    val timingInfo =
+      s"results written to $outDir\n" +
+      s"Wall time with ${params.nrRounds} boosting rounds: ${pretty(duration)}"
 
     println(timingInfo)
     writeToFile(timingFile, timingInfo)
-
   }
 
 }
