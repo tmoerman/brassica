@@ -18,7 +18,7 @@ $SPARK_HOME/bin/spark-submit \
   /home/tmo/work/batiskav/projects/brassica/src/test/resources/TF/mm9_TFs.txt \
   /media/tmo/data/work/datasets/megacell/out \
   /media/tmo/data/work/datasets/megacell/out/cell.subsets/100k/nr.rounds.100/megacell.subset.100000.cells.0.txt \
-  100 \
   0 \
+  100 \
   11 \
   8
