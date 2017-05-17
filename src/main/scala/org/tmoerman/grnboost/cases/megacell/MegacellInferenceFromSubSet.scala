@@ -52,12 +52,12 @@ object MegacellInferenceFromSubSet {
          |* nr xgb threads   = $nrThreads
       """.stripMargin
 
-    val outDir     = s"$out/stumps.$nrRounds.cells.from.subset.$cellSubSetID.${now}"
-    val infoFile   = s"$out/stumps.$nrRounds.cells.from.subset.$cellSubSetID.targets.param.info.txt"
-    val timingFile = s"$out/stumps.$nrRounds.cells.from.subset.$cellSubSetID.targets.timing.info.txt"
-
+    val outDir     = s"$out/stumps.$nrRounds.from.subset.$cellSubSetID.${now}"
+    val infoFile   = s"$out/stumps.$nrRounds.from.subset.$cellSubSetID.params.txt"
+    val timingFile = s"$out/stumps.$nrRounds.from.subset.$cellSubSetID.timing.txt"
+    
     println(parsedArgs)
-    writeToFile(infoFile, parsedArgs + "\nbooster params:\n" + boosterParams.mkString("\n"))
+    writeToFile(infoFile, parsedArgs + "\nbooster params:\n" + boosterParams.mkString("\n") + "\n")
 
     val spark =
       SparkSession

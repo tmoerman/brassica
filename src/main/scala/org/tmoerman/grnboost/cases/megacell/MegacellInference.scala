@@ -56,7 +56,7 @@ object MegacellInference {
     val timingFile = s"$out/stumps.$nrRounds.cells.${nrCells.getOrElse("ALL")}.targets.timing.info.txt"
 
     println(parsedArgs)
-    writeToFile(infoFile, parsedArgs + "\nbooster params:\n" + boosterParams.mkString("\n"))
+    writeToFile(infoFile, parsedArgs + "\nbooster params:\n" + boosterParams.mkString("\n") + "\n")
 
     val spark =
       SparkSession
