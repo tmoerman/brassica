@@ -37,7 +37,7 @@ object MegacellInferenceFromSubSet {
     val mouseTFs       = args(1)
     val out            = args(2)
     val cellSubSetFile = args(3)
-    val cellSubSetID   = Try(args(6)).getOrElse("unknown")
+    val cellSubSetID   = Try(args(4)).getOrElse("unknown")
     val nrPartitions   = args(5).toInt
     val nrThreads      = args(6).toInt
 
