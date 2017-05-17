@@ -24,7 +24,7 @@ object MegacellInferenceFromSubSet {
     "silent" -> 1
   )
 
-  val nrRounds = 250
+  val nrRounds = 100
 
   val params =
     XGBoostRegressionParams(
