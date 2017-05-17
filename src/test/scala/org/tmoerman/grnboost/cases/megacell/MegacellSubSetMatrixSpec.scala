@@ -53,7 +53,7 @@ class MegacellSubSetMatrixSpec extends FlatSpec with GRNBoostSuiteBase with Matc
               ds
                 .slice(sliceIndices)
                 .rdd
-                .map(e => s"${e.gene}\t${e.values.toArray.mkString("\t")}" )
+                .map(e => s"${e.gene}\t${e.values.toArray.map(_.toInt).mkString("\t")}" )
 
             (header union rows)
               .repartition(1)
