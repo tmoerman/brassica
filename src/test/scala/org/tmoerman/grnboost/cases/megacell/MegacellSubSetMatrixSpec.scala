@@ -33,7 +33,7 @@ class MegacellSubSetMatrixSpec extends FlatSpec with GRNBoostSuiteBase with Matc
       .listFiles
       .toList
       .sorted
-      .foreach{ subSetFile => {
+      .foreach{ subSetFile => try {
 
         val subSet = Source.fromFile(subSetFile).getLines.filterNot(_.isEmpty).map(_.trim.toInt).toSet
 
@@ -61,7 +61,10 @@ class MegacellSubSetMatrixSpec extends FlatSpec with GRNBoostSuiteBase with Matc
 
           }}
 
-      }}
+        } catch {
+          case e: Throwable => e.printStackTrace
+        }
+      }
   }
 
 }

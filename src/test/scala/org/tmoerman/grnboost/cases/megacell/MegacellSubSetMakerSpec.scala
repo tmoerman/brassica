@@ -58,6 +58,7 @@ class MegacellSubSetMakerSpec extends FlatSpec {
       random(seed)
         .shuffle(totalSet diff excludeSet)
         .sliding(nrCellsPerSet, nrCellsPerSet)
+        .toList
 
     val subSetSizes = subSets.map(_.size).mkString(", ")
 
