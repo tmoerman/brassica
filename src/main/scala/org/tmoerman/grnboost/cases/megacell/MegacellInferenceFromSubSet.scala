@@ -24,13 +24,6 @@ object MegacellInferenceFromSubSet {
     "silent" -> 1
   )
 
-  val nrRounds = 100
-
-  val params =
-    XGBoostRegressionParams(
-      nrRounds = nrRounds,
-      boosterParams = boosterParams)
-
   def main(args: Array[String]): Unit = {
 
     val parquet        = args(0)
@@ -38,26 +31,33 @@ object MegacellInferenceFromSubSet {
     val out            = args(2)
     val cellSubSetFile = args(3)
     val cellSubSetID   = Try(args(4)).getOrElse("unknown")
-    val nrPartitions   = args(5).toInt
-    val nrThreads      = args(6).toInt
+    val nrRounds       = args(5).toInt
+    val nrPartitions   = args(6).toInt
+    val nrThreads      = args(7).toInt
 
     val parsedArgs =
       s"""
          |Args:
-         |* parquet          = $parquet
-         |* mouseTFs         = $mouseTFs
-         |* output           = $out
-         |* cell subset file = $cellSubSetFile
-         |* nr partitions    = $nrPartitions
-         |* nr xgb threads   = $nrThreads
+         |* parquet            = $parquet
+         |* mouseTFs           = $mouseTFs
+         |* output             = $out
+         |* cell subset file   = $cellSubSetFile
+         |* nr boosting rounds = $nrRounds
+         |* nr partitions      = $nrPartitions
+         |* nr xgb threads     = $nrThreads
       """.stripMargin
 
     val outDir     = s"$out/stumps.$nrRounds.from.subset.$cellSubSetID.${now}"
     val infoFile   = s"$out/stumps.$nrRounds.from.subset.$cellSubSetID.params.txt"
     val timingFile = s"$out/stumps.$nrRounds.from.subset.$cellSubSetID.timing.txt"
-    
+
     println(parsedArgs)
     writeToFile(infoFile, parsedArgs + "\nbooster params:\n" + boosterParams.mkString("\n") + "\n")
+
+    val params =
+      XGBoostRegressionParams(
+        nrRounds = nrRounds,
+        boosterParams = boosterParams + (XGB_THREADS -> nrThreads))
 
     val spark =
       SparkSession
@@ -82,8 +82,7 @@ object MegacellInferenceFromSubSet {
           .inferRegulations(
             slicedByCells,
             candidateRegulators = TFs,
-            params = params.copy(
-              boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads)),
+            params = params,
             nrPartitions = Some(nrPartitions))
           .cache
 
