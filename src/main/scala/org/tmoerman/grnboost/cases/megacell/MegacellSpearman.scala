@@ -29,6 +29,8 @@ object MegacellSpearman {
         .appName(GRN_BOOST)
         .getOrCreate
 
+    import spark.implicits._
+
     val (_, duration) = profile {
       val ds = spark.read.parquet(parquet).as[ExpressionByGene].cache
       val TFs = readTFs(mouseTFs).toSet
