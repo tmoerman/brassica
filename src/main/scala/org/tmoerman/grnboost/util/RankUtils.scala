@@ -60,7 +60,6 @@ object RankUtils {
 
     val gene_ranks =
       ds
-        .filter(e => ! tfs.contains(e.gene))
         .rdd
         .map(e => (e.gene, toRankings(e.values.toDense.toArray).toArray))
         .cache
@@ -89,7 +88,10 @@ object RankUtils {
   private def toCorr(tuple: ((Gene, Array[Double]), (Gene, Array[Double]))) = {
     val ((tf, tf_ranks), (gene, gene_ranks)) = tuple
 
-    Corr(tf, gene, new PearsonsCorrelation().correlation(tf_ranks, gene_ranks).toFloat)
+    if (tf == gene)
+      Corr(tf, gene, 1f)
+    else
+      Corr(tf, gene, new PearsonsCorrelation().correlation(tf_ranks, gene_ranks).toFloat)
   }
 
 }
