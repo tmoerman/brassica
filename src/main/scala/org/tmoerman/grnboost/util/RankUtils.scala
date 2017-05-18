@@ -1,5 +1,8 @@
 package org.tmoerman.grnboost.util
 
+import org.apache.commons.math3.stat.correlation.PearsonsCorrelation
+import org.apache.spark.sql.Dataset
+
 import scala.util.Random
 import org.tmoerman.grnboost._
 
@@ -9,7 +12,7 @@ import org.tmoerman.grnboost._
 object RankUtils {
 
   type Position = Int
-  type Rank     = Int
+  type Rank     = Double
 
   /**
     * @param values The values to turn into ranks.
@@ -37,5 +40,56 @@ object RankUtils {
       }}
       .sortBy{ case (p, _) => p}
       .map(_._2)
+
+  /**
+    * @param ds
+    * @param tfs
+    * @param out
+    */
+  def saveSpearmanCorrelationMatrix(ds: Dataset[ExpressionByGene],
+                                    tfs: Set[Gene],
+                                    out: Path): Unit = {
+    val spark = ds.sparkSession
+
+    val tf_ranks =
+      ds
+        .filter(e => tfs.contains(e.gene))
+        .rdd
+        .map(e => (e.gene, toRankings(e.values.toDense.toArray).toArray))
+        .cache
+
+    val gene_ranks =
+      ds
+        .filter(e => ! tfs.contains(e.gene))
+        .rdd
+        .map(e => (e.gene, toRankings(e.values.toDense.toArray).toArray))
+        .cache
+
+    val header = spark.sparkContext.parallelize(
+      Seq(".\t" + gene_ranks.map(_._1).collect.sorted.mkString("\t"))
+    )
+
+    val lines =
+      (tf_ranks cartesian gene_ranks)
+        .map(toCorr)
+        .groupBy(_.tf)
+        .map{ case (tf, it) =>
+          val line = it.toSeq.sortBy(_.gene).map(_.corr).mkString("\t")
+
+          s"$tf\t$line"
+        }
+
+    (header union lines)
+      .repartition(1)
+      .saveAsTextFile(out)
+  }
+
+  case class Corr(tf: Gene, gene: Gene, corr: Float)
+
+  private def toCorr(tuple: ((Gene, Array[Double]), (Gene, Array[Double]))) = {
+    val ((tf, tf_ranks), (gene, gene_ranks)) = tuple
+
+    Corr(tf, gene, new PearsonsCorrelation().correlation(tf_ranks, gene_ranks).toFloat)
+  }
 
 }

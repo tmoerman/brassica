@@ -1,12 +1,17 @@
 package org.tmoerman.grnboost.util
 
+import java.io.File
+
+import org.apache.commons.io.FileUtils.deleteDirectory
 import org.scalatest._
-import org.tmoerman.grnboost.util.RankUtils.toRankings
+import org.tmoerman.grnboost.GRNBoostSuiteBase
+import org.tmoerman.grnboost.cases.dream5.{Dream5Reader, network}
+import org.tmoerman.grnboost.util.RankUtils.{saveSpearmanCorrelationMatrix, toRankings}
 
 /**
   * @author Thomas Moerman
   */
-class RankUtilsSpec extends FlatSpec with Matchers {
+class RankUtilsSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   behavior of "toRankings"
 
@@ -32,6 +37,20 @@ class RankUtilsSpec extends FlatSpec with Matchers {
     val list = List(1, 1, 1, 1, 1)
 
     toRankings(list).toSet shouldBe (1 to 5).toSet
+  }
+
+  behavior of "saveCorrelationMatrix"
+
+  it should "pass the smoke test on Dream data" in {
+    val (dataFile, tfFile) = network(2)
+
+    val (ds, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
+
+    val out = "src/test/resources/out/spearman"
+
+    deleteDirectory(new File(out))
+
+    saveSpearmanCorrelationMatrix(ds, tfs.toSet, out)
   }
 
 }
