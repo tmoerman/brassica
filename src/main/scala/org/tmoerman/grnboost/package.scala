@@ -152,7 +152,11 @@ package object grnboost {
   case class RawRegulation(regulator: Gene,
                            target: Gene,
                            gain: Gain,
-                           elbow: Option[Int] = None)
+                           elbow: Option[Int] = None) {
+
+    def mkString(d: String = "\t") = s"${regulator}${d}${target}${d}${elbow.getOrElse(-1)}"
+
+  }
 
   /**
     * Implicit pimp class.

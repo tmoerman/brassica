@@ -28,7 +28,7 @@ object ElbowAdder {
       .toDS
       .addElbowGroups(XGBoostRegressionParams())
       .rdd
-      .map(_.productIterator.mkString("\t"))
+      .map(_.mkString("\t"))
       .repartition(1)
       .saveAsTextFile(out)
   }
