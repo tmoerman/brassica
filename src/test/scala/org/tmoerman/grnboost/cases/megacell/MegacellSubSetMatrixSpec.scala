@@ -21,7 +21,7 @@ class MegacellSubSetMatrixSpec extends FlatSpec with GRNBoostSuiteBase with Matc
     doit(parquet, subSetDir, outDir)
   }
 
-  "it" should "work" in {
+  "it" should "work for 3k and 10k" in {
 
     val subSets =
       Seq(
