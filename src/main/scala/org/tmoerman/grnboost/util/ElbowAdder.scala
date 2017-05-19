@@ -18,8 +18,8 @@ object ElbowAdder {
     import spark.implicits._
 
     val in  = args(0)
-    val out = args(0)
-
+    val out = args(1)
+    
     spark
       .sparkContext
       .textFile(in)
