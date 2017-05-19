@@ -154,7 +154,7 @@ package object grnboost {
                            gain: Gain,
                            elbow: Option[Int] = None) {
 
-    def mkString(d: String = "\t") = s"${regulator}${d}${target}${d}${elbow.getOrElse(-1)}"
+    def mkString(d: String = "\t") = s"${regulator}${d}${target}${d}${gain}${d}${elbow.getOrElse(-1)}"
 
   }
 
