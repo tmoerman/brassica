@@ -14,5 +14,5 @@ $SPARK_HOME/bin/spark-submit \
   --conf spark.network.timeout=10000000 \
   --conf spark.eventLog.enabled=true \
   ./target/scala-2.11/GRNBoost.jar \
-  /media/tmo/data/work/datasets/megacell/out/stumps.250.cells.100000.2017-05-16T23h11/part-000000 \
+  /media/tmo/data/work/datasets/megacell/out/stumps.250.cells.100000.2017-05-16T23h11/part-00000 \
   /media/tmo/data/work/datasets/megacell/out/stumps.250.cells.100000.2017-05-16T23h11.elbows
