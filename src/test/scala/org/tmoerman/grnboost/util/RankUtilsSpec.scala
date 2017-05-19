@@ -3,7 +3,7 @@ package org.tmoerman.grnboost.util
 import java.io.File
 
 import org.apache.commons.io.FileUtils.deleteDirectory
-import org.apache.commons.math.stat.correlation.SpearmansCorrelation
+import org.apache.commons.math3.stat.correlation.SpearmansCorrelation
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation
 import org.scalatest._
 import org.tmoerman.grnboost.GRNBoostSuiteBase
