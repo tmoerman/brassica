@@ -55,6 +55,18 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
                                regulators: List[Gene],
                                regulatorDMatrix: DMatrix): Seq[RawRegulation] = {
 
+    if (showCV) {
+      val cv = XGBoost.crossValidation(regulatorDMatrix, boosterParams.withDefaults, nrRounds, 10)
+
+      val tuples =
+        cv
+          .map(_.split("\t").drop(1).map(_.split(":")(1).toFloat))
+          .map{ case Array(train, test) => (train, test) }
+          .map(_.productIterator.mkString("\t"))
+
+      println(tuples.mkString("\n"))
+    }
+
     val booster = XGBoost.train(regulatorDMatrix, boosterParams.withDefaults, nrRounds)
 
     val regulations = toRawRegulations(targetGene, regulators, booster, params)
@@ -88,34 +100,15 @@ object InferXGBoostRegulations {
                        regulators: List[Gene],
                        booster: Booster,
                        params: XGBoostRegressionParams): Seq[RawRegulation] = {
-    import params._
 
-    val boosterModelDump = booster.getModelDump(withStats = true)
+    val boosterModelDump = booster.getModelDump(withStats = true).toSeq
 
-    val ensembleModelDumps =
-      if (ensembleSize == 1)
-        Seq(boosterModelDump.toSeq)
-      else
-        for (tree <- 0 until ensembleSize) yield
-          for (rnd <- 0 until nrRounds) yield
-            boosterModelDump(rnd * ensembleSize + tree)
-
-    ensembleModelDumps
-      .map(aggregateGainByGene(params))
-      .flatMap(minMaxNormalize(params))
+    aggregateGainByGene(params)(boosterModelDump)
+      .toSeq
       .map{ case (geneIndex, normalizedGain) =>
         RawRegulation(regulators(geneIndex), targetGene, normalizedGain)
       }
   }
-
-  private def minMaxNormalize[K](params: XGBoostRegressionParams)(m: Map[K, Gain]) =
-    if (params.normalize) {
-      val max = m.values.max
-      val min = m.values.min
-      def normalize(gain: Gain) = (gain - min) / (max - min)
-
-      m.mapValues(normalize)
-    } else m
 
   /**
     * See Python implementation:
