@@ -133,11 +133,11 @@ package object grnboost {
     *
     * @param regulator The regulator gene name.
     * @param target The target gene name.
-    * @param importance The inferred importance of the regulator vis-a-vis the target.
+    * @param gain The inferred importance of the regulator vis-a-vis the target.
     */
   case class Regulation(regulator: Gene,
                         target: Gene,
-                        importance: Importance)
+                        gain: Gain)
 
   /**
     * Raw XGBoost regression output data structure.
@@ -147,12 +147,31 @@ package object grnboost {
     * @param gain
     * @param elbow
     */
+  // TODO rename
   case class RawRegulation(regulator: Gene,
                            target: Gene,
                            gain: Gain,
                            elbow: Option[Int] = None) {
 
-    def mkString(d: String = "\t") = s"${regulator}${d}${target}${d}${gain}${d}${elbow.getOrElse(-1)}"
+    def mkString(d: String = "\t", showElbow: Boolean = true) =
+      if (showElbow)
+        s"${regulator}${d}${target}${d}${gain}${d}${elbow.getOrElse(-1)}"
+      else
+        s"${regulator}${d}${target}${d}${gain}"
+
+  }
+
+  /**
+    * Training and test loss by boosting round.
+    *
+    * @param target The target gene.
+    * @param train The training loss.
+    * @param test The test loss.
+    * @param round The boosting round.
+    */
+  case class LossByRound(target: Gene, train: Loss, test: Loss, round: Int) {
+
+    def mkString(d: String = "\t") = productIterator.mkString(d)
 
   }
 
