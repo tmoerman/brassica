@@ -4,8 +4,6 @@ import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, Un
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.FloatType
 import org.tmoerman.grnboost.util.Elbow
 
 import scala.util.Random
@@ -198,21 +196,6 @@ package object grnboost {
 
     import ds.sparkSession.implicits._
 
-    /**
-      * Sum the gain values across ensemble members
-      *
-      * @param params
-      * @return Returns a Dataset.
-      */
-    @deprecated def sumGainScores(params: XGBoostRegressionParams): Dataset[RawRegulation] =
-      if (params.ensemble)
-        ds.groupBy("regulator", "target")
-          .agg(sum("gain").cast(FloatType).alias("gain"))
-          .withColumn("elbow", lit(null))
-          .as[RawRegulation]
-      else
-        ds
-
     def normalizeTargetGainOverSum(params: XGBoostRegressionParams) = ??? // TODO
 
     def modifyRegulatorGainByVariance(params: XGBoostRegressionParams) = ??? // TODO
@@ -286,24 +269,12 @@ package object grnboost {
     *
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
-    * @param normalize
     * @param elbow Whether to use the elbow cutoff strategy, contains sensitivity parameter.
     */
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
-                                     normalize: Boolean = false,
-                                     elbow: Option[Float] = Some(0.5f)) {
-
-    def ensemble = ensembleSize > 1
-
-    def ensembleSize =
-      boosterParams
-        .get("num_parallel_tree")
-        .map(_.toString.toInt)
-        .map(Math.max(_, 1))
-        .getOrElse(1)
-
-  }
+                                     elbow: Option[Float] = Some(0.5f),
+                                     showCV: Boolean = false)
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the
