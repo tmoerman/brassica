@@ -69,18 +69,18 @@ object MegacellInferenceFromSubSet {
 
     val (_, duration) = profile {
 
-      val ds = spark.read.parquet(parquet).as[ExpressionByGene].cache
+      val ds = spark.read.parquet(parquet).as[ExpressionByGene]
       val TFs = readTFs(mouseTFs).toSet
 
       val cellIndicesSubSet: Seq[CellIndex] =
         Source.fromFile(cellSubSetFile).getLines.filterNot(_.isEmpty).map(_.trim.toInt).toSeq
 
-      val slicedByCells = ds.slice(cellIndicesSubSet)
+      val dsSliced = ds.slice(cellIndicesSubSet).cache
 
       val regulations =
         GRNBoost
           .inferRegulations(
-            slicedByCells,
+            dsSliced,
             candidateRegulators = TFs,
             params = params,
             nrPartitions = Some(nrPartitions))
