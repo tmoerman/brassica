@@ -85,7 +85,7 @@ object MegacellFullInference {
               nrRounds = nrBoostingRounds,
               boosterParams = boosterParams)
 
-          val outDir = s"$out/full.stumps.$nrBoostingRounds.cells.per.phase.$phaseIndex"
+          val outDir = s"$out/full.stumps.$nrBoostingRounds.rounds.phase.$phaseIndex"
 
           GRNBoost
             .inferRegulations(
