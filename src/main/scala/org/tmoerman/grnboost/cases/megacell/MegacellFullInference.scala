@@ -1,13 +1,10 @@
 package org.tmoerman.grnboost.cases.megacell
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.sum
-import org.apache.spark.sql.types.FloatType
-import org.joda.time.DateTime.now
 import org.tmoerman.grnboost.cases.DataReader.readTFs
 import org.tmoerman.grnboost.util.IOUtils.writeToFile
 import org.tmoerman.grnboost.util.TimeUtils.{pretty, profile}
-import org.tmoerman.grnboost.{ExpressionByGene, GRNBoost, GRN_BOOST, Regulation, XGBoostRegressionParams}
+import org.tmoerman.grnboost.{ExpressionByGene, GRNBoost, GRN_BOOST, XGBoostRegressionParams}
 
 /**
   * @author Thomas Moerman
@@ -45,8 +42,6 @@ object MegacellFullInference {
          |* nr xgb threads     = $nrThreads
       """.stripMargin
 
-    val outDir     = s"$out/full.stumps.$nrBoostingRounds.cells.per.phase.$nrCellsPerPhase.parts.${now}"
-    val sampleFile = s"$out/full.stumps.$nrBoostingRounds.cells.per.phase.$nrCellsPerPhase.sample.txt"
     val infoFile   = s"$out/full.stumps.$nrBoostingRounds.cells.per.phase.$nrCellsPerPhase.info.txt"
     val timingFile = s"$out/full.stumps.$nrBoostingRounds.cells.per.phase.$nrCellsPerPhase.info.txt"
 
@@ -61,7 +56,7 @@ object MegacellFullInference {
 
     import spark.implicits._
 
-    val (_, duration) = profile {
+    val (phaseCount, duration) = profile {
 
       val ds = spark.read.parquet(parquet).as[ExpressionByGene].cache
       val TFs = readTFs(mouseTFs).toSet
@@ -73,13 +68,13 @@ object MegacellFullInference {
           .sliding(nrCellsPerPhase, nrCellsPerPhase)
           .toList
           .reverse match {
-            case x :: y :: rest => y ++ x :: rest
-            case _              => ???
-          }
+          case x :: y :: rest => y ++ x :: rest
+          case _              => ???
+        }
 
       phaseCellSets
         .zipWithIndex
-        .map{ case (phaseCellIndices, phaseIndex) => {
+        .foreach{ case (phaseCellIndices, phaseIndex) => {
 
           println(s"Executing phase $phaseIndex")
 
@@ -90,26 +85,25 @@ object MegacellFullInference {
               nrRounds = nrBoostingRounds,
               boosterParams = boosterParams)
 
+          val outDir = s"$out/full.stumps.$nrBoostingRounds.cells.per.phase.$phaseIndex"
+
           GRNBoost
             .inferRegulations(
               phaseDS,
               candidateRegulators = TFs,
               params = params,
               nrPartitions = Some(nrPartitions))
+            .sort($"regulator", $"target", $"gain".desc)
+            .write
+            .parquet(outDir)
         }}
-        .reduce(_ union _)
-        .groupBy($"regulator", $"target")
-        .agg(sum($"gain").as("sum_gain"))
-        .withColumn("gain", $"sum_gain" / phaseCellSets.size)
-        .select($"regulator", $"target", $"gain".cast(FloatType))
-        .as[Regulation]
-        .saveTxt(outDir)
 
+      phaseCellSets.size
     }
 
     val timingInfo =
       s"""
-         |* results written to: $outDir
+         |* finised inferring network in ${phaseCount} phases.
          |* wall time: ${pretty(duration)}
        """.stripMargin
 
