@@ -70,8 +70,9 @@ class CoreSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     Seq(ds1, ds2)
       .reduce(_ union _)
       .groupBy($"regulator", $"target")
-      .agg(sum($"gain").cast(FloatType).as("gain"))
-      .select($"regulator", $"target", $"gain")
+      .agg(sum($"gain").as("sum_gain"))
+      .withColumn("gain", $"sum_gain" / 5)
+      .select($"regulator", $"target", $"gain".cast(FloatType))
       .as[Regulation]
       .show
   }

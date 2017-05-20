@@ -2,6 +2,7 @@ package org.tmoerman.grnboost.cases.megacell
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.sum
+import org.apache.spark.sql.types.FloatType
 import org.joda.time.DateTime.now
 import org.tmoerman.grnboost.cases.DataReader.readTFs
 import org.tmoerman.grnboost.util.IOUtils.writeToFile
@@ -98,8 +99,9 @@ object MegacellFullInference {
         }}
         .reduce(_ union _)
         .groupBy($"regulator", $"target")
-        .agg(sum($"gain").as("gain"))
-        .select($"regulator", $"target", $"gain")
+        .agg(sum($"gain").as("sum_gain"))
+        .withColumn("gain", $"sum_gain" / phaseCellSets.size)
+        .select($"regulator", $"target", $"gain".cast(FloatType))
         .as[Regulation]
         .saveTxt(outDir)
 
