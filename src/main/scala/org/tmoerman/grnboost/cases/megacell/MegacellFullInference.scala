@@ -70,16 +70,18 @@ object MegacellFullInference {
           .sliding(nrCellsPerPhase, nrCellsPerPhase)
           .toList
           .reverse match {
-          case x :: y :: rest => y ++ x :: rest
-          case _              => ???
-        }
+            case x :: y :: rest => y ++ x :: rest
+            case _              => ???
+          }
+
+      println(s"Executing ${phaseCellSets.size} phases with sizes: ${phaseCellSets.map(_.size).mkString(", ")}")
 
       phaseCellSets
         .drop(nrSkipPhases)
         .zipWithIndex
         .foreach{ case (phaseCellIndices, phaseIndex) => {
 
-          println(s"Executing phase $phaseIndex")
+          println(s"Executing phase $phaseIndex with ${phaseCellIndices.size} cell indices")
 
           val phaseDS = ds.slice(phaseCellIndices)
 
