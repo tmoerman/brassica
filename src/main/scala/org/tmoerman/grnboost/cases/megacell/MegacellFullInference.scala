@@ -88,7 +88,7 @@ object MegacellFullInference {
               nrRounds = nrBoostingRounds,
               boosterParams = boosterParams)
 
-          val outDir = s"$out/full.stumps.$nrBoostingRounds.rounds.phase.$phaseIndex"
+          val outDir = s"$out/full.stumps.$nrBoostingRounds.rounds.phase.${phaseIndex + nrSkipPhases}"
 
           GRNBoost
             .inferRegulations(
@@ -97,6 +97,7 @@ object MegacellFullInference {
               params = params,
               nrPartitions = Some(nrPartitions))
             .sort($"regulator", $"target", $"gain".desc)
+            .repartition(1)
             .write
             .parquet(outDir)
         }}
