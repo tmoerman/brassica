@@ -29,6 +29,7 @@ object MegacellFullInference {
     val nrBoostingRounds = args(4).toInt
     val nrPartitions     = args(5).toInt
     val nrThreads        = args(6).toInt
+    val nrSkipPhases     = args(7).toInt
 
     val parsedArgs =
       s"""
@@ -40,6 +41,7 @@ object MegacellFullInference {
          |* nr boosting rounds = $nrBoostingRounds
          |* nr partitions      = $nrPartitions
          |* nr xgb threads     = $nrThreads
+         |* skip nr phases     = $nrSkipPhases
       """.stripMargin
 
     val infoFile   = s"$out/full.stumps.$nrBoostingRounds.cells.per.phase.$nrCellsPerPhase.info.txt"
@@ -73,6 +75,7 @@ object MegacellFullInference {
         }
 
       phaseCellSets
+        .drop(nrSkipPhases)
         .zipWithIndex
         .foreach{ case (phaseCellIndices, phaseIndex) => {
 

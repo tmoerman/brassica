@@ -20,4 +20,5 @@ $SPARK_HOME/bin/spark-submit \
   13000 \
   250 \
   88 \
-  1
+  1 \
+  0
