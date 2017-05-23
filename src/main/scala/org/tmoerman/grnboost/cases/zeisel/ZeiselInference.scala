@@ -11,13 +11,12 @@ import org.tmoerman.grnboost.util.TimeUtils._
 object ZeiselInference {
 
   val boosterParams = Map(
-    "seed" -> 777,
-    "eta" -> 0.01,
+    "seed"              -> 777,
+    "eta"               -> 0.01,
     "subsample"         -> 0.8,  //
     "colsample_bytree"  -> 0.25, //
     "max_depth"         -> 1,    // stumps
-    // "num_parallel_tree" -> 1,
-    "silent" -> 1
+    "silent"            -> 1
   )
 
   val params =
@@ -42,6 +41,8 @@ object ZeiselInference {
          |* nr xgb threads  = $nrThreads
       """.stripMargin
 
+    println(parsed)
+
     val spark =
       SparkSession
         .builder
@@ -50,15 +51,16 @@ object ZeiselInference {
 
     import spark.implicits._
 
-    val ds  = readExpression(spark, in).cache
-    val TFs = readTFs(mouseTFs).toSet
-
     val profiles =
-      Seq(100, 250, 500, 1000, 2500).map { currentNrRounds =>
+      Seq(250, 500).map { currentNrRounds =>
 
         print(s"Calculating GRN with $currentNrRounds boosting rounds...")
 
         val (_, duration) = profile {
+
+          // reading input here to make timings honest
+          val ds  = readExpression(spark, in).cache
+          val TFs = readTFs(mouseTFs).toSet
 
           val currentParams =
             params.copy(
@@ -87,7 +89,7 @@ object ZeiselInference {
 
     profiles
       .foreach{ case (nrRounds, duration) =>
-        println(s"Calculation with $nrRounds boosting rounds: ${pretty(duration)}")
+        println(s"Wall time with $nrRounds boosting rounds: ${pretty(duration)}")
       }
   }
 
