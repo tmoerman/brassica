@@ -25,18 +25,6 @@ class CoreSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     sliced.head.values.toDense.toArray shouldBe Array(0d, 1d)
   }
 
-//  it should "slice with replacement" in {
-//    val ds =
-//      Seq(
-//        ExpressionByGene("Dlx1", Vectors.sparse(5, Seq((1, 1d), (3, 3d)))),
-//        ExpressionByGene("Dlx2", Vectors.sparse(5, Seq((2, 2d), (4, 4d)))))
-//        .toDS
-//
-//    val sliced = ds.slice(Seq(1, 1))
-//
-//    sliced.head.values.toDense.toArray shouldBe Array(1d, 1d)
-//  }
-
   behavior of "randomCellIndices"
 
   it should "return a random subset of a small range" in {

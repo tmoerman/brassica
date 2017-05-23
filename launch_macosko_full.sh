@@ -16,6 +16,6 @@ $SPARK_HOME/bin/spark-submit \
   ./target/scala-2.11/GRNBoost.jar \
   /media/tmo/data/work/datasets/macosko/in/allEsetMR.tsv \
   /home/tmo/work/batiskav/projects/brassica/src/test/resources/TF/mm9_TFs.txt \
-  /media/tmo/data/work/datasets/macosko/out/stumps_1000/full \
+  /media/tmo/data/work/datasets/macosko/out/stumps/full \
   88 \
   1
