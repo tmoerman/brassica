@@ -1,8 +1,6 @@
 package org.tmoerman.grnboost.cases.macosko
 
-import org.apache.commons.io.FileUtils.deleteDirectory
 import org.apache.spark.sql.SparkSession
-import org.joda.time.DateTime.now
 import org.tmoerman.grnboost._
 import org.tmoerman.grnboost.cases.DataReader._
 import org.tmoerman.grnboost.util.TimeUtils._
@@ -44,8 +42,6 @@ object MacoskoInference {
       """.stripMargin
 
     println(parsed)
-
-    deleteDirectory(out)
 
     val spark =
       SparkSession
