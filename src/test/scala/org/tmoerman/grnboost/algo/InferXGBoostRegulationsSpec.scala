@@ -3,6 +3,7 @@ package org.tmoerman.grnboost.algo
 import java.io.File
 
 import org.scalatest.{FlatSpec, Matchers}
+import org.tmoerman.grnboost.XGBoostRegressionParams
 import org.tmoerman.grnboost.algo.InferXGBoostRegulations._
 
 import scala.io.Source
@@ -17,40 +18,30 @@ class InferXGBoostRegulationsSpec extends FlatSpec with Matchers {
   val treeDumpWithStats = Source.fromFile(new File("src/test/resources/xgb/treeDumpWithStats.txt")).getLines.mkString("\n")
 
   it should "parse tree metrics" in {
-    val treeMetrics = parseTreeMetrics(treeDumpWithStats)
+    val gainMap = parseGainScores(treeDumpWithStats)
 
-    treeMetrics.size shouldBe 28
+    gainMap.size shouldBe 28
 
-    val (featureIdx, metrics) = treeMetrics(0)
-    val (freq, gain, cover) = metrics
+    val (featureIdx, gain) = gainMap(0)
 
     featureIdx shouldBe 223
-
-    freq  shouldBe 1
-    gain  shouldBe 1012.38f
-    cover shouldBe 2394f
+    gain shouldBe 1012.38f
   }
 
   behavior of "aggregating booster metrics"
 
+  val params = XGBoostRegressionParams()
+
   it should "aggregate correctly for 1 tree" in {
-    val metrics = aggregateBoosterMetrics(Seq(treeDumpWithStats))
+    val gains = aggregateGainByGene(null)(Seq(treeDumpWithStats))
 
-    val (f, g, c) = metrics(223)
-
-    f shouldBe 2
-    g shouldBe 1012.38f + 53.1558f
-    c shouldBe 2394 + 1886
+    gains(223) shouldBe 1012.38f + 53.1558f
   }
 
   it should "aggregate correctly for multiple trees" in {
-    val metrics = aggregateBoosterMetrics(Seq(treeDumpWithStats, treeDumpWithStats))
+    val gains = aggregateGainByGene(null)(Seq(treeDumpWithStats, treeDumpWithStats))
 
-    val (f, g, c) = metrics(223)
-
-    f shouldBe 2 * (2)
-    g shouldBe 2 * (1012.38f + 53.1558f)
-    c shouldBe 2 * (2394 + 1886)
+    gains(223) shouldBe 2 * (1012.38f + 53.1558f)
   }
 
 }

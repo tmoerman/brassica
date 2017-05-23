@@ -1,10 +1,11 @@
 package org.tmoerman.grnboost.cases.megacell
 
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.grnboost.cases.DataReader
 import org.tmoerman.grnboost.cases.DataReader.readTFs
-import org.tmoerman.grnboost.util.TimeUtils
-import org.tmoerman.grnboost.{XGBoostRegressionParams, GRNBoostSuiteBase}
+import org.tmoerman.grnboost.util.PropsReader.props
+import org.tmoerman.grnboost.{CellIndex, ExpressionByGene, GRNBoost, GRNBoostSuiteBase, XGBoostRegressionParams, randomSubset}
+
+import scala.io.Source
 
 /**
   * @author Thomas Moerman
@@ -15,98 +16,53 @@ class MegacellPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers
 
   val boosterParams = Map(
     "seed" -> 777,
-    "silent" -> 1,
-    "eta" -> 0.2,
-    "subsample" -> 0.8,
-    "colsample_bytree" -> 0.7,
-    "gamma" -> 2
+    "eta"              -> 0.01,
+    "subsample"        -> 0.8,
+    "colsample_bytree" -> 0.25,
+    "max_depth"        -> 3,
+    "silent" -> 1
+    //"gamma" -> 10
   )
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 25,
-      boosterParams = boosterParams)
+      nrRounds = 5000,
+      boosterParams = boosterParams,
+      showCV = true)
 
-  it should "compare embarassingly parallel pipeline" in {
-    val cellTop = Some(10000)
+  val parquet = "src/test/resources/parquet/megacell"
 
-    val targetTop = 100
+  val mouseTFs = props("mouseTFs")
 
-    val genes = MegacellReader.readGeneNames(megacell).get
+//  val megacellSubSet3k = props("megacellSubSet3k")
+//  val megacellSubSet10k = props("megacellSubSet10k")
+//  val megacellSubSet100k = props("megacellSubSet100k")
 
-    /*
-    val (_, duration1) = TimeUtils.profile {
-      val result = MegacellPipeline
-        .apply(
-          spark,
-          params = params,
-          hdf5Path = megacell,
-          parquetPath = megacellParquet + "_10k",
-          candidateRegulators = MegacellReader.readTFs(mouseTFs),
-          targets = genes.take(targetTop),
-          cellTop = cellTop,
-          nrPartitions = Some(1))
-        .collect()
-    }*/
+  it should "meh" in {
+    import spark.implicits._
 
     val TFs = readTFs(mouseTFs).toSet
 
-//    val (_, duration2) = TimeUtils.profile {
-//      val result = MegacellPipeline
-//        .apply(
-//          spark,
-//          hdf5 = megacell,
-//          parquet = megacellColumnsParquet + "_10k",
-//          candidateRegulators = TFs,
-//          targets = Set("Gad1"),
-//          params = params,
-//          nrPartitions = None)
-//
-//      result.show()
-//    }
+    val cellIndicesSubSet: Seq[CellIndex] = randomSubset(3000, 0 until 1300000)
+      // Source.fromFile(megacellSubSet3k).getLines.filterNot(_.isEmpty).map(_.trim.toInt).toSeq
 
-    // println(duration1.toSeconds, duration2.toSeconds)
-    // println(duration2.toSeconds)
+    val ds = spark.read.parquet(parquet).as[ExpressionByGene].slice(cellIndicesSubSet).cache
+
+    println(ds.count)
+
+    val result =
+      GRNBoost
+        .inferRegulations(
+          ds,
+          candidateRegulators = TFs,
+          targets = Set("Lamp3"),
+          params = params)
 
     println(params)
-  }
 
-  it should "run XGBoostSpark" in {
-    val genes = MegacellReader.readGeneNames(megacell).get
-
-    // val rows = MegacellReader.readRows(megacell, Can
-
-//    val (df, genes) = MegacellReader.apply(spark, megacell).get // TODO read Parquet better ???
-//
-//    val limit = Some(10000)
-//
-//    val vectors = MegacellReader.readCSCMatrixRevised(megacell, limit).get
-//
-//    val rows = vectors.map(v => Row(v.ml))
-//    +
-//      +    val df = spark.createDataFrame(rows, StructType(FEATURES_STRUCT_FIELD :: Nil))
-//    +
-//      +    val genes = MegacellReader.readGeneNames(megacell).get
-//
-//    val TFs = MegacellReader.readTFs(mouseTFs)
-//
-//    val (grn, info) =
-//      ScenicPipeline.apply(
-//        spark,
-//        df,
-//        genes,
-//        params = params,
-//        nrRounds = 10,
-//        candidateRegulators = TFs,
-//        -        targets = List("Xkr4", "Rp1", "Sox17", "Lypla1", "Oprk1", "St18"),
-//        +        //targets = List("Xkr4", "Rp1", "Sox17", "Lypla1", "Oprk1", "St18"),
-//          +        targets = List("Gad1"),
-//        nrWorkers = Some(1)
-//      )
-//
-//    grn.show()
-//
-//    println(info.mkString("\n"))
+    result
+      .sort($"gain".desc)
+      .show
   }
 
 }

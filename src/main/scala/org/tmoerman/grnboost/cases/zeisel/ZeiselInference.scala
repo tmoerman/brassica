@@ -1,11 +1,9 @@
 package org.tmoerman.grnboost.cases.zeisel
 
-import org.apache.commons.io.FileUtils.deleteDirectory
 import org.apache.spark.sql.SparkSession
 import org.tmoerman.grnboost._
 import org.tmoerman.grnboost.cases.DataReader._
-import org.tmoerman.grnboost.util.TimeUtils
-import org.tmoerman.grnboost.util.TimeUtils.pretty
+import org.tmoerman.grnboost.util.TimeUtils._
 
 /**
   * @author Thomas Moerman
@@ -13,23 +11,20 @@ import org.tmoerman.grnboost.util.TimeUtils.pretty
 object ZeiselInference {
 
   val boosterParams = Map(
-    "seed" -> 777,
-    "eta" -> 0.3,
-    "subsample" -> 0.8,
-    // "colsample_bytree" -> 0.8,
-    "min_child_weight" -> 300,
-    "max_depth" -> 5,
-    // "num_parallel_tree" -> 200,
-    "silent" -> 1
+    "seed"              -> 777,
+    "eta"               -> 0.01,
+    "subsample"         -> 0.8,  //
+    "colsample_bytree"  -> 0.25, //
+    "max_depth"         -> 1,    // stumps
+    "silent"            -> 1
   )
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 7,
+      nrRounds = 1000,
       boosterParams = boosterParams)
 
   def main(args: Array[String]): Unit = {
-
     val in           = args(0)
     val mouseTFs     = args(1)
     val out          = args(2)
@@ -48,36 +43,54 @@ object ZeiselInference {
 
     println(parsed)
 
-    deleteDirectory(out)
+    val spark =
+      SparkSession
+        .builder
+        .appName(GRN_BOOST)
+        .getOrCreate
 
-    val (_, duration) = TimeUtils.profile {
+    import spark.implicits._
 
-      val spark =
-        SparkSession
-          .builder
-          .appName(GRN_BOOST)
-          .getOrCreate
+    val profiles =
+      Seq(250, 500).map { currentNrRounds =>
 
-      val ds  = readExpression(spark, in).cache
-      val TFs = readTFs(mouseTFs).toSet
+        print(s"Calculating GRN with $currentNrRounds boosting rounds...")
 
-      val regulations =
-        GRNBoost
-          .inferRegulations(
-            ds,
-            candidateRegulators = TFs,
-            params = params.copy(
-              boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads)),
-            nrPartitions = Some(nrPartitions))
-          .cache
+        val (_, duration) = profile {
 
-      regulations
-        .normalize(params)
-        .saveTxt(out)
-    }
+          // reading input here to make timings honest
+          val ds  = readExpression(spark, in).cache
+          val TFs = readTFs(mouseTFs).toSet
 
-    println(s"\nGRNBoost wall time: ${pretty(duration)}\n")
+          val currentParams =
+            params.copy(
+              nrRounds = currentNrRounds,
+              boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads))
 
+          val regulations =
+            GRNBoost
+              .inferRegulations(
+                ds,
+                candidateRegulators = TFs,
+                params = currentParams,
+                nrPartitions = Some(nrPartitions))
+              .cache
+
+          regulations
+            .addElbowGroups(params)
+            .sort($"regulator", $"target", $"gain".desc)
+            .saveTxt(s"${out}stumps_${currentNrRounds}_rounds_eta_0.01")
+        }
+
+        println(s"Calculation with $currentNrRounds boosting rounds: ${pretty(duration)}")
+
+        (currentNrRounds, duration)
+      }
+
+    profiles
+      .foreach{ case (nrRounds, duration) =>
+        println(s"Wall time with $nrRounds boosting rounds: ${pretty(duration)}")
+      }
   }
 
 }

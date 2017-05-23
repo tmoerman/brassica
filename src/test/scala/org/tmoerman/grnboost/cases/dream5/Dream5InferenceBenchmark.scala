@@ -15,13 +15,16 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
 
   val boosterParams = Map(
     "seed" -> 777,
-    "eta" -> 0.15,
-    "max_depth" -> 5
+    "eta" -> 0.001,
+    "subsample"         -> 0.8,  //
+    "colsample_bytree"  -> 0.25, //
+    "max_depth"         -> 1,    // stumps
+    "silent" -> 1
   )
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 7,
+      nrRounds = 1000,
       boosterParams = boosterParams)
 
   "Dream5 regulation inference" should "run" in {
@@ -41,7 +44,7 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
 
     val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
 
-    val path = s"${PropsReader.props("dream5Out")}/Try/Network${idx}norm/"
+    val path = s"${PropsReader.props("dream5Out")}/Stumps1000/Network${idx}norm/"
 
     deleteDirectory(new File(path))
 
@@ -55,10 +58,12 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
         .cache
 
     regulations
-      .select($"regulator", $"target", $"gain".as("importance"))
-      .as[Regulation]
-      .truncate()
-      .saveTxt(path)
+      .addElbowGroups(params)
+      .sort($"regulator", $"target", $"gain".desc)
+      .rdd
+      .map(r => s"${r.regulator}\t${r.target}\t${r.gain}")
+      .repartition(1)
+      .saveAsTextFile(path)
   }
 
 }

@@ -1,13 +1,12 @@
 package org.tmoerman.grnboost.cases.dream5
 
-import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import org.scalatest.{FlatSpec, Matchers}
-import org.tmoerman.grnboost.cases.dream5.Dream5Reader._
+import org.tmoerman.grnboost.GRNBoostSuiteBase
 
 /**
   * @author Thomas Moerman
   */
-class Dream5ReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
+class Dream5ReaderSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   behavior of "Dream5Reader reading the original data"
 

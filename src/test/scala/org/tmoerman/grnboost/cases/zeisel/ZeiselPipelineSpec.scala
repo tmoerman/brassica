@@ -14,17 +14,19 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val boosterParams = Map(
     "seed" -> 777,
-    "silent" -> 1,
-    "eta" -> 0.15,
-    "subsample" -> 0.8,
-    "colsample_bytree" -> 0.7
-    //"gamma" -> 2
+    "eta"              -> 0.005,
+    "subsample"        -> 0.8,
+    "colsample_bytree" -> 0.25,
+    "max_depth"        -> 3,
+    "silent" -> 1
+    //"gamma" -> 10
   )
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 50,
-      boosterParams = boosterParams)
+      nrRounds = 5000,
+      boosterParams = boosterParams,
+      showCV = true)
 
   val zeiselMrna = props("zeisel")
   val zeiselFiltered = props("zeiselFiltered")
@@ -32,6 +34,8 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   val mouseTFs = props("mouseTFs")
 
   it should "run the embarrassingly parallel pipeline from raw" in {
+    import spark.implicits._
+
     val TFs = readTFs(mouseTFs).toSet
 
     val expressionByGene = ZeiselReader.apply(spark, zeiselMrna)
@@ -46,7 +50,9 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     println(params)
 
-    result.show
+    result
+      .sort($"gain".desc)
+      .show
   }
 
   it should "run on a slice of the cells" in {

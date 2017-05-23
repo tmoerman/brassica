@@ -20,7 +20,7 @@ object BreezeUtils {
     * @return Returns an XGBoost DMatrix.
     */
   def toDMatrix(csc: CSCMatrix[Expression]): DMatrix =
-    new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC)
+    new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC, csc.rows)
 
   /**
     * @param csc The CSCMatrix to pimp

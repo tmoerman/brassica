@@ -5,7 +5,7 @@ sbt assembly
 
 echo "submitting megacell inference job"
 $SPARK_HOME/bin/spark-submit \
-  --class org.tmoerman.grnboost.cases.megacell.MegacellInference \
+  --class org.tmoerman.grnboost.cases.megacell.MegacellInferenceFromSubSet \
   --master local[*] \
   --deploy-mode client \
   --driver-memory 96g \
@@ -17,7 +17,8 @@ $SPARK_HOME/bin/spark-submit \
   /media/tmo/data/work/datasets/megacell/parquet_full \
   /home/tmo/work/batiskav/projects/brassica/src/test/resources/TF/mm9_TFs.txt \
   /media/tmo/data/work/datasets/megacell/out \
-  100000 \
-  ALL \
+  /media/tmo/data/work/datasets/megacell/out/cell.subsets/100k/nr.rounds.250/megacell.subset.100000.cells.0.txt \
+  0 \
+  250 \
   11 \
   8
