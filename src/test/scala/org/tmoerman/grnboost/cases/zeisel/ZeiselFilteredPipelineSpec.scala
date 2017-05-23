@@ -24,9 +24,7 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Ma
     "eta" -> 0.15,
     "max_depth" -> 3,
     "subsample" -> 0.25,
-    "colsample_bytree" -> 0.25,
-    "num_parallel_tree" -> 50
-    //"gamma" -> 2
+    "colsample_bytree" -> 0.25
   )
 
   val params =
@@ -53,7 +51,6 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Ma
     println(params)
 
     result
-      .sumGainScores(params)
       .addElbowGroups(params)
       .sort($"gain".desc)
       .show(100)
