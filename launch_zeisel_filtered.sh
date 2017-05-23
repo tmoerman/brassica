@@ -16,6 +16,6 @@ $SPARK_HOME/bin/spark-submit \
   ./target/scala-2.11/GRNBoost.jar \
   /media/tmo/data/work/datasets/zeisel/expression_sara_filtered.txt \
   /home/tmo/work/batiskav/projects/brassica/src/test/resources/TF/mm9_TFs.txt \
-  /media/tmo/data/work/datasets/zeisel/scenic_rebuttal_15.05.2017/ \
+  /media/tmo/data/work/datasets/zeisel/scenic_rebuttal_23.05.2017/ \
   88 \
   1
