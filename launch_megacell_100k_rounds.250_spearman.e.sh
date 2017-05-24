@@ -5,7 +5,7 @@ sbt assembly
 
 echo "submitting megacell inference job"
 $SPARK_HOME/bin/spark-submit \
-  --class org.tmoerman.grnboost.cases.megacell.MegacellSpearman \
+  --class org.aertslab.grnboost.cases.megacell.MegacellSpearman \
   --master local[*] \
   --deploy-mode client \
   --driver-memory 96g \

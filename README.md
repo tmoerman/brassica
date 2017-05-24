@@ -1,3 +1,3 @@
-# brassica
+# GRNBoost
 
-A Spark project for gene expression analysis.
+A scalable framework for gene regulatory network inference using Apache Spark and XGBoost.

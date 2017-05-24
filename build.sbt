@@ -1,6 +1,6 @@
 import sbt.Keys._
 
-organization := "org.tmoerman"
+organization := "org.aertslab"
 name := "brassica"
 version := "1.0"
 
