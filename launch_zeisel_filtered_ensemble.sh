@@ -5,7 +5,7 @@ sbt assembly
 
 echo "submitting Zeisel (filtered) inference job"
 $SPARK_HOME/bin/spark-submit \
-  --class org.tmoerman.grnboost.cases.zeisel.ZeiselInferenceEnsemble \
+  --class org.aertslab.grnboost.cases.zeisel.ZeiselInferenceEnsemble \
   --master local[*] \
   --deploy-mode client \
   --driver-memory 96g \

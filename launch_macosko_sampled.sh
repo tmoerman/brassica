@@ -5,7 +5,7 @@ sbt assembly
 
 echo "submitting Macosko (sampled) inference job"
 $SPARK_HOME/bin/spark-submit \
-  --class org.tmoerman.grnboost.cases.macosko.MacoskoInference \
+  --class org.aertslab.grnboost.cases.macosko.MacoskoInference \
   --master local[*] \
   --deploy-mode client \
   --driver-memory 96g \
