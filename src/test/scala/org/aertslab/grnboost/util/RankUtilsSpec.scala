@@ -55,18 +55,4 @@ class RankUtilsSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     sp1 shouldBe sp2
   }
 
-  behavior of "saveCorrelationMatrix"
-
-  it should "pass the smoke test on Dream data" in {
-    val (dataFile, tfFile) = network(2)
-
-    val (ds, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
-
-    val out = "src/test/resources/out/spearman"
-
-    deleteDirectory(new File(out))
-
-    saveSpearmanCorrelationMatrix(ds, tfs.toSet, out)
-  }
-
 }

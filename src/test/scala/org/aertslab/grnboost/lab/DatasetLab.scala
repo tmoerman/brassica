@@ -1,13 +1,12 @@
 package org.aertslab.grnboost.lab
 
-import com.holdenkarau.spark.testing.DataFrameSuiteBase
+import org.aertslab.grnboost.GRNBoostSuiteBase
 import org.scalatest.{FlatSpec, Matchers}
-import org.aertslab.grnboost.Regulation
 
 /**
   * @author Thomas Moerman
   */
-class DatasetLab extends FlatSpec with DataFrameSuiteBase with Matchers {
+class DatasetLab extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   behavior of "Dataset"
 
@@ -18,31 +17,9 @@ class DatasetLab extends FlatSpec with DataFrameSuiteBase with Matchers {
 
     val pred = Set("c")
 
-    val filtererd = ds.filter(kv => pred.contains(kv.key))
+    val filtered = ds.filter(kv => pred.contains(kv.key))
 
-    filtererd.show()
-  }
-
-  it should "roll up a Dataset" in {
-    import spark.implicits._
-
-    import org.apache.spark.sql.functions._
-
-    val dream1 =
-      spark
-        .sparkContext
-        .textFile("/media/tmo/data/work/datasets/dream5/out/Network1/part-00000")
-        .map(_.split("\t"))
-        .map{ case Array(reg, tar, imp) => Regulation(reg, tar, imp.toFloat) }
-        .toDS()
-
-    val sums = dream1.rollup("target").agg(stddev("importance"), sum("importance"), max("importance"))
-
-    sums.show()
-
-    // sums.describe("sum(importance)").show
-
-
+    filtered.show()
   }
 
 }

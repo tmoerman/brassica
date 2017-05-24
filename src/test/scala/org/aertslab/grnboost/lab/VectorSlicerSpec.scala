@@ -1,21 +1,19 @@
 package org.aertslab.grnboost.lab
 
-import java.util.Arrays
-
-import com.holdenkarau.spark.testing.DataFrameSuiteBase
+import org.aertslab.grnboost.GRNBoostSuiteBase
 import org.apache.spark.ml.attribute.{Attribute, AttributeGroup, NumericAttribute}
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.StructType
-import org.scalatest.{Matchers, FlatSpec}
+import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConversions._
 
 /**
   * @author Thomas Moerman
   */
-class VectorSlicerSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
+class VectorSlicerSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   "it" should "illustrate how Vector slicing works" in {
 
