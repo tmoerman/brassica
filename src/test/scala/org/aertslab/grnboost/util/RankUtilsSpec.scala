@@ -1,15 +1,9 @@
 package org.aertslab.grnboost.util
 
-import java.io.File
-
-import org.aertslab.grnboost.cases.dream5.Dream5Reader
-import org.apache.commons.io.FileUtils.deleteDirectory
-import org.apache.commons.math3.stat.correlation.SpearmansCorrelation
-import org.apache.commons.math3.stat.correlation.PearsonsCorrelation
-import org.scalatest._
 import org.aertslab.grnboost.GRNBoostSuiteBase
-import org.aertslab.grnboost.cases.dream5.network
-import org.aertslab.grnboost.util.RankUtils.{saveSpearmanCorrelationMatrix, toRankings}
+import org.aertslab.grnboost.util.RankUtils.toRankings
+import org.apache.commons.math3.stat.correlation.{PearsonsCorrelation, SpearmansCorrelation}
+import org.scalatest._
 
 /**
   * @author Thomas Moerman
