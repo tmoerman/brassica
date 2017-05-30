@@ -43,7 +43,7 @@ case class OptimizeXGBoostHyperParams(params: XGBoostOptimizationParams)
 
     // optimize the params for the current n-fold CV sets
     val trials =
-      (1 to nrTrialsPerBatch)
+      (1 to nrTrials)
         .map(trial => {
           val rng = random(seed + trial*103 + partitionIndex*107 + currentTimeMillis)
 

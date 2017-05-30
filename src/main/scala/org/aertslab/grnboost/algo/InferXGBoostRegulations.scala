@@ -9,11 +9,51 @@ import InferXGBoostRegulations._
 /**
   * @author Thomas Moerman
   */
+case class InferRegulationsOutOfCore(params: XGBoostRegressionParams,
+                                     regulators: List[Gene],
+                                     regulatorCSC: CSCMatrix[Expression]) {
+
+  def apply(expressionByGene: ExpressionByGene): Iterable[RawRegulation] = {
+
+    val targetGene        = expressionByGene.gene
+    val targetIsRegulator = regulators.contains(targetGene)
+
+    println(s"-> target: $targetGene \t regulator: $targetIsRegulator")
+
+    val (matrix, result) = if (targetIsRegulator) {
+      val targetColumnIndex = regulators.zipWithIndex.find(_._1 == targetGene).get._2
+
+      val labeledMatrix =
+        regulatorCSC
+          .dropColumn(targetColumnIndex)
+          .outOfCoreLabeledDMatrix(expressionByGene.response)
+
+      val cleanRegulators = regulators.filterNot(_ == targetGene)
+
+      val result = inferRegulations(params, targetGene, cleanRegulators, labeledMatrix)
+
+      (labeledMatrix, result)
+    } else {
+      val labeledMatrix =
+        regulatorCSC
+          .outOfCoreLabeledDMatrix(expressionByGene.response)
+
+      val result = inferRegulations(params, targetGene, regulators, labeledMatrix)
+
+      (labeledMatrix, result)
+    }
+
+    matrix.delete()
+
+    result
+  }
+
+}
+
 case class InferXGBoostRegulations(params: XGBoostRegressionParams)
                                   (regulators: List[Gene],
                                    regulatorCSC: CSCMatrix[Expression],
                                    partitionIndex: Int) extends PartitionTask[RawRegulation] {
-  import params._
 
   private[this] val cachedRegulatorDMatrix = regulatorCSC.copyToUnlabeledDMatrix
 
@@ -36,7 +76,7 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
       // set the response labels and train the model
       cleanRegulatorDMatrix.setLabel(expressionByGene.response)
 
-      val result = inferRegulations(targetGene, cleanRegulators, cleanRegulatorDMatrix)
+      val result = inferRegulations(params, targetGene, cleanRegulators, cleanRegulatorDMatrix)
 
       cleanRegulatorDMatrix.delete()
 
@@ -45,15 +85,33 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
       // set the response labels and train the model
       cachedRegulatorDMatrix.setLabel(expressionByGene.response)
 
-      val result = inferRegulations(targetGene, regulators, cachedRegulatorDMatrix)
+      val result = inferRegulations(params, targetGene, regulators, cachedRegulatorDMatrix)
 
       result
     }
   }
 
-  private def inferRegulations(targetGene: Gene,
+
+
+  /**
+    * Dispose the cached DMatrix.
+    */
+  override def dispose(): Unit = {
+    cachedRegulatorDMatrix.delete()
+  }
+
+}
+
+object InferXGBoostRegulations {
+
+  type TreeDump  = String
+  type ModelDump = Seq[TreeDump]
+
+  def inferRegulations(params: XGBoostRegressionParams,
+                               targetGene: Gene,
                                regulators: List[Gene],
                                regulatorDMatrix: DMatrix): Seq[RawRegulation] = {
+    import params._
 
     if (showCV) {
       val cv = XGBoost.crossValidation(regulatorDMatrix, boosterParams.withDefaults, nrRounds, 10)
@@ -76,20 +134,6 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
 
     regulations
   }
-
-  /**
-    * Dispose the cached DMatrix.
-    */
-  override def dispose(): Unit = {
-    cachedRegulatorDMatrix.delete()
-  }
-
-}
-
-object InferXGBoostRegulations {
-
-  type TreeDump  = String
-  type ModelDump = Seq[TreeDump]
 
   /**
     * @param targetGene

@@ -310,7 +310,7 @@ package object grnboost {
     *
     * @param boosterParamSpace The space of booster parameters to search through for an optimal set.
     * @param evalMetric The n-fold evaluation metric, default "rmse".
-    * @param nrTrialsPerBatch The number of random search trials per batch. Typically one batch per target is used,
+    * @param nrTrials The number of random search trials per batch. Typically one batch per target is used,
     *                         and batches are parallelized in different partitions.
     * @param nrBatches The number of batches. Increase when partitioning trials for the same target.
     * @param nrFolds The nr of cross validation folds in which to splice the training data.
@@ -322,8 +322,7 @@ package object grnboost {
   case class XGBoostOptimizationParams(boosterParamSpace: BoosterParamSpace = DEFAULT_BOOSTER_PARAM_SPACE,
                                        extraBoosterParams: BoosterParams = Map.empty,
                                        evalMetric: String = DEFAULT_EVAL_METRIC,
-                                       nrTrialsPerBatch: Int = 1000,
-                                       nrBatches: Int = 1,
+                                       nrTrials: Int = 1000,
                                        nrFolds: Int = DEFAULT_NR_FOLDS,
 
                                        maxNrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,

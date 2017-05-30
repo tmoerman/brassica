@@ -1,7 +1,7 @@
 package org.aertslab.grnboost
 
 import breeze.linalg.CSCMatrix
-import org.aertslab.grnboost.algo.{InferXGBoostRegulations, OptimizeXGBoostHyperParams}
+import org.aertslab.grnboost.algo.{InferRegulationsOutOfCore, InferXGBoostRegulations, OptimizeXGBoostHyperParams}
 import org.apache.spark.sql.{Dataset, Encoder}
 
 import scala.reflect.ClassTag
@@ -10,6 +10,45 @@ import scala.reflect.ClassTag
   * @author Thomas Moerman
   */
 object GRNBoost {
+
+  def inferRegulationsOutOfCore(expressionsByGene: Dataset[ExpressionByGene],
+                                candidateRegulators: Set[Gene],
+                                targets: Set[Gene] = Set.empty,
+                                params: XGBoostRegressionParams = XGBoostRegressionParams(),
+                                nrPartitions: Option[Int] = None): Dataset[RawRegulation] = {
+
+    val spark = expressionsByGene.sparkSession
+    val sc = spark.sparkContext
+
+    import spark.implicits._
+
+    val regulators = expressionsByGene.genes.filter(candidateRegulators.contains)
+
+    assert(regulators.nonEmpty,
+      s"no regulators w.r.t. specified candidate regulators ${candidateRegulators.take(3).mkString(",")}...")
+
+    val regulatorCSC = reduceToRegulatorCSCMatrix(expressionsByGene, regulators)
+
+    val regulatorsBroadcast   = sc.broadcast(regulators)
+    val regulatorCSCBroadcast = sc.broadcast(regulatorCSC)
+
+    def isTarget(e: ExpressionByGene) = containedIn(targets)(e.gene)
+
+    val onlyTargets =
+      expressionsByGene
+        .filter(isTarget _)
+        .rdd
+
+    nrPartitions
+      .map(onlyTargets.repartition(_).cache)
+      .getOrElse(onlyTargets)
+      .flatMap(
+        InferRegulationsOutOfCore(
+          params,
+          regulatorsBroadcast.value,
+          regulatorCSCBroadcast.value)(_))
+      .toDS
+  }
 
   /**
     * @param expressionsByGene A Dataset of ExpressionByGene instances.
@@ -58,18 +97,14 @@ object GRNBoost {
 
     val partitionTaskFactory = OptimizeXGBoostHyperParams(params)(_, _, _)
 
-    def multiplex(e: ExpressionByGene) = Iterable.tabulate(params.nrBatches)(_ => e)
-
-    computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions, Some(multiplex))(partitionTaskFactory)
+    computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskFactory)
   }
 
-  def computePartitioned[T : Encoder : ClassTag](
-    expressionsByGene: Dataset[ExpressionByGene],
-    candidateRegulators: Set[Gene],
-    targets: Set[Gene],
-    nrPartitions: Option[Int],
-    multiplexer: Option[(ExpressionByGene) => Iterable[ExpressionByGene]] = None)
-   (partitionTaskFactory: (List[Gene], CSCMatrix[Expression], Int) => PartitionTask[T]): Dataset[T] = {
+  def computePartitioned[T : Encoder : ClassTag](expressionsByGene: Dataset[ExpressionByGene],
+                                                 candidateRegulators: Set[Gene],
+                                                 targets: Set[Gene],
+                                                 nrPartitions: Option[Int])
+                                                (partitionTaskFactory: (List[Gene], CSCMatrix[Expression], Int) => PartitionTask[T]): Dataset[T] = {
 
     val spark = expressionsByGene.sparkSession
     val sc = spark.sparkContext
@@ -93,15 +128,10 @@ object GRNBoost {
         .filter(isTarget _)
         .rdd
 
-    val multiplexed =
-      multiplexer
-        .map(mplxr => onlyTargets.flatMap(x => mplxr(x)))
-        .getOrElse(onlyTargets)
-
     val repartitioned =
       nrPartitions
-        .map(multiplexed.repartition(_).cache)
-        .getOrElse(multiplexed)
+        .map(onlyTargets.repartition(_).cache)
+        .getOrElse(onlyTargets)
 
     repartitioned
       .mapPartitionsWithIndex{ case (partitionIndex, partitionIterator) => {
