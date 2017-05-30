@@ -16,12 +16,10 @@ import scala.util.Try
 object MegacellInferenceFromSubSet {
 
   val boosterParams = Map(
-    "seed"              -> 777,
-    "eta"               -> 0.01,
-    "subsample"         -> 0.8,
-    "colsample_bytree"  -> 0.25,
-    "max_depth"         -> 1,
-    "silent" -> 1
+    "seed"      -> 777,
+    "eta"       -> 0.1,
+    "max_depth" -> 2,
+    "silent"    -> 1
   )
 
   def main(args: Array[String]): Unit = {
@@ -79,7 +77,7 @@ object MegacellInferenceFromSubSet {
 
       val regulations =
         GRNBoost
-          .inferRegulations(
+          .inferRegulationsOutOfCore(
             dsSliced,
             candidateRegulators = TFs,
             params = params,

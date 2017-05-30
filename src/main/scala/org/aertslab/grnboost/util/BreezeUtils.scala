@@ -30,7 +30,7 @@ class ExpressionCSCMatrixFunctions(csc: CSCMatrix[Expression]) {
     * Copies the CSC arrays to the XGBoost matrix.
     * @return Returns an XGBoost DMatrix
     */
-  def copyToUnlabeledDMatrix: DMatrix =
+  @deprecated("inefficient") def copyToUnlabeledDMatrix: DMatrix =
     new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC, csc.rows)
 
   /**
