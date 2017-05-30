@@ -1,11 +1,14 @@
 package org.aertslab.grnboost.util
 
-import breeze.linalg.{CSCMatrix, SparseVector}
+import breeze.linalg.{CSCMatrix, SparseVector => BSV}
 import breeze.storage.Zero
+import ml.dmlc.xgboost4j.LabeledPoint
+import ml.dmlc.xgboost4j.LabeledPoint.fromSparseVector
 import ml.dmlc.xgboost4j.java.DMatrix.SparseType.CSC
 import ml.dmlc.xgboost4j.scala.DMatrix
 import org.aertslab.grnboost.Expression
 
+import scala.collection.Iterator.tabulate
 import scala.reflect.ClassTag
 
 /**
@@ -20,30 +23,52 @@ object BreezeUtils {
   def toDMatrix(csc: CSCMatrix[Expression]): DMatrix =
     new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC, csc.rows)
 
-  /**
-    * @param csc The CSCMatrix to pimp
-    * @tparam T Generic numerical type
-    * @return Returns a pimped CSCMatrix.
-    */
-  implicit def pimp[@specialized(Double, Int, Float, Long) T:ClassTag:Zero](csc: CSCMatrix[T]): CSCMatrixFunctions[T] =
+  implicit def pimp1[@specialized(Double, Int, Float, Long) T:ClassTag:Zero](csc: CSCMatrix[T]): CSCMatrixFunctions[T] =
     new CSCMatrixFunctions[T](csc)
+
+  implicit def pimp2(csc: CSCMatrix[Expression]): ExpressionCSCMatrixFunctions =
+    new ExpressionCSCMatrixFunctions(csc)
+
+}
+
+class ExpressionCSCMatrixFunctions(csc: CSCMatrix[Expression]) {
+
+  val m = csc.t
+
+  /**
+    * Lifted from Spark ML Matrices, modified to return a sparse vector of Float (Expression).
+    * @return Returns an iterator of Sparse expression vectors.
+    */
+  def bsvIter: Iterator[BSV[Expression]] =
+    tabulate(m.cols) { j =>
+      val colStart = m.colPtrs(j)
+      val colEnd   = m.colPtrs(j + 1)
+
+      val ii = m.rowIndices.slice(colStart, colEnd)
+      val vv = m.data.slice(colStart, colEnd)
+
+      BSV(m.rows)(ii zip vv: _*)
+    }
+
+  /**
+    * Inspired by above.
+    * @param labels The Array of labels.
+    * @return Returns an iterator of LabeledPoint instances.
+    */
+  def labeledPoints(labels: Array[Expression]): Iterator[LabeledPoint] =
+    tabulate(m.cols) { j =>
+      val colStart = m.colPtrs(j)
+      val colEnd   = m.colPtrs(j + 1)
+
+      val ii = m.rowIndices.slice(colStart, colEnd)
+      val vv = m.data.slice(colStart, colEnd)
+
+      fromSparseVector(labels(j), ii, vv)
+    }
 
 }
 
 class CSCMatrixFunctions[@specialized(Double, Int, Float, Long) T:ClassTag:Zero](m: CSCMatrix[T]) {
-
-  /**
-    * @param colIdx
-    * @return
-    */
-  def getColumn(colIdx: Int): SparseVector[T] = {
-    assert(colIdx < m.cols, s"Cannot get col $colIdx from CSCMatrix with ${m.cols} columns")
-
-
-
-    //new SparseVector[T]()
-    ???
-  }
 
   /**
     * Efficient implementation of a specialized "slice", where only one column is removed from the CSCMatrix.
