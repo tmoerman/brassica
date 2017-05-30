@@ -15,7 +15,7 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
                                    partitionIndex: Int) extends PartitionTask[RawRegulation] {
   import params._
 
-  private[this] val cachedRegulatorDMatrix = toDMatrix(regulatorCSC)
+  private[this] val cachedRegulatorDMatrix = regulatorCSC.copyToUnlabeledDMatrix
 
   /**
     * @param expressionByGene The current target gene and its expression vector.
@@ -30,7 +30,7 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
     if (targetIsRegulator) {
       // drop the target gene column from the regulator CSC matrix and create a new DMatrix
       val targetColumnIndex = regulators.zipWithIndex.find(_._1 == targetGene).get._2
-      val cleanRegulatorDMatrix = toDMatrix(regulatorCSC dropColumn targetColumnIndex)
+      val cleanRegulatorDMatrix = regulatorCSC.dropColumn(targetColumnIndex).copyToUnlabeledDMatrix
       val cleanRegulators = regulators.filterNot(_ == targetGene)
 
       // set the response labels and train the model
