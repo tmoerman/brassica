@@ -1,7 +1,11 @@
 package org.aertslab.grnboost.util
 
+import java.io.File
+
 import org.aertslab.grnboost.GRNBoostSuiteBase
-import org.aertslab.grnboost.util.RankUtils.toRankings
+import org.aertslab.grnboost.cases.dream5.{Dream5Reader, network}
+import org.aertslab.grnboost.util.RankUtils.{saveSpearmanCorrelationMatrix, toRankings}
+import org.apache.commons.io.FileUtils
 import org.apache.commons.math3.stat.correlation.{PearsonsCorrelation, SpearmansCorrelation}
 import org.scalatest._
 
@@ -58,7 +62,7 @@ class RankUtilsSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     val out = "src/test/resources/out/spearman"
 
-    deleteDirectory(new File(out))
+    FileUtils.deleteDirectory(new File(out))
 
     saveSpearmanCorrelationMatrix(ds, tfs.toSet, out)
   }
