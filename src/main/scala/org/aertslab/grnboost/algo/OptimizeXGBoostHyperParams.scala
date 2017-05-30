@@ -104,9 +104,12 @@ object OptimizeXGBoostHyperParams {
       if (targetIsRegulator) {
         val targetColumnIndex = regulators.zipWithIndex.find(_._1 == targetGene).get._2
 
-        toDMatrix(regulatorCSC dropColumn targetColumnIndex)
+        regulatorCSC
+          .dropColumn(targetColumnIndex)
+          .copyToUnlabeledDMatrix
       } else {
-        toDMatrix(regulatorCSC)
+        regulatorCSC
+          .copyToUnlabeledDMatrix
       }
     regulatorDMatrix.setLabel(expressionByGene.response)
 

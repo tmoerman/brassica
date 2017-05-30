@@ -16,13 +16,6 @@ import scala.reflect.ClassTag
   */
 object BreezeUtils {
 
-  /**
-    * @param csc A Breeze CSCMatrix.
-    * @return Returns an XGBoost DMatrix.
-    */
-  def toDMatrix(csc: CSCMatrix[Expression]): DMatrix =
-    new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC, csc.rows)
-
   implicit def pimp1[@specialized(Double, Int, Float, Long) T:ClassTag:Zero](csc: CSCMatrix[T]): CSCMatrixFunctions[T] =
     new CSCMatrixFunctions[T](csc)
 
@@ -33,13 +26,28 @@ object BreezeUtils {
 
 class ExpressionCSCMatrixFunctions(csc: CSCMatrix[Expression]) {
 
+  /**
+    * Copies the CSC arrays to the XGBoost matrix.
+    * @return Returns an XGBoost DMatrix
+    */
+  def copyToUnlabeledDMatrix: DMatrix =
+    new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC, csc.rows)
+
+  /**
+    * Makes an out-of-core DMatrix in function of a LabeledPoint iterator.
+    * @param labels The Array of label expression values.
+    * @return Returns an XGBoost DMatrix with labels.
+    */
+  def outOfCoreLabeledDMatrix(labels: Array[Expression]): DMatrix =
+    new DMatrix(labeledPointsIterator(labels))
+
   val m = csc.t
 
   /**
     * Lifted from Spark ML Matrices, modified to return a sparse vector of Float (Expression).
     * @return Returns an iterator of Sparse expression vectors.
     */
-  def bsvIter: Iterator[BSV[Expression]] =
+  def sparseVectorIterator: Iterator[BSV[Expression]] =
     tabulate(m.cols) { j =>
       val colStart = m.colPtrs(j)
       val colEnd   = m.colPtrs(j + 1)
@@ -55,7 +63,7 @@ class ExpressionCSCMatrixFunctions(csc: CSCMatrix[Expression]) {
     * @param labels The Array of labels.
     * @return Returns an iterator of LabeledPoint instances.
     */
-  def labeledPoints(labels: Array[Expression]): Iterator[LabeledPoint] =
+  def labeledPointsIterator(labels: Array[Expression]): Iterator[LabeledPoint] =
     tabulate(m.cols) { j =>
       val colStart = m.colPtrs(j)
       val colEnd   = m.colPtrs(j + 1)

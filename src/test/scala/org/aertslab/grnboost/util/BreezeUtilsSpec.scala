@@ -20,7 +20,7 @@ class BreezeUtilsSpec extends FlatSpec with Matchers {
   "rowIter from a CSCMatrix" should "work" in {
     val empty: Array[(Int, Float)] = Array.empty
 
-    em.bsvIter.toList shouldBe List(
+    em.sparseVectorIterator.toList shouldBe List(
       BSV(4)((0, 6f)),
       BSV(4)((1, 7f)),
       BSV(4)(empty: _*),
@@ -31,7 +31,7 @@ class BreezeUtilsSpec extends FlatSpec with Matchers {
   }
 
   "labeledPoints from a CSCMatrix" should "work" in {
-    val ps = em.labeledPoints(Array(1f, 2f, 3f, 4f, 5f, 6f)).toList
+    val ps = em.labeledPointsIterator(Array(1f, 2f, 3f, 4f, 5f, 6f)).toList
 
     val p0 = ps(0)
     p0.label   shouldBe 1f
