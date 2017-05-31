@@ -20,8 +20,8 @@ class Dream5OptimizationBenchmark extends FlatSpec with GRNBoostSuiteBase with M
 
   val optimizationParams: XGBoostOptimizationParams =
     XGBoostOptimizationParams(
-      nrTrialsPerBatch = 10000 / 88,
-      nrBatches = 88,
+      nrTrials = 10000 / 88,
+      // nrBatches = 88,
       onlyBestTrial = false)
 
   val nrCores = getRuntime.availableProcessors

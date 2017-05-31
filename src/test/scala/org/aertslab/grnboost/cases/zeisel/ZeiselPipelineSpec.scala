@@ -19,14 +19,12 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     "colsample_bytree" -> 0.25,
     "max_depth"        -> 1,
     "silent" -> 1
-    //"gamma" -> 10
   )
 
   val params =
     XGBoostRegressionParams(
       nrRounds = 250,
-      boosterParams = boosterParams,
-      showCV = true)
+      boosterParams = boosterParams)
 
   val zeiselMrna = props("zeisel")
   val zeiselFiltered = props("zeiselFiltered")

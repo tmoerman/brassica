@@ -33,15 +33,15 @@ class ExpressionCSCMatrixFunctions(csc: CSCMatrix[Expression]) {
     * Copies the CSC arrays to the XGBoost matrix.
     * @return Returns an XGBoost DMatrix
     */
-  @deprecated("inefficient") def copyToUnlabeledDMatrix: DMatrix =
+  def copyToUnlabeledDMatrix: DMatrix =
     new DMatrix(csc.colPtrs.map(_.toLong), csc.rowIndices, csc.data, CSC, csc.rows)
 
   /**
-    * Makes an out-of-core DMatrix in function of a LabeledPoint iterator.
+    * Makes an iterated DMatrix in function of a LabeledPoint iterator.
     * @param labels The Array of label expression values.
     * @return Returns an XGBoost DMatrix with labels.
     */
-  def outOfCoreLabeledDMatrix(labels: Array[Expression]): DMatrix =
+  def iterateToLabeledDMatrix(labels: Array[Expression]): DMatrix =
     new DMatrix(labeledPointsIterator(labels))
 
   val m = csc.t

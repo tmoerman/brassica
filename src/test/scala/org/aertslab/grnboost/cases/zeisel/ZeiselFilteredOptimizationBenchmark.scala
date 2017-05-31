@@ -23,8 +23,8 @@ class ZeiselFilteredOptimizationBenchmark extends FlatSpec with GRNBoostSuiteBas
 
   val optimizationParams: XGBoostOptimizationParams =
     XGBoostOptimizationParams(
-      nrTrialsPerBatch = 200,
-      nrBatches = 88,
+      nrTrials = 200,
+      // nrBatches = 88,
       onlyBestTrial = false)
 
   "Zeisel filtered optimization" should "run" in {

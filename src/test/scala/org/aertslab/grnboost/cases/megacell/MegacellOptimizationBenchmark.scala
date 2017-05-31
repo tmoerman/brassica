@@ -31,7 +31,7 @@ class MegacellOptimizationBenchmark extends FlatSpec with GRNBoostSuiteBase with
   val optimizationParams =
     XGBoostOptimizationParams(
       boosterParamSpace = minChildDepthSpace,
-      nrTrialsPerBatch = 5,
+      nrTrials = 5,
       maxNrRounds = 20,
       //earlyStopParams = None,
       //nrBatches = 1,

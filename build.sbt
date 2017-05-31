@@ -1,8 +1,8 @@
 import sbt.Keys._
 
 organization := "org.aertslab"
-name := "brassica"
-version := "1.0"
+name         := "GRNBoost"
+description  := "A scalable gene regulatory network inference library"
 
 scalaVersion := "2.11.8"
 sparkVersion := "2.1.0"

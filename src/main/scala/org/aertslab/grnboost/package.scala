@@ -293,7 +293,7 @@ package object grnboost {
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
                                      elbow: Option[Float] = Some(0.5f),
-                                     showCV: Boolean = false)
+                                     nrFolds: Int = 5)
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the

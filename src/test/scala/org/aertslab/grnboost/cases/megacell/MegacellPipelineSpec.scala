@@ -27,8 +27,7 @@ class MegacellPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers
   val params =
     XGBoostRegressionParams(
       nrRounds = 5000,
-      boosterParams = boosterParams,
-      showCV = true)
+      boosterParams = boosterParams)
 
   val parquet = "src/test/resources/parquet/megacell"
 

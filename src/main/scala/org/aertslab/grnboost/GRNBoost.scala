@@ -1,7 +1,7 @@
 package org.aertslab.grnboost
 
 import breeze.linalg.CSCMatrix
-import org.aertslab.grnboost.algo.{InferRegulationsOutOfCore, InferXGBoostRegulations, OptimizeXGBoostHyperParams}
+import org.aertslab.grnboost.algo.{ComputeCVLoss, InferRegulationsIterated, InferXGBoostRegulations, OptimizeXGBoostHyperParams}
 import org.apache.spark.sql.{Dataset, Encoder}
 
 import scala.reflect.ClassTag
@@ -11,11 +11,18 @@ import scala.reflect.ClassTag
   */
 object GRNBoost {
 
-  def inferRegulationsOutOfCore(expressionsByGene: Dataset[ExpressionByGene],
-                                candidateRegulators: Set[Gene],
-                                targets: Set[Gene] = Set.empty,
-                                params: XGBoostRegressionParams = XGBoostRegressionParams(),
-                                nrPartitions: Option[Int] = None): Dataset[RawRegulation] = {
+  def help =
+    """
+      |GRNBoost usage:
+      |
+      |* TODO
+    """.stripMargin
+
+  def inferRegulationsIterated(expressionsByGene: Dataset[ExpressionByGene],
+                               candidateRegulators: Set[Gene],
+                               targets: Set[Gene] = Set.empty,
+                               params: XGBoostRegressionParams = XGBoostRegressionParams(),
+                               nrPartitions: Option[Int] = None): Dataset[RawRegulation] = {
 
     val spark = expressionsByGene.sparkSession
     val sc = spark.sparkContext
@@ -43,7 +50,7 @@ object GRNBoost {
       .map(onlyTargets.repartition(_).cache)
       .getOrElse(onlyTargets)
       .flatMap(
-        InferRegulationsOutOfCore(
+        InferRegulationsIterated(
           params,
           regulatorsBroadcast.value,
           regulatorCSCBroadcast.value)(_))
@@ -71,6 +78,28 @@ object GRNBoost {
     import expressionsByGene.sparkSession.implicits._
 
     val partitionTaskFactory = InferXGBoostRegulations(params)(_, _, _)
+
+    computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskFactory)
+  }
+
+  /**
+    * @param expressionsByGene
+    * @param candidateRegulators
+    * @param targets
+    * @param params
+    * @param nrPartitions
+    *
+    * @return Returns a Dataset of LossByRound instances.
+    */
+  def computeCVLoss(expressionsByGene: Dataset[ExpressionByGene],
+                    candidateRegulators: Set[Gene],
+                    targets: Set[Gene] = Set.empty,
+                    params: XGBoostRegressionParams = XGBoostRegressionParams(),
+                    nrPartitions: Option[Int] = None): Dataset[LossByRound] = {
+
+    import expressionsByGene.sparkSession.implicits._
+
+    val partitionTaskFactory = ComputeCVLoss(params)(_, _, _)
 
     computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskFactory)
   }
