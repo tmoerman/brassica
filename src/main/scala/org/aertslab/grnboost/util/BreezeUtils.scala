@@ -24,6 +24,9 @@ object BreezeUtils {
 
 }
 
+/**
+  * @param csc The sparse CSCMatrix, rows = cells, cols = genes
+  */
 class ExpressionCSCMatrixFunctions(csc: CSCMatrix[Expression]) {
 
   /**
