@@ -18,7 +18,7 @@ object MegacellInferenceFromSubSet {
   val boosterParams = Map(
     "seed"      -> 777,
     "eta"       -> 0.1,
-    "max_depth" -> 2,
+    "max_depth" -> 1,
     "silent"    -> 1
   )
 
