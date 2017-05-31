@@ -68,13 +68,14 @@ object MegacellFullOOCInference {
 
       val regulations =
         GRNBoost
-          .inferRegulationsOutOfCore(
+          //.inferRegulationsOutOfCore(
+          .inferRegulations(
             expressionsByGene = ds,
             candidateRegulators = TFs,
             params = params,
             nrPartitions = Some(nrPartitions))
           .cache
-
+      
       regulations
         .sort($"regulator", $"target", $"gain".desc)
         .rdd
