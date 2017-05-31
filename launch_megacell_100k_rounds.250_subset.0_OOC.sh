@@ -20,5 +20,5 @@ $SPARK_HOME/bin/spark-submit \
   /media/tmo/data/work/datasets/megacell/out/cell.subsets/100k/nr.rounds.250/megacell.subset.100000.cells.0.txt \
   0 \
   250 \
-  11 \
-  8
+  44 \
+  2
