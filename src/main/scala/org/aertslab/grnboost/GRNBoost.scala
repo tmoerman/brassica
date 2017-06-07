@@ -1,8 +1,13 @@
 package org.aertslab.grnboost
 
+import java.io.File
+
 import breeze.linalg.CSCMatrix
 import org.aertslab.grnboost.algo.{ComputeCVLoss, InferRegulationsIterated, InferXGBoostRegulations, OptimizeXGBoostHyperParams}
-import org.apache.spark.sql.{Dataset, Encoder}
+import org.aertslab.grnboost.cases.DataReader._
+import org.aertslab.grnboost.util.IOUtils._
+import org.aertslab.grnboost.util.TimeUtils._
+import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
 
 import scala.reflect.ClassTag
 
@@ -11,18 +16,94 @@ import scala.reflect.ClassTag
   */
 object GRNBoost {
 
-  def help =
-    """
-      |GRNBoost usage:
-      |
-      |* TODO
-    """.stripMargin
+  /**
+    * Main application entry point.
+    * @param args
+    */
+  def main(args: Array[String]): Unit =
+    CLI(args: _*) match {
+      case Some(Config(Some(inferenceConfig), None)) => infer(inferenceConfig)
+      case _                                         => Unit
+    }
 
+  /**
+    * Perform GRN inference in function of specified InferenceConfig.
+    * @param inferenceConfig
+    */
+  def infer(inferenceConfig: InferenceConfig): Unit = {
+    import inferenceConfig._
+
+    val spark =
+      SparkSession
+        .builder
+        .appName(GRN_BOOST)
+        .getOrCreate
+
+    import spark.implicits._
+
+    val (_, wallTime) = profile {
+
+      val params =
+        XGBoostRegressionParams(
+          nrRounds = nrBoostingRounds.getOrElse(1000), // FIXME early stop mechanism needed!
+          boosterParams = boosterParams)
+
+      val ds  = readExpressionsByGene(spark, input.get.getAbsolutePath, nrHeaders = inputHeaders)
+      val TFs = readRegulators(regulators.get.getAbsolutePath)
+
+      val (sampleIndices, maybeSampled) =
+        ds.subSample(sampleSize)
+
+      val regulations =
+        if (iterated)
+          inferRegulationsIterated(maybeSampled, TFs.toSet, targets.toSet, params, nrPartitions)
+        else
+          inferRegulations(maybeSampled, TFs.toSet, targets.toSet, params, nrPartitions)
+
+      val maybeTruncated =
+        truncate
+          .map(nr => regulations.sort($"gain").limit(nr))
+          .getOrElse(regulations)
+
+      val sorted =
+        maybeTruncated
+          .sort($"regulator", $"target", $"gain")
+
+      sorted
+        .saveTxt(output.get.getAbsolutePath, delimiter)
+
+      sampleIndices
+        .foreach(ids => {
+          val sampleLogFile = new File(output.get, "_sample.log")
+          writeToFile(sampleLogFile, ids.mkString("\n"))
+        })
+    }
+
+    val runLogFile = new File(output.get, "_run.log")
+    val runLogText =
+      s"""
+        |* Inference configuration:
+        |${inferenceConfig.toString}
+        |
+        |* Wall time: ${pretty(wallTime)}"}
+      """.stripMargin
+
+    writeToFile(runLogFile.getAbsolutePath, runLogText)
+  }
+
+  /**
+    * @param expressionsByGene
+    * @param candidateRegulators
+    * @param targets
+    * @param params
+    * @param nrPartitions
+    * @return Returns a Dataset of Regulations.
+    */
   def inferRegulationsIterated(expressionsByGene: Dataset[ExpressionByGene],
                                candidateRegulators: Set[Gene],
                                targets: Set[Gene] = Set.empty,
                                params: XGBoostRegressionParams = XGBoostRegressionParams(),
-                               nrPartitions: Option[Int] = None): Dataset[RawRegulation] = {
+                               nrPartitions: Option[Int] = None): Dataset[Regulation] = {
 
     val spark = expressionsByGene.sparkSession
     val sc = spark.sparkContext
@@ -73,7 +154,7 @@ object GRNBoost {
                        candidateRegulators: Set[Gene],
                        targets: Set[Gene] = Set.empty,
                        params: XGBoostRegressionParams = XGBoostRegressionParams(),
-                       nrPartitions: Option[Int] = None): Dataset[RawRegulation] = {
+                       nrPartitions: Option[Int] = None): Dataset[Regulation] = {
 
     import expressionsByGene.sparkSession.implicits._
 
@@ -153,9 +234,10 @@ object GRNBoost {
     def isTarget(e: ExpressionByGene) = containedIn(targets)(e.gene)
 
     val onlyTargets =
-      expressionsByGene
-        .filter(isTarget _)
-        .rdd
+      if (targets.isEmpty)
+        expressionsByGene.rdd
+      else
+        expressionsByGene.filter(isTarget _).rdd
 
     val repartitioned =
       nrPartitions
