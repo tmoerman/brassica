@@ -25,7 +25,9 @@ libraryDependencies ++= Seq(
 
   "com.eharmony"   % "spotz-core" % "1.0.0",
   "com.jsuereth"  %% "scala-arm"  % "2.0",
-  "com.monovore"  %% "decline"    % "0.1",
+
+  "com.softwaremill.quicklens" %% "quicklens" % "1.4.8",
+  "com.github.scopt"           %% "scopt"     % "3.6.0",
 
   "org.scalactic" %% "scalactic"  % "3.0.1",
   "LLNL"           % "spark-hdf5" % "0.0.4"  % "provided",
