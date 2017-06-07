@@ -37,32 +37,4 @@ class CoreSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     selection.size shouldBe 100000
   }
 
-  behavior of "regulation dataset"
-
-  it should "aggregate with another regulation dataset" in {
-    import org.apache.spark.sql.functions._
-
-    val ds1 =
-      Seq(
-        RawRegulation("Dlx1", "Tspan2", 3f),
-        RawRegulation("Olig1", "Myrf", 6f))
-      .toDS
-
-    val ds2 =
-      Seq(
-        RawRegulation("Dlx1", "Tspan2", 7f),
-        RawRegulation("Olig1", "Myrf", 2f),
-        RawRegulation("Dlx2", "Bla", 1))
-      .toDS
-
-    Seq(ds1, ds2)
-      .reduce(_ union _)
-      .groupBy($"regulator", $"target")
-      .agg(sum($"gain").as("sum_gain"))
-      .withColumn("gain", $"sum_gain" / 5)
-      .select($"regulator", $"target", $"gain".cast(FloatType))
-      .as[Regulation]
-      .show
-  }
-
 }

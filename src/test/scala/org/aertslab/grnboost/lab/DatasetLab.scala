@@ -2,7 +2,7 @@ package org.aertslab.grnboost.lab
 
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import org.scalatest.{FlatSpec, Matchers}
-import org.aertslab.grnboost.Regulation
+import org.aertslab.grnboost._
 
 /**
   * @author Thomas Moerman
@@ -34,15 +34,11 @@ class DatasetLab extends FlatSpec with DataFrameSuiteBase with Matchers {
         .textFile("/media/tmo/data/work/datasets/dream5/out/Network1/part-00000")
         .map(_.split("\t"))
         .map{ case Array(reg, tar, imp) => Regulation(reg, tar, imp.toFloat) }
-        .toDS()
+        .toDS
 
     val sums = dream1.rollup("target").agg(stddev("importance"), sum("importance"), max("importance"))
 
-    sums.show()
-
-    // sums.describe("sum(importance)").show
-
-
+    sums.show
   }
 
 }

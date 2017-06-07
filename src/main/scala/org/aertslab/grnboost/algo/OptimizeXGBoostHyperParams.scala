@@ -6,9 +6,9 @@ import java.lang.System.currentTimeMillis
 import breeze.linalg.CSCMatrix
 import com.eharmony.spotz.optimizer.hyperparam.RandomSampler
 import ml.dmlc.xgboost4j.java.Booster
-import ml.dmlc.xgboost4j.java.JXGBoostAccess.createBooster
+import ml.dmlc.xgboost4j.java.XGBoostUtils.createBooster
 import ml.dmlc.xgboost4j.scala.DMatrix
-import ml.dmlc.xgboost4j.scala.XGBoostAccess.inner
+import ml.dmlc.xgboost4j.scala.XGBoostConversions._
 import org.aertslab.grnboost._
 
 import scala.util.Random
@@ -164,13 +164,10 @@ object OptimizeXGBoostHyperParams {
           val roundResults =
             foldsAndBoosters
               .map{ case (train, test, booster) =>
-                val train4j = inner(train)
-                val test4j  = inner(test)
-                val mats    = Array(train4j, test4j)
-
+                val mats = Array(train, test)
                 val boostingRound = round - 1 // boosting rounds are 0 based, result is a count, i.e. 1 based
 
-                booster.update(train4j, boostingRound)
+                booster.update(train, boostingRound)
                 booster.evalSet(mats, NAMES, boostingRound)}
 
           val (_, testLoss) = parseLossScores(roundResults)

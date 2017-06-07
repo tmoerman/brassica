@@ -13,7 +13,7 @@ case class InferRegulationsIterated(params: XGBoostRegressionParams,
                                     regulators: List[Gene],
                                     regulatorCSC: CSCMatrix[Expression]) {
 
-  def apply(expressionByGene: ExpressionByGene): Iterable[RawRegulation] = {
+  def apply(expressionByGene: ExpressionByGene): Iterable[Regulation] = {
 
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
@@ -102,7 +102,7 @@ case class ComputeCVLoss(params: XGBoostRegressionParams)
 case class InferXGBoostRegulations(params: XGBoostRegressionParams)
                                   (regulators: List[Gene],
                                    regulatorCSC: CSCMatrix[Expression],
-                                   partitionIndex: Int) extends PartitionTask[RawRegulation] {
+                                   partitionIndex: Int) extends PartitionTask[Regulation] {
 
   private[this] val cachedRegulatorDMatrix = regulatorCSC.copyToUnlabeledDMatrix
 
@@ -110,7 +110,7 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
     * @param expressionByGene The current target gene and its expression vector.
     * @return Returns the inferred Regulation instances for one ExpressionByGene instance.
     */
-  override def apply(expressionByGene: ExpressionByGene): Iterable[RawRegulation] = {
+  override def apply(expressionByGene: ExpressionByGene): Iterable[Regulation] = {
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
@@ -167,7 +167,7 @@ object InferXGBoostRegulations {
   def inferRegulations(params: XGBoostRegressionParams,
                        targetGene: Gene,
                        regulators: List[Gene],
-                       regulatorDMatrix: DMatrix): Seq[RawRegulation] = {
+                       regulatorDMatrix: DMatrix): Seq[Regulation] = {
     import params._
 
     val booster = XGBoost.train(regulatorDMatrix, boosterParams.withDefaults, nrRounds)
@@ -188,14 +188,14 @@ object InferXGBoostRegulations {
   def toRawRegulations(targetGene: Gene,
                        regulators: List[Gene],
                        booster: Booster,
-                       params: XGBoostRegressionParams): Seq[RawRegulation] = {
+                       params: XGBoostRegressionParams): Seq[Regulation] = {
 
     val boosterModelDump = booster.getModelDump(withStats = true).toSeq
 
     aggregateGainByGene(params)(boosterModelDump)
       .toSeq
       .map{ case (geneIndex, normalizedGain) =>
-        RawRegulation(regulators(geneIndex), targetGene, normalizedGain)
+        Regulation(regulators(geneIndex), targetGene, normalizedGain)
       }
   }
 

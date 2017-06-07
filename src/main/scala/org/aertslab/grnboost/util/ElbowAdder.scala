@@ -24,7 +24,7 @@ object ElbowAdder {
       .sparkContext
       .textFile(in)
       .map(_.split("\t"))
-      .map{ case Array(r, t, g) => RawRegulation(r, t, g.toFloat) }
+      .map{ case Array(r, t, g) => Regulation(r, t, g.toFloat) }
       .toDS
       .addElbowGroups(XGBoostRegressionParams())
       .rdd
