@@ -12,7 +12,7 @@ import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.aertslab.grnboost._
-import org.aertslab.grnboost.cases.DataReader._
+import DataReader._
 import resource._
 
 import scala.collection.JavaConversions._

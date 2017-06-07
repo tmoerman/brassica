@@ -2,7 +2,7 @@ package org.aertslab.grnboost.cases.macosko
 
 import org.apache.spark.sql.SparkSession
 import org.aertslab.grnboost._
-import org.aertslab.grnboost.cases.DataReader._
+import DataReader._
 import org.aertslab.grnboost.util.TimeUtils._
 
 /**
@@ -59,8 +59,8 @@ object MacoskoInference {
         val (_, duration) = profile {
 
           // reading input here to make timings honest
-          val ds  = readExpression(spark, in).cache
-          val TFs = readTFs(mouseTFs).map(_.toUpperCase).toSet // !!! uppercase for Macosko genes
+          val ds  = readExpressionsByGene(spark, in).cache
+          val TFs = readRegulators(mouseTFs).map(_.toUpperCase).toSet // !!! uppercase for Macosko genes
 
           val currentParams =
             params.copy(

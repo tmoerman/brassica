@@ -4,7 +4,7 @@ import java.io.File
 
 import breeze.linalg.CSCMatrix
 import org.aertslab.grnboost.algo.{ComputeCVLoss, InferRegulationsIterated, InferXGBoostRegulations, OptimizeXGBoostHyperParams}
-import org.aertslab.grnboost.cases.DataReader._
+import DataReader._
 import org.aertslab.grnboost.util.IOUtils._
 import org.aertslab.grnboost.util.TimeUtils._
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}

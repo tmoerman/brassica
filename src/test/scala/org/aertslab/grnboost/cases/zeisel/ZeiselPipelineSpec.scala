@@ -2,7 +2,7 @@ package org.aertslab.grnboost.cases.zeisel
 
 import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost._
-import org.aertslab.grnboost.cases.DataReader._
+import DataReader._
 import org.aertslab.grnboost.util.PropsReader.props
 
 /**
@@ -34,7 +34,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   it should "run the embarrassingly parallel pipeline from raw" in {
     import spark.implicits._
 
-    val TFs = readTFs(mouseTFs).toSet
+    val TFs = readRegulators(mouseTFs).toSet
 
     val expressionByGene = ZeiselReader.apply(spark, zeiselMrna)
 
@@ -54,7 +54,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   }
 
   it should "run on a slice of the cells" in {
-    val TFs = readTFs(mouseTFs).toSet
+    val TFs = readRegulators(mouseTFs).toSet
 
     val expressionByGene = ZeiselReader.apply(spark, zeiselMrna).slice(0 until 1000)
 
@@ -72,9 +72,9 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   }
 
   it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
-    val TFs = readTFs(mouseTFs).toSet
+    val TFs = readRegulators(mouseTFs).toSet
 
-    val expressionByGene = readExpression(spark, zeiselFiltered)
+    val expressionByGene = readExpressionsByGene(spark, zeiselFiltered)
 
     val result =
       GRNBoost

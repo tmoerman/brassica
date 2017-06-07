@@ -6,7 +6,7 @@ import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost.{GRNBoost, XGBoostOptimizationParams, GRNBoostSuiteBase}
 import org.aertslab.grnboost.util.PropsReader.props
-import org.aertslab.grnboost.cases.DataReader._
+import org.aertslab.grnboost.DataReader._
 
 /**
   * @author Thomas Moerman
@@ -28,9 +28,9 @@ class ZeiselFilteredOptimizationBenchmark extends FlatSpec with GRNBoostSuiteBas
       onlyBestTrial = false)
 
   "Zeisel filtered optimization" should "run" in {
-    val expressionsByGene = readExpression(spark, zeiselFiltered)
+    val expressionsByGene = readExpressionsByGene(spark, zeiselFiltered)
 
-    val TFs = readTFs(mouseTFs).toSet
+    val TFs = readRegulators(mouseTFs).toSet
 
     val optimizedHyperParamsDS =
       GRNBoost

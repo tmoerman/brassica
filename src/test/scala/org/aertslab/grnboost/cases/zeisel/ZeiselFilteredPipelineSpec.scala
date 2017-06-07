@@ -4,7 +4,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost.util.PropsReader.props
 import org.aertslab.grnboost.{XGBoostRegressionParams, GRNBoost, GRNBoostSuiteBase}
 
-import org.aertslab.grnboost.cases.DataReader._
+import org.aertslab.grnboost.DataReader._
 import org.aertslab.grnboost._
 
 /**
@@ -35,9 +35,9 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Ma
   it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
     import spark.implicits._
 
-    val TFs = readTFs(mouseTFs).toSet
+    val TFs = readRegulators(mouseTFs).toSet
 
-    val expressionByGene = readExpression(spark, zeiselFiltered)
+    val expressionByGene = readExpressionsByGene(spark, zeiselFiltered)
 
     val result =
       GRNBoost

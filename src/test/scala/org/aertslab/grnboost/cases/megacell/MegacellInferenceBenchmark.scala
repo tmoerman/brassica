@@ -1,11 +1,10 @@
 package org.aertslab.grnboost.cases.megacell
 
+import org.aertslab.grnboost.DataReader.readRegulators
+import org.aertslab.grnboost.util.PropsReader.props
+import org.aertslab.grnboost._
 import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
-import org.aertslab.grnboost.cases.DataReader
-import org.aertslab.grnboost.cases.DataReader.readTFs
-import org.aertslab.grnboost.util.PropsReader.props
-import org.aertslab.grnboost.{ExpressionByGene, XGBoostRegressionParams, GRNBoostSuiteBase, _}
 
 /**
   * @author Thomas Moerman
@@ -36,7 +35,7 @@ class MegacellInferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Ma
   private def inferSub(nrCells: CellCount) = {
     import spark.implicits._
 
-    val TFs = readTFs(mouseTFs).toSet
+    val TFs = readRegulators(mouseTFs).toSet
 
     val ds = spark.read.parquet(full).as[ExpressionByGene]
 

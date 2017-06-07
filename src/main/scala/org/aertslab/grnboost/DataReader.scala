@@ -1,8 +1,7 @@
-package org.aertslab.grnboost.cases
+package org.aertslab.grnboost
 
 import java.io.File
 
-import org.aertslab.grnboost._
 import org.aertslab.grnboost.util.RDDFunctions._
 import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.sql._

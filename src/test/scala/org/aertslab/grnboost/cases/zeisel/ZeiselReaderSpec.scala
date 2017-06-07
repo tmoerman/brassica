@@ -4,7 +4,7 @@ import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost.cases.zeisel.ZeiselReader._
 import org.aertslab.grnboost.util.PropsReader.props
-import org.aertslab.grnboost.cases.DataReader._
+import org.aertslab.grnboost.DataReader._
 
 /**
   * @author Thomas Moerman
@@ -20,7 +20,7 @@ class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
   val mouseTFs = props("mouseTFs")
 
   it should "parse the mouse TFs properly" in {
-    val TFs = readTFs(mouseTFs)
+    val TFs = readRegulators(mouseTFs)
 
     TFs.size shouldBe MOUSE_TF_COUNT
   }

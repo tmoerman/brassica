@@ -4,7 +4,7 @@ import java.io.File
 
 import org.apache.commons.io.FileUtils.deleteDirectory
 import org.scalatest.{FlatSpec, Matchers}
-import org.aertslab.grnboost.cases.DataReader.readTFs
+import org.aertslab.grnboost.DataReader.readRegulators
 import org.aertslab.grnboost.cases.zeisel.ZeiselReader.ZEISEL_GENE_COUNT
 import org.aertslab.grnboost.util.PropsReader.props
 import org.aertslab.grnboost.util.{PropsReader, TimeUtils}
@@ -34,7 +34,7 @@ class ZeiselBenchmark extends FlatSpec with GRNBoostSuiteBase with Matchers {
   val mouseTFs = props("mouseTFs")
 
   "the Zeisel emb.par pipeline from parquet" should "run" in {
-    val TFs = readTFs(mouseTFs).toSet
+    val TFs = readRegulators(mouseTFs).toSet
 
     val expressionByGene = ZeiselReader.apply(spark, zeiselMrna)
 

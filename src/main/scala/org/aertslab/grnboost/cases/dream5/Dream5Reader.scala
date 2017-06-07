@@ -4,7 +4,7 @@ import breeze.linalg._
 import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.aertslab.grnboost.{ExpressionByGene, Gene}
-import org.aertslab.grnboost.cases.DataReader._
+import org.aertslab.grnboost.DataReader._
 
 import scala.io.Source
 
@@ -30,10 +30,14 @@ object Dream5Reader {
 
     val TFs = Source.fromFile(tfFile).getLines.toList
 
-    val genes = Source.fromFile(dataFile).getLines.next.split(delimiter)
+    val genes = Source.fromFile(dataFile).getLines.next.split(delimiter).toSeq
+
     val matrix = csvread(dataFile, delimiter, skipLines = 1)
+
+    val rows = matrix.t.ml.rowIter.map(_.toSparse).toSeq
+
     val ds =
-      (genes.toSeq zip matrix.t.ml.rowIter.toSeq)
+      (genes zip rows)
         .map{ case (gene, expression) => ExpressionByGene(gene, expression) }
         .toDS
         .cache

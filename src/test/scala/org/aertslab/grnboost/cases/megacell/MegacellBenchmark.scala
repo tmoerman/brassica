@@ -3,7 +3,7 @@ package org.aertslab.grnboost.cases.megacell
 import org.scalatest.FlatSpec
 import org.aertslab.grnboost.{GRNBoost, XGBoostRegressionParams, GRNBoostSuiteBase}
 
-import org.aertslab.grnboost.cases.DataReader._
+import org.aertslab.grnboost.DataReader._
 
 /**
   * @author Thomas Moerman
@@ -29,7 +29,7 @@ class MegacellBenchmark extends FlatSpec with GRNBoostSuiteBase {
       boosterParams = boosterParams)
 
   "the Megacell emb.par pipeline from parquet" should "run" in {
-    val TFs = readTFs(mouseTFs).toSet
+    val TFs = readRegulators(mouseTFs).toSet
 
     // FIXME
 
