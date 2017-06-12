@@ -124,6 +124,16 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """.stripMargin)
       .action{ case (nr, cfg) => cfg.modify(_.inf.each.nrBoostingRounds).setTo(Some(nr)) }
 
+  private val regularize =
+    opt[Boolean]("regularize")
+      .optional
+      .valueName("<true/false>")
+      .text(
+        """
+          |  Flag whether to enable or disable regularization (triangle method). Default: true.
+        """.stripMargin
+      )
+
   private val earlyStop =
     opt[Boolean]("early-stop")
       .optional
@@ -204,7 +214,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       """.stripMargin)
     .children(
       input, inputHeaders, output, regulators, delimiter, outputFormat, sample, targets, xgbParam,
-      truncate, nrBoostingRounds, earlyStop, nrPartitions, transposed, iterated, dryRun)
+      regularize, truncate, nrBoostingRounds, earlyStop, nrPartitions, transposed, iterated, dryRun)
 
   cmd("test")
     .hidden
@@ -249,6 +259,7 @@ case class InferenceConfig(input:             Option[File]  = None,
                            nrPartitions:      Option[Int]   = None,
                            truncate:          Option[Int]   = None,
                            nrBoostingRounds:  Option[Int]   = None,
+                           regularize:        Boolean       = true,
                            boostingEarlyStop: Boolean       = true,
                            targets:           Seq[Gene]     = Seq.empty,
                            boosterParams:     BoosterParams = DEFAULT_BOOSTER_PARAMS,
