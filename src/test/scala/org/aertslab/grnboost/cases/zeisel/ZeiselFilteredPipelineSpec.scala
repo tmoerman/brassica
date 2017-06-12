@@ -51,7 +51,7 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Ma
     println(params)
 
     result
-      .addElbowGroups(params)
+      .withRegularizationLabels(params)
       .sort($"gain".desc)
       .show(100)
   }

@@ -1,10 +1,11 @@
 package org.aertslab
 
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
+import org.aertslab.grnboost.util.TriangleRegularization
+import org.aertslab.grnboost.util.TriangleRegularization.labels
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
-import org.aertslab.grnboost.util.Elbow
 
 import scala.util.Random
 
@@ -155,19 +156,15 @@ package object grnboost {
     * @param regulator
     * @param target
     * @param gain
-    * @param elbow
+    * @param include
     */
   case class Regulation(regulator: Gene,
                         target: Gene,
                         gain: Gain,
-                        elbow: Option[Int] = None) {
+                        include: Int = 1) {
 
-    def mkString(d: String = "\t", showElbow: Boolean = true) =
-      if (showElbow)
-        s"${regulator}${d}${target}${d}${gain}${d}${elbow.getOrElse(-1)}"
-      else
-        s"${regulator}${d}${target}${d}${gain}"
-    
+    def mkString(d: String = "\t") = productIterator.mkString(d)
+
   }
 
   /**
@@ -192,36 +189,28 @@ package object grnboost {
 
     import ds.sparkSession.implicits._
 
-    def normalizeTargetGainOverSum(params: XGBoostRegressionParams) = ??? // TODO
-
+    def normalizeTargetGainOverSum(params: XGBoostRegressionParams)    = ??? // TODO
     def modifyRegulatorGainByVariance(params: XGBoostRegressionParams) = ??? // TODO
 
     /**
-      * Add the elbow groups to the regulation connections.
-      *
       * @param params
-      * @return Returns a Dataset.
+      * @return Returns the Dataset with regularization labels calculated with the Triangle method.
       */
-    def addElbowGroups(params: XGBoostRegressionParams): Dataset[Regulation] =
+    def withRegularizationLabels(params: XGBoostRegressionParams): Dataset[Regulation] =
       params
-        .elbow
-        .map(sensitivity =>
-          ds.rdd
+        .regularize
+        .map(precision =>
+          ds
+            .rdd
             .groupBy(_.target)
             .values
-            .flatMap(it => {
-              it.toList match {
-                case Nil      => Nil
-                case x :: Nil => x.copy(elbow = Some(0)) :: Nil // elbow needs more than 1 y value
-                case list     =>
-                  val sorted = list.sortBy(-_.gain)
-                  val gains  = sorted.map(_.gain)
-                  val elbows = Elbow(gains.map(_.toDouble), sensitivity)
+            .flatMap(_.toList match {
+              case Nil  => Nil
+              case list =>
+                val sorted = list.sortBy(-_.gain)
+                val gains = sorted.map(_.gain)
 
-                  sorted
-                    .zip(Elbow.toElbowGroups(elbows))
-                    .map{ case (reg, e) => if (e.isDefined) reg.copy(elbow = e) else reg }
-              }
+                (sorted zip labels(gains, precision)).map{ case (reg, label) => reg.copy(include = label) }
             })
             .toDS
         )
@@ -265,11 +254,11 @@ package object grnboost {
     *
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
-    * @param elbow Whether to use the elbow cutoff strategy, contains sensitivity parameter.
+    * @param regularize Whether to use the L-curve cutoff strategy if Some. Contains threshold parameter.
     */
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                                      nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
-                                     elbow: Option[Float] = Some(0.5f),
+                                     regularize: Option[Double] = Some(TriangleRegularization.DEFAULT_PRECISION),
                                      nrFolds: Int = 5)
 
   /**

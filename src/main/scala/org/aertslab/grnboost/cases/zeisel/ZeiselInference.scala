@@ -77,7 +77,7 @@ object ZeiselInference {
               .cache
 
           regulations
-            .addElbowGroups(params)
+            .withRegularizationLabels(params)
             .sort($"regulator", $"target", $"gain".desc)
             .saveTxt(s"${out}stumps_${currentNrRounds}_rounds_eta_0.01")
         }
