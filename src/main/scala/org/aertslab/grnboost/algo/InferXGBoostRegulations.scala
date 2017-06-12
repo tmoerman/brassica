@@ -172,7 +172,7 @@ object InferXGBoostRegulations {
 
     val booster = XGBoost.train(regulatorDMatrix, boosterParams.withDefaults, nrRounds)
 
-    val regulations = toRawRegulations(targetGene, regulators, booster, params)
+    val regulations = toRegulations(targetGene, regulators, booster, params)
 
     booster.dispose
 
@@ -185,10 +185,10 @@ object InferXGBoostRegulations {
     * @param booster
     * @return Returns the raw scores for regulation.
     */
-  def toRawRegulations(targetGene: Gene,
-                       regulators: List[Gene],
-                       booster: Booster,
-                       params: XGBoostRegressionParams): Seq[Regulation] = {
+  def toRegulations(targetGene: Gene,
+                    regulators: List[Gene],
+                    booster: Booster,
+                    params: XGBoostRegressionParams): Seq[Regulation] = {
 
     val boosterModelDump = booster.getModelDump(withStats = true).toSeq
 
