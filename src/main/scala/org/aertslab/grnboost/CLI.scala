@@ -24,7 +24,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """.stripMargin)
       .action{ case (file, cfg) => cfg.modify(_.inf.each.input).setTo(Some(file)) }
 
-  private val inputHeaders =
+  private val ignoreHeaders =
     opt[Int]("ignore-headers")
       .optional
       .valueName("<nr>")
@@ -32,7 +32,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  The number of input file header lines to ignore. Default: 0.
         """.stripMargin)
-      .action{ case (nr, cfg) => cfg.modify(_.inf.each.inputHeaders).setTo(nr) }
+      .action{ case (nr, cfg) => cfg.modify(_.inf.each.ignoreHeaders).setTo(nr) }
 
   private val output =
     opt[File]("output").abbr("o")
@@ -69,10 +69,10 @@ object CLI extends OptionParser[Config]("GRNBoost") {
   private val outputFormat =
     opt[String]("output-format").abbr("of")
       .optional
-      .hidden
+      //.hidden
       .valueName("<list|matrix|parquet>")
       .validate(format =>
-        if (Set("list", "matrix", "parquet").contains(format))
+        if (Set("list", "matrix", "parquet").contains(format.toLowerCase))
           success
         else
           failure(s"unknown output format (${format.toLowerCase}"))
@@ -80,7 +80,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  Output format. Default: list.
         """.stripMargin)
-      .action{ case (format, cfg) => cfg.modify(_.inf.each.outputFormat).setTo(format) }
+      .action{ case (format, cfg) => cfg.modify(_.inf.each.outputFormat).setTo(format.toLowerCase()) }
 
   private val sample =
     opt[Double]("sample").abbr("s")
@@ -120,7 +120,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .valueName("<nr>")
       .text(
         """
-          |  Set the number of boosting rounds. Default: unlimited.
+          |  Set the number of boosting rounds. Default: heuristically determined nr of boosting rounds.
         """.stripMargin)
       .action{ case (nr, cfg) => cfg.modify(_.inf.each.nrBoostingRounds).setTo(Some(nr)) }
 
@@ -131,17 +131,8 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .text(
         """
           |  Flag whether to enable or disable regularization (triangle method). Default: true.
-        """.stripMargin
-      )
-
-  private val earlyStop =
-    opt[Boolean]("early-stop")
-      .optional
-      .valueName("<true/false>")
-      .text(
-        """
-          |  Flag whether to enable or disable early stopping (limiting the nr of boosting rounds). Default: true.
         """.stripMargin)
+      .action{ case (reg, cfg) => cfg.modify(_.inf.each.regularize).setTo(reg) }
 
   private val truncate =
     opt[Int]("truncate")
@@ -150,6 +141,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .text(
         """
           |  Only keep the specified number regulations with highest importance score. Default: unlimited.
+          |  (Motivated by the 100.000 regulations limit for the DREAM challenges.)
         """.stripMargin)
       .action{ case (nr, cfg) => cfg.modify(_.inf.each.truncate).setTo(Some(nr)) }
 
@@ -168,14 +160,23 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .optional
       .text(
         """
-          |  Inference will not launch if this flag is set. Use for input validation.
+          |  Inference nor auto-config will launch if this flag is set. Use for input validation.
         """.stripMargin)
       .action{ case (_, cfg) => cfg.modify(_.inf.each.dryRun).setTo(true) }
+
+  private val configRun =
+    opt[Unit]("cfg-run")
+      .optional
+      .text(
+        """
+          |  Auto-config will launch, inference will not if this flag is set. Use for config testing.
+        """.stripMargin)
+      .action{ case (_, cfg) => cfg.modify(_.inf.each.configRun).setTo(true) }
 
   private val transposed =
     opt[Unit]("transposed")
       .optional
-      .hidden
+      //.hidden
       .text(
         """
           |  Set this flag if the input rows=observations and cols=genes.
@@ -185,7 +186,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
   private val iterated =
     opt[Unit]("iterated")
       .optional
-      .hidden
+      //.hidden
       .text(
         """
           |  Indicates using the iterated DMatrix API instead of using cached DMatrix copies of the CSC matrix.
@@ -213,12 +214,12 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         |Launch GRN inference.
       """.stripMargin)
     .children(
-      input, inputHeaders, output, regulators, delimiter, outputFormat, sample, targets, xgbParam,
-      regularize, truncate, nrBoostingRounds, earlyStop, nrPartitions, transposed, iterated, dryRun)
+      input, ignoreHeaders, output, regulators, delimiter, outputFormat, sample, targets, xgbParam,
+      regularize, truncate, nrBoostingRounds, nrPartitions, transposed, iterated, dryRun, configRun)
 
-  cmd("test")
-    .hidden
-    .action{ (_, cfg) => cfg.copy(bla = Some(TestConfig())) }
+//  cmd("test")
+//    .hidden
+//    .action{ (_, cfg) => cfg.copy(bla = Some(TestConfig())) }
 
   override def renderingMode = OneColumn
 
@@ -234,8 +235,8 @@ object CLI extends OptionParser[Config]("GRNBoost") {
 
 TODO
 
-- nrRounds: AUTO or Int
-- regularize: Boolean (--> use the triangle cutoffs)
+- early stop: nr of targets sampled to test CV performance.
+- importance score: SUM_GAIN, AVG_GAIN,
 - outCols: gain, freq
 
 */
@@ -250,21 +251,23 @@ case class Config(inf: Option[InferenceConfig] = None,
                   bla: Option[TestConfig]      = None) extends BaseConfig
 
 case class InferenceConfig(input:             Option[File]  = None,
-                           inputHeaders:      Int           = 0,
+                           ignoreHeaders:      Int           = 0,
                            delimiter:         String        = "\t",
                            regulators:        Option[File]  = None,
                            output:            Option[File]  = None,
                            outputFormat:      String        = "list",
                            sampleSize:        Option[Int]   = None,
+                           prepSampleSize:    Int           = 50,
                            nrPartitions:      Option[Int]   = None,
                            truncate:          Option[Int]   = None,
                            nrBoostingRounds:  Option[Int]   = None,
+                           nrFolds:           Int           = DEFAULT_NR_FOLDS,
                            regularize:        Boolean       = true,
-                           boostingEarlyStop: Boolean       = true,
                            targets:           Seq[Gene]     = Seq.empty,
                            boosterParams:     BoosterParams = DEFAULT_BOOSTER_PARAMS,
                            inputTransposed:   Boolean       = false,
                            dryRun:            Boolean       = false,
+                           configRun:         Boolean       = false,
                            iterated:          Boolean       = false) extends BaseConfig
 
 case class TestConfig(bla: String = "bla")

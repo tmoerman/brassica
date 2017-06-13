@@ -42,17 +42,25 @@ object GRNBoost {
     import spark.implicits._
 
     val (_, wallTime) = profile {
+      val ds  = readExpressionsByGene(spark, input.get.getAbsolutePath, ignoreHeaders, delimiter)
+      val TFs = readRegulators(regulators.get.getAbsolutePath)
+
+      val (sampleIndices, maybeSampled) =
+        ds.subSample(sampleSize)
+
+      val nrRounds =
+        nrBoostingRounds.getOrElse {
+          val (prepSampleIndices, prepSample) = ds.subSample(Some(prepSampleSize))
+
+          // predicate for stopping i.f.o. triangle ~= PI
+
+
+        }
 
       val params =
         XGBoostRegressionParams(
           nrRounds = nrBoostingRounds.getOrElse(1000), // FIXME early stop mechanism needed!
           boosterParams = boosterParams)
-
-      val ds  = readExpressionsByGene(spark, input.get.getAbsolutePath, nrHeaders = inputHeaders)
-      val TFs = readRegulators(regulators.get.getAbsolutePath)
-
-      val (sampleIndices, maybeSampled) =
-        ds.subSample(sampleSize)
 
       val regulations =
         if (iterated)
