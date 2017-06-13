@@ -54,21 +54,22 @@ object TriangleRegularization {
     }
 
   /**
-    * @param inflectionPointIndex
-    * @return Returns a Stream of inclusion labels (1=in, 0=out) from the inflection point.
+    * @param gains
+    * @param precision
+    * @return Returns a Seq of inclusion labels (1=in, 0=out) from the inflection point.
     */
-  def labels(inflectionPointIndex: Option[Int]): Seq[Int] =
+  def labels(gains: List[Float], precision: Double = DEFAULT_PRECISION): Seq[Int] =
+    labelStream(inflectionPointIndex(gains, precision))
+      .take(gains.size)
+
+  /**
+    * @param inflectionPointIndex
+    * @return Returns an infinite Stream of inclusion labels (1=in, 0=out) from the inflection point.
+    */
+  private def labelStream(inflectionPointIndex: Option[Int]): Stream[Int] =
     inflectionPointIndex
       .map(fill(_)(1) ++ continually(0))
       .getOrElse(continually(0))
-
-  /**
-    * @param gains
-    * @param precision
-    * @return Returns a Stream of inclusion labels (1=in, 0=out) from the inflection point.
-    */
-  def labels(gains: List[Float], precision: Double = DEFAULT_PRECISION): Seq[Int] =
-    labels(inflectionPointIndex(gains, precision))
 
   private def ~=(x: Double, y: Double, precision: Double) = (x - y).abs < precision
 
