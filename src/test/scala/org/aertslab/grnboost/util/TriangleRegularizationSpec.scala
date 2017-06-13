@@ -2,7 +2,7 @@ package org.aertslab.grnboost.util
 
 import breeze.linalg._
 import breeze.numerics.constants._
-import org.aertslab.grnboost.util.TriangleRegularization.{inflectionPointIndex, labels}
+import org.aertslab.grnboost.util.TriangleRegularization.{angle, inflectionPointIndex, labels}
 import org.scalatest.{FlatSpec, Matchers}
 
 /**
@@ -38,9 +38,7 @@ class TriangleRegularizationSpec extends FlatSpec with Matchers {
     val b = DenseVector(1f, 1f)
     val c = DenseVector(20f, 1f)
 
-    val theta = TriangleRegularization.angle(a, b, c)
-
-    theta shouldBe Pi
+    angle(a, b, c) shouldBe Pi
   }
 
   behavior of "finding the inflection point index"
