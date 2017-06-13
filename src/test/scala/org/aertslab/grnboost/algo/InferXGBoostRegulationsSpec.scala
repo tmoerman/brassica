@@ -30,8 +30,6 @@ class InferXGBoostRegulationsSpec extends FlatSpec with Matchers {
 
   behavior of "aggregating booster metrics"
 
-  val params = XGBoostRegressionParams()
-
   it should "aggregate correctly for 1 tree" in {
     val gains = aggregateGainByGene(null)(Seq(treeDumpWithStats))
 

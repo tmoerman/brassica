@@ -54,8 +54,7 @@ package object grnboost {
   val REGULATOR_NAME  = "regulator_name"
   val IMPORTANCE      = "importance"
 
-  @deprecated("it makes no sense to 'just' specify the nr of boosting rounds --> need an early stopping strategy.") // FIXME
-  val DEFAULT_NR_BOOSTING_ROUNDS = 100
+  val DEFAULT_MAX_BOOSTING_ROUNDS = 5000
 
   val DEFAULT_NR_FOLDS    = 10
   val DEFAULT_NR_TRIALS   = 1000L
@@ -257,9 +256,9 @@ package object grnboost {
     * @param regularize Whether to use the L-curve cutoff strategy if Some. Contains threshold parameter.
     */
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
-                                     nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
+                                     nrRounds: Int,
                                      regularize: Option[Double] = Some(TriangleRegularization.DEFAULT_PRECISION),
-                                     nrFolds: Int = 5)
+                                     nrFolds: Int = DEFAULT_NR_FOLDS)
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the
@@ -290,7 +289,7 @@ package object grnboost {
                                        nrTrials: Int = 1000,
                                        nrFolds: Int = DEFAULT_NR_FOLDS,
 
-                                       maxNrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
+                                       maxNrRounds: Int = DEFAULT_MAX_BOOSTING_ROUNDS,
                                        earlyStopParams: Option[EarlyStopParams] = Some(EarlyStopParams()),
 
                                        seed: Seed = DEFAULT_SEED,

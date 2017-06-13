@@ -102,8 +102,8 @@ object GRNBoost {
   def inferRegulationsIterated(expressionsByGene: Dataset[ExpressionByGene],
                                candidateRegulators: Set[Gene],
                                targets: Set[Gene] = Set.empty,
-                               params: XGBoostRegressionParams = XGBoostRegressionParams(),
-                               nrPartitions: Option[Int] = None): Dataset[Regulation] = {
+                               params: XGBoostRegressionParams,
+                               nrPartitions: Option[Count] = None): Dataset[Regulation] = {
 
     val spark = expressionsByGene.sparkSession
     val sc = spark.sparkContext
@@ -153,8 +153,8 @@ object GRNBoost {
   def inferRegulations(expressionsByGene: Dataset[ExpressionByGene],
                        candidateRegulators: Set[Gene],
                        targets: Set[Gene] = Set.empty,
-                       params: XGBoostRegressionParams = XGBoostRegressionParams(),
-                       nrPartitions: Option[Int] = None): Dataset[Regulation] = {
+                       params: XGBoostRegressionParams,
+                       nrPartitions: Option[Count] = None): Dataset[Regulation] = {
 
     import expressionsByGene.sparkSession.implicits._
 
@@ -175,8 +175,8 @@ object GRNBoost {
   def computeCVLoss(expressionsByGene: Dataset[ExpressionByGene],
                     candidateRegulators: Set[Gene],
                     targets: Set[Gene] = Set.empty,
-                    params: XGBoostRegressionParams = XGBoostRegressionParams(),
-                    nrPartitions: Option[Int] = None): Dataset[LossByRound] = {
+                    params: XGBoostRegressionParams,
+                    nrPartitions: Option[Count] = None): Dataset[LossByRound] = {
 
     import expressionsByGene.sparkSession.implicits._
 
@@ -200,8 +200,8 @@ object GRNBoost {
   def optimizeHyperParams(expressionsByGene: Dataset[ExpressionByGene],
                           candidateRegulators: Set[Gene],
                           targets: Set[Gene] = Set.empty,
-                          params: XGBoostOptimizationParams = XGBoostOptimizationParams(),
-                          nrPartitions: Option[Int] = None): Dataset[HyperParamsLoss] = {
+                          params: XGBoostOptimizationParams,
+                          nrPartitions: Option[Count] = None): Dataset[HyperParamsLoss] = {
 
     import expressionsByGene.sparkSession.implicits._
 
@@ -210,11 +210,17 @@ object GRNBoost {
     computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskFactory)
   }
 
+  /**
+    * Template function that breaks op the inference problem in partition-local iterator transformations in order to
+    * keep a handle on cached regulation matrices. A
+    *
+    * @return
+    */
   def computePartitioned[T : Encoder : ClassTag](expressionsByGene: Dataset[ExpressionByGene],
                                                  candidateRegulators: Set[Gene],
                                                  targets: Set[Gene],
-                                                 nrPartitions: Option[Int])
-                                                (partitionTaskFactory: (List[Gene], CSCMatrix[Expression], Int) => PartitionTask[T]): Dataset[T] = {
+                                                 nrPartitions: Option[Count])
+                                                (partitionTaskFactory: (List[Gene], CSCMatrix[Expression], Count) => PartitionTask[T]): Dataset[T] = {
 
     val spark = expressionsByGene.sparkSession
     val sc = spark.sparkContext
@@ -309,6 +315,7 @@ object GRNBoost {
         Iterator(matrixBuilder.result)
       }
       .treeReduce(_ + _) // https://issues.apache.org/jira/browse/SPARK-2174
+
   }
 
 }
