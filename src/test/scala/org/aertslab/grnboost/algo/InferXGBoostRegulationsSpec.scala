@@ -4,7 +4,7 @@ import java.io.File
 
 import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost.XGBoostRegressionParams
-import org.aertslab.grnboost.algo.InferXGBoostRegulations._
+import org.aertslab.grnboost.algo.InferRegulations._
 
 import scala.io.Source
 

@@ -3,7 +3,7 @@ package org.aertslab.grnboost
 import java.io.File
 
 import breeze.linalg.CSCMatrix
-import org.aertslab.grnboost.algo.{ComputeCVLoss, InferRegulationsIterated, InferXGBoostRegulations, OptimizeXGBoostHyperParams}
+import org.aertslab.grnboost.algo._
 import DataReader._
 import org.aertslab.grnboost.util.IOUtils._
 import org.aertslab.grnboost.util.TimeUtils._
@@ -166,7 +166,7 @@ object GRNBoost {
 
     import expressionsByGene.sparkSession.implicits._
 
-    val partitionTaskFactory = InferXGBoostRegulations(params)(_, _, _)
+    val partitionTaskFactory = InferRegulations(params)(_, _, _)
 
     computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskFactory)
   }
@@ -188,7 +188,7 @@ object GRNBoost {
 
     import expressionsByGene.sparkSession.implicits._
 
-    val partitionTaskFactory = ComputeCVLoss(params)(_, _, _)
+    val partitionTaskFactory = CalculateLossByRound(params)(_, _, _)
 
     computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskFactory)
   }
@@ -217,6 +217,8 @@ object GRNBoost {
 
     computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskFactory)
   }
+
+
 
   /**
     * Template function that breaks op the inference problem in partition-local iterator transformations in order to

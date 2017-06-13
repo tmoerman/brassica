@@ -84,6 +84,10 @@ object OptimizeXGBoostHyperParams {
 
   type CVSet  = (Array[CellIndex], Array[CellIndex])
 
+  type DisposeFn = () => Unit
+
+  type FoldNr = Int
+
   private[this] val NAMES = Array("train", "test")
 
   /**
@@ -94,7 +98,7 @@ object OptimizeXGBoostHyperParams {
   def makeNFoldDMatrices(expressionByGene: ExpressionByGene,
                          regulators: List[Gene],
                          regulatorCSC: CSCMatrix[Expression],
-                         cvSets: List[CVSet]): (List[(DMatrix, DMatrix)], () => Unit) = {
+                         cvSets: List[CVSet]): (List[(DMatrix, DMatrix)], DisposeFn) = {
 
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
@@ -270,8 +274,6 @@ object OptimizeXGBoostHyperParams {
 
         (train.values.flatten.toArray, test.values.flatten.toArray)})
   }
-
-  type FoldNr = Int
 
   /**
     * @param nrFolds The nr of folds.
