@@ -2,7 +2,7 @@ package org.aertslab
 
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
 import org.aertslab.grnboost.util.TriangleRegularization
-import org.aertslab.grnboost.util.TriangleRegularization.labels
+import org.aertslab.grnboost.util.TriangleRegularization.{DEFAULT_PRECISION, labels}
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
@@ -56,7 +56,7 @@ package object grnboost {
 
   val DEFAULT_MAX_BOOSTING_ROUNDS = 5000
 
-  val DEFAULT_NR_FOLDS    = 10
+  val DEFAULT_NR_FOLDS    = 5
   val DEFAULT_NR_TRIALS   = 1000L
   val DEFAULT_SEED        = 666
   val DEFAULT_EVAL_METRIC = "rmse"
@@ -253,12 +253,13 @@ package object grnboost {
     *
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
+    * @param nrFolds The nr of folds in CV packs.
     * @param regularize Whether to use the L-curve cutoff strategy if Some. Contains threshold parameter.
     */
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                                      nrRounds: Int,
-                                     regularize: Option[Double] = Some(TriangleRegularization.DEFAULT_PRECISION),
-                                     nrFolds: Int = DEFAULT_NR_FOLDS)
+                                     nrFolds: Int = DEFAULT_NR_FOLDS,
+                                     regularize: Option[Double] = Some(DEFAULT_PRECISION))
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the
