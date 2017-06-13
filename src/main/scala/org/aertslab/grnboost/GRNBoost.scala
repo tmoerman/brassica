@@ -180,12 +180,12 @@ object GRNBoost {
     *
     * @return Returns a Dataset of LossByRound instances.
     */
-  def computeCVLoss(expressionsByGene: Dataset[ExpressionByGene],
-                    candidateRegulators: Set[Gene],
-                    targets: Set[Gene] = Set.empty,
-                    params: XGBoostRegressionParams,
-                    nrPartitions: Option[Count] = None): Dataset[LossByRound] = {
-
+  def calculateLossByRound(expressionsByGene: Dataset[ExpressionByGene],
+                           candidateRegulators: Set[Gene],
+                           targets: Set[Gene] = Set.empty,
+                           params: XGBoostRegressionParams,
+                           nrPartitions: Option[Count] = None): Dataset[LossByRound] = {
+    
     import expressionsByGene.sparkSession.implicits._
 
     val partitionTaskFactory = CalculateLossByRound(params)(_, _, _)
