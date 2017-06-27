@@ -1,5 +1,7 @@
 package org.aertslab.grnboost.util
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import breeze.linalg._
 import breeze.numerics.constants._
 import org.aertslab.grnboost.util.TriangleRegularization.{angle, inflectionPoint, labels}
@@ -48,8 +50,8 @@ class TriangleRegularizationSpec extends FlatSpec with Matchers {
   }
 
   it should "yield the inflection point for an example list" in {
-    inflectionPoint(gains)         shouldBe Some((7424315.0f, 5))
-    labels(gains).take(gains.size) shouldBe List.fill(5)(1) ++ List.fill(14)(0)
+    inflectionPoint(gains).map(_._2) shouldBe Some(5)
+    labels(gains).take(gains.size)   shouldBe List.fill(5)(1) ++ List.fill(14)(0)
   }
 
   it should "yield all for a convex list" in {
@@ -76,6 +78,27 @@ class TriangleRegularizationSpec extends FlatSpec with Matchers {
 
     inflectionPoint(in)      shouldBe None
     labels(in).take(in.size) shouldBe List(1, 1, 1)
+  }
+
+  it should "work on a lazy list of reductions stream" in {
+    val atom = new AtomicInteger(0)
+    
+    val point =
+      gains
+        .sliding(4, 4)
+        .toStream
+        .scanLeft(List[Float]()){ (acc, next) => {
+          atom.incrementAndGet
+
+          acc ::: next
+        } }
+        .flatMap(inflectionPoint(_, xScaleFactor = 10))
+        .headOption
+        .map(_._2)
+
+    atom.get shouldBe 2
+
+    point shouldBe Some(5)
   }
 
 }

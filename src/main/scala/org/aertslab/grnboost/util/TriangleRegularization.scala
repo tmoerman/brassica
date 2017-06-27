@@ -19,36 +19,41 @@ object TriangleRegularization {
     * @param values The list of values in which to find the inflection point.
     * @param precision The precision of the radian angle.
     * @return Returns the inflection point and its index where consecutive values form a straight line with the last value.
+    *
+    *         The inflection point is the first point that makes an angle equal to PI (in radians) with its
+    *         successor and the last point in the data set.
     */
   def inflectionPoint(values: List[Float],
-                      precision: Double = DEFAULT_PRECISION): Option[(Float, Int)] = values match {
-    case Nil => None
-    case _ :: Nil => None
-    case _ :: _ :: Nil => None
-    case _ :: _ :: _ :: Nil => None
-    case _ =>
-      val min = values.min
-      val max = values.max
-      val minMaxScaled = values.map(g => (g - min) / (max - min))
+                      precision: Double = DEFAULT_PRECISION,
+                      xScaleFactor: Int = 1): Option[(Float, Int)] =
+    values match {
+      case Nil => None
+      case _ :: Nil => None
+      case _ :: _ :: Nil => None
+      case _ :: _ :: _ :: Nil => None
+      case _ =>
+        val min = values.min
+        val max = values.max
+        val minMaxScaled = values.map(g => (g - min) / (max - min))
 
-      val c = DenseVector(values.length.toFloat - 1, minMaxScaled.last)
+        val c = DenseVector(xScaleFactor * (values.length.toFloat - 1), minMaxScaled.last)
 
-      minMaxScaled
-        .sliding(2, 1)
-        .zipWithIndex
-        .toStream
-        .dropWhile{
-          case (va :: vb :: _, i) =>
-            val a = DenseVector(i.toFloat,      va)
-            val b = DenseVector(i.toFloat + 1f, vb)
-            val theta = angle(a, b, c)
+        minMaxScaled
+          .sliding(2, 1)
+          .zipWithIndex
+          .toStream
+          .dropWhile {
+            case (va :: vb :: _, i) =>
+              val a = DenseVector(i.toFloat,      va)
+              val b = DenseVector(i.toFloat + 1f, vb)
+              val theta = angle(a, b, c)
 
-            ! ~=(theta, Pi, precision)
+              ! ~=(theta, Pi, precision)
 
-          case _ => true
-        }
-        .headOption
-        .map{ case (_, idx) => (values(idx), idx) }
+            case _ => ??? // a.k.a. ka-boom
+          }
+          .headOption
+          .map{ case (_, idx) => (values(idx), idx) }
     }
 
   /**
