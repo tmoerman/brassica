@@ -251,7 +251,7 @@ case class Config(inf: Option[InferenceConfig] = None,
                   bla: Option[TestConfig]      = None) extends BaseConfig
 
 case class InferenceConfig(input:             Option[File]  = None,
-                           ignoreHeaders:      Int           = 0,
+                           ignoreHeaders:     Int           = 0,
                            delimiter:         String        = "\t",
                            regulators:        Option[File]  = None,
                            output:            Option[File]  = None,

@@ -224,8 +224,8 @@ object OptimizeXGBoostHyperParams {
             .split("\t")
             .drop(1) // drop the index
             .map(_.split(":") match {
-            case Array(key, value) => (key, value.toFloat)
-          })})
+              case Array(key, value) => (key, value.toFloat)
+            })})
         .groupBy(_._1)
         .mapValues(x => x.map(_._2).sum / x.size)
 
