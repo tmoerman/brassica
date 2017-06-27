@@ -2,7 +2,7 @@ package org.aertslab.grnboost.util
 
 import breeze.linalg._
 import breeze.numerics.constants._
-import org.aertslab.grnboost.util.TriangleRegularization.{angle, inflectionPointIndex, labels}
+import org.aertslab.grnboost.util.TriangleRegularization.{angle, inflectionPoint, labels}
 import org.scalatest.{FlatSpec, Matchers}
 
 /**
@@ -44,37 +44,37 @@ class TriangleRegularizationSpec extends FlatSpec with Matchers {
   behavior of "finding the inflection point index"
 
   it should "yield None for an empty input list" in {
-    inflectionPointIndex(Nil) shouldBe None
+    inflectionPoint(Nil) shouldBe None
   }
 
   it should "yield the inflection point for an example list" in {
-    inflectionPointIndex(gains)    shouldBe Some(5)
+    inflectionPoint(gains)         shouldBe Some((7424315.0f, 5))
     labels(gains).take(gains.size) shouldBe List.fill(5)(1) ++ List.fill(14)(0)
   }
 
   it should "yield all for a convex list" in {
-    inflectionPointIndex(convex)     shouldBe Some(5)
+    inflectionPoint(convex)          shouldBe None
     labels(convex).take(convex.size) shouldBe List.fill(5)(1)
   }
 
   it should "yield all for a singleton list" in {
     val in = 5f :: Nil
 
-    inflectionPointIndex(in) shouldBe Some(1)
+    inflectionPoint(in)      shouldBe None
     labels(in).take(in.size) shouldBe List(1)
   }
 
   it should "yield all for a pair" in {
     val in = 6f :: 5f :: Nil
 
-    inflectionPointIndex(in) shouldBe Some(2)
+    inflectionPoint(in)      shouldBe None
     labels(in).take(in.size) shouldBe List(1, 1)
   }
 
   it should "yield all for a triplet" in {
     val in = 10f :: 2f :: 1f :: Nil
 
-    inflectionPointIndex(in) shouldBe Some(3)
+    inflectionPoint(in)      shouldBe None
     labels(in).take(in.size) shouldBe List(1, 1, 1)
   }
 

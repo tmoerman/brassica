@@ -16,21 +16,22 @@ object TriangleRegularization {
   type V = DenseVector[Float]
 
   /**
-    * @param gains
-    * @param precision
-    * @return Returns the inflection point where consecutive values form a straight line with the last value.
+    * @param values The list of values in which to find the inflection point.
+    * @param precision The precision of the radian angle.
+    * @return Returns the inflection point and its index where consecutive values form a straight line with the last value.
     */
-  def inflectionPointIndex(gains: List[Float], precision: Double = DEFAULT_PRECISION): Option[Int] = gains match {
+  def inflectionPoint(values: List[Float],
+                      precision: Double = DEFAULT_PRECISION): Option[(Float, Int)] = values match {
     case Nil => None
-    case _ :: Nil => Some(1)
-    case _ :: _ :: Nil => Some(2)
-    case _ :: _ :: _ :: Nil => Some(3)
+    case _ :: Nil => None
+    case _ :: _ :: Nil => None
+    case _ :: _ :: _ :: Nil => None
     case _ =>
-      val min = gains.min
-      val max = gains.max
-      val minMaxScaled = gains.map(g => (g - min) / (max - min))
+      val min = values.min
+      val max = values.max
+      val minMaxScaled = values.map(g => (g - min) / (max - min))
 
-      val c = DenseVector(gains.length.toFloat - 1, minMaxScaled.last)
+      val c = DenseVector(values.length.toFloat - 1, minMaxScaled.last)
 
       minMaxScaled
         .sliding(2, 1)
@@ -42,15 +43,12 @@ object TriangleRegularization {
             val b = DenseVector(i.toFloat + 1f, vb)
             val theta = angle(a, b, c)
 
-            // println(s"a: $a, b: $b, c: $c, theta: $theta")
-
             ! ~=(theta, Pi, precision)
 
           case _ => true
         }
         .headOption
-        .map(_._2)
-        .orElse(Some(gains.size))
+        .map{ case (_, idx) => (values(idx), idx) }
     }
 
   /**
@@ -59,7 +57,7 @@ object TriangleRegularization {
     * @return Returns a Seq of inclusion labels (1=in, 0=out) from the inflection point.
     */
   def labels(gains: List[Float], precision: Double = DEFAULT_PRECISION): Seq[Int] =
-    labelStream(inflectionPointIndex(gains, precision))
+    labelStream(inflectionPoint(gains, precision).map(_._2))
       .take(gains.size)
 
   /**
@@ -69,7 +67,7 @@ object TriangleRegularization {
   private def labelStream(inflectionPointIndex: Option[Int]): Stream[Int] =
     inflectionPointIndex
       .map(fill(_)(1) ++ continually(0))
-      .getOrElse(continually(0))
+      .getOrElse(continually(1))
 
   private def ~=(x: Double, y: Double, precision: Double) = (x - y).abs < precision
 
