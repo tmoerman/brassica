@@ -138,17 +138,16 @@ package object grnboost {
       * @param sampleSize
       * @return Returns the sample indices and the sampled Dataset.
       */
-    def subSample(sampleSize: Option[Int]): (Option[Seq[CellIndex]], Dataset[ExpressionByGene]) =
-      sampleSize
-        .map(nr => {
-          val count = ds.head.values.size
+    def subSample(sampleSize: Int): (Option[Seq[CellIndex]], Dataset[ExpressionByGene]) = {
+      val count = ds.head.values.size
 
-          if (nr >= count) (None, ds)
-          else {
-            val subset = randomSubset(nr, 0 until count)
-            (Some(subset), ds.slice(subset).cache)
-          }})
-        .getOrElse((None, ds))
+      if (sampleSize >= count) (None, ds)
+      else {
+        val subset = randomSubset(sampleSize, 0 until count)
+
+        (Some(subset), ds.slice(subset).cache)
+      }
+    }
 
   }
 
