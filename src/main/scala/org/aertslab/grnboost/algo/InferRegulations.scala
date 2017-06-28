@@ -73,7 +73,6 @@ case class InferRegulations(params: XGBoostRegressionParams)
       val cleanRegulatorDMatrix = regulatorCSC.dropColumn(targetColumnIndex).copyToUnlabeledDMatrix
       val cleanRegulators = regulators.filterNot(_ == targetGene)
 
-      // set the response labels and train the model
       cleanRegulatorDMatrix.setLabel(expressionByGene.response)
 
       val result = inferRegulations(params, targetGene, cleanRegulators, cleanRegulatorDMatrix)
@@ -82,7 +81,6 @@ case class InferRegulations(params: XGBoostRegressionParams)
 
       result
     } else {
-      // set the response labels and train the model
       cachedRegulatorDMatrix.setLabel(expressionByGene.response)
 
       val result = inferRegulations(params, targetGene, regulators, cachedRegulatorDMatrix)
@@ -98,9 +96,6 @@ case class InferRegulations(params: XGBoostRegressionParams)
 }
 
 object InferRegulations {
-
-  type TreeDump  = String
-  type ModelDump = Seq[TreeDump]
 
   def inferRegulations(params: XGBoostRegressionParams,
                        targetGene: Gene,
@@ -132,8 +127,8 @@ object InferRegulations {
 
     aggregateGainByGene(params)(boosterModelDump)
       .toSeq
-      .map{ case (geneIndex, normalizedGain) =>
-        Regulation(regulators(geneIndex), targetGene, normalizedGain)
+      .map{ case (geneIndex, scores) =>
+        Regulation(regulators(geneIndex), targetGene, scores.gain)
       }
   }
 
@@ -145,18 +140,18 @@ object InferRegulations {
     * @return Returns the feature importance metrics parsed from all trees (amount == nr boosting rounds) in the
     *         specified trained booster model.
     */
-  def aggregateGainByGene(params: XGBoostRegressionParams)(modelDump: ModelDump): Map[GeneIndex, Gain] =
+  def aggregateGainByGene(params: XGBoostRegressionParams)(modelDump: ModelDump): Map[GeneIndex, Scores] =
     modelDump
-      .flatMap(parseGainScores)
-      .foldLeft(Map[GeneIndex, Gain]() withDefaultValue 0f) { case (acc, (geneIndex, gain)) =>
-        acc.updated(geneIndex, acc(geneIndex) + gain)
+      .flatMap(parseImportanceScores)
+      .foldLeft(Map[GeneIndex, Scores]() withDefaultValue Scores.ZERO) { case (acc, (geneIndex, scores)) =>
+        acc.updated(geneIndex, acc(geneIndex) |+| scores)
       }
 
   /**
     * @param treeDump
     * @return Returns the feature importance metrics parsed from one tree.
     */
-  def parseGainScores(treeDump: TreeDump): Array[(GeneIndex, Gain)] =
+  def parseImportanceScores(treeDump: TreeDump): Array[(GeneIndex, Scores)] =
     treeDump
       .split("\n")
       .flatMap(_.split("\\[") match {
@@ -166,11 +161,35 @@ object InferRegulations {
             case Array(left, right) =>
               val geneIndex = left.split("<")(0).substring(1).toInt
 
-              // TODO parse other scores
-              val gain     = right.split(",").find(_.startsWith("gain")).map(_.split("=")(1)).get.toFloat
+              val scores = Scores(
+                frequency = 1,
+                gain  = getValue("gain", right),
+                cover = getValue("cover", right)
+              )
 
-              (geneIndex, gain) :: Nil
+              (geneIndex, scores) :: Nil
           }
       })
+
+  private def getValue(key: String, string: String) =
+    string.split(",").find(_.startsWith(key)).map(_.split("=")(1)).get.toFloat
+
+}
+
+case class Scores(frequency: Frequency,
+                  gain: Gain,
+                  cover: Cover) {
+
+  def |+|(that: Scores) = Scores(
+    this.frequency + that.frequency,
+    this.gain      + that.gain,
+    this.cover     + that.cover
+  )
+
+}
+
+object Scores {
+
+  val ZERO = Scores(0, 0f, 0f)
 
 }

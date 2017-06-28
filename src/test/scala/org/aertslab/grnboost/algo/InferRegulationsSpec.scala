@@ -11,14 +11,14 @@ import scala.io.Source
 /**
   * @author Thomas Moerman
   */
-class InferXGBoostRegulationsSpec extends FlatSpec with Matchers {
+class InferRegulationsSpec extends FlatSpec with Matchers {
 
   behavior of "parsing metrics"
 
   val treeDumpWithStats = Source.fromFile(new File("src/test/resources/xgb/treeDumpWithStats.txt")).getLines.mkString("\n")
 
   it should "parse tree metrics" in {
-    val gainMap = parseGainScores(treeDumpWithStats)
+    val gainMap = parseImportanceScores(treeDumpWithStats)
 
     gainMap.size shouldBe 28
 
