@@ -1,10 +1,8 @@
 package org.aertslab.grnboost.lab
 
-import java.io.ByteArrayInputStream
-
 import ml.dmlc.xgboost4j.java.XGBoostUtils._
 import ml.dmlc.xgboost4j.scala.XGBoostConversions._
-import org.aertslab.grnboost.algo.InferXGBoostRegulations
+import org.aertslab.grnboost.algo.InferRegulations.toRegulations
 import org.aertslab.grnboost.cases.dream5.{Dream5Reader, network}
 import org.aertslab.grnboost.util.BreezeUtils._
 import org.aertslab.grnboost.{GRNBoost, GRNBoostSuiteBase, XGBoostRegressionParams, _}
@@ -68,19 +66,18 @@ class BoosterLab extends FlatSpec with GRNBoostSuiteBase with Matchers { self: S
     (0 until 20).foreach(round => booster0.update(dMatrix, round))
 
     val dump20   = booster0.getModelDump(null, true)
-    val result20 = InferXGBoostRegulations.toRawRegulations(targetGene, regulators, booster0, params)
+    val result20 = toRegulations(targetGene, regulators, booster0, params)
 
     val booster0Bytes = booster0.toByteArray
 
     val booster1 = loadBooster(booster0Bytes, boosterParams)
 
-    (20 until 40).foreach(round => booster1.update(dMatrix, round))
+    (20 until 200).foreach(round => booster1.update(dMatrix, round))
 
-    val dump40   = booster1.getModelDump(null, true)
-    val result40 = InferXGBoostRegulations.toRawRegulations(targetGene, regulators, booster1, params)
+    val dump200   = booster1.getModelDump(null, true)
+    val result200 = toRegulations(targetGene, regulators, booster1, params)
 
     println(result20.mkString("\n"))
-    println(result40.mkString("\n"))
   }
 
 }

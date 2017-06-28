@@ -23,6 +23,23 @@ class DatasetLab extends FlatSpec with DataFrameSuiteBase with Matchers {
     filtererd.show()
   }
 
+  it should "calculate max" in {
+    import spark.implicits._
+
+    val ds = List(
+      RoundsEstimation(0, "Gad1", 0.5f, 25),
+      RoundsEstimation(0, "Gad1", 0.5f, 55),
+      RoundsEstimation(0, "Gad1", 0.5f, 34),
+      RoundsEstimation(0, "Gad1", 0.5f, 666),
+      RoundsEstimation(0, "Gad1", 0.5f, 320)).toDS
+
+    import org.apache.spark.sql.functions._
+
+    val bla = ds.select(max("rounds"))
+
+    println(bla.first.getInt(0))
+  }
+
   it should "roll up a Dataset" in {
     import spark.implicits._
 
