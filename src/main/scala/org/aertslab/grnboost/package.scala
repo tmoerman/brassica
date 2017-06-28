@@ -1,8 +1,7 @@
 package org.aertslab
 
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
-import org.aertslab.grnboost.util.TriangleRegularization
-import org.aertslab.grnboost.util.TriangleRegularization.{DEFAULT_PRECISION, labels}
+import org.aertslab.grnboost.util.TriangleRegularization._
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
@@ -42,6 +41,9 @@ package object grnboost {
   type Gain      = Float
   type Cover     = Float
 
+  type TreeDump  = String
+  type ModelDump = Seq[TreeDump]
+
   val VALUES      = "values"
   val GENE        = "gene"
   val EXPRESSION  = "expression"
@@ -65,6 +67,7 @@ package object grnboost {
   val XGB_SILENT  = "silent"
   val XGB_ETA     = "eta"
   val XGB_SEED    = "seed"
+  val XGB_METRIC  = "eval_metric"
 
   val DEFAULT_BOOSTER_PARAMS: BoosterParams = Map(
     XGB_SILENT  -> 1,
@@ -165,6 +168,17 @@ package object grnboost {
     def mkString(d: String = "\t") = productIterator.mkString(d)
 
   }
+
+  /**
+    * @param fold
+    * @param target
+    * @param loss
+    * @param rounds
+    */
+  case class RoundsEstimation(fold: Int,
+                              target: Gene,
+                              loss: Loss,
+                              rounds: Int)
 
   /**
     * Training and test loss by boosting round.

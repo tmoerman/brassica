@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import breeze.linalg._
 import breeze.numerics.constants._
-import org.aertslab.grnboost.util.TriangleRegularization.{angle, inflectionPoint, labels}
+import org.aertslab.grnboost.util.TriangleRegularization.{angle, inflectionPointIndex, labels}
 import org.scalatest.{FlatSpec, Matchers}
 
 /**
@@ -46,43 +46,43 @@ class TriangleRegularizationSpec extends FlatSpec with Matchers {
   behavior of "finding the inflection point index"
 
   it should "yield None for an empty input list" in {
-    inflectionPoint(Nil) shouldBe None
+    inflectionPointIndex(Nil) shouldBe None
   }
 
   it should "yield the inflection point for an example list" in {
-    inflectionPoint(gains).map(_._2) shouldBe Some(5)
-    labels(gains).take(gains.size)   shouldBe List.fill(5)(1) ++ List.fill(14)(0)
+    inflectionPointIndex(gains)    shouldBe Some(5)
+    labels(gains).take(gains.size) shouldBe List.fill(5)(1) ++ List.fill(14)(0)
   }
 
   it should "yield all for a convex list" in {
-    inflectionPoint(convex)          shouldBe None
+    inflectionPointIndex(convex)     shouldBe None
     labels(convex).take(convex.size) shouldBe List.fill(5)(1)
   }
 
   it should "yield all for a singleton list" in {
     val in = 5f :: Nil
 
-    inflectionPoint(in)      shouldBe None
+    inflectionPointIndex(in) shouldBe None
     labels(in).take(in.size) shouldBe List(1)
   }
 
   it should "yield all for a pair" in {
     val in = 6f :: 5f :: Nil
 
-    inflectionPoint(in)      shouldBe None
+    inflectionPointIndex(in) shouldBe None
     labels(in).take(in.size) shouldBe List(1, 1)
   }
 
   it should "yield all for a triplet" in {
     val in = 10f :: 2f :: 1f :: Nil
 
-    inflectionPoint(in)      shouldBe None
+    inflectionPointIndex(in) shouldBe None
     labels(in).take(in.size) shouldBe List(1, 1, 1)
   }
 
   it should "work on a lazy list of reductions stream" in {
     val atom = new AtomicInteger(0)
-    
+
     val point =
       gains
         .sliding(4, 4)
@@ -92,9 +92,8 @@ class TriangleRegularizationSpec extends FlatSpec with Matchers {
 
           acc ::: next
         } }
-        .flatMap(inflectionPoint(_, xScaleFactor = 10))
+        .flatMap(inflectionPointIndex(_))
         .headOption
-        .map(_._2)
 
     atom.get shouldBe 2
 

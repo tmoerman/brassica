@@ -3,8 +3,8 @@ package org.aertslab.grnboost
 import java.io.File
 
 import breeze.linalg.CSCMatrix
+import org.aertslab.grnboost.DataReader._
 import org.aertslab.grnboost.algo._
-import DataReader._
 import org.aertslab.grnboost.util.IOUtils._
 import org.aertslab.grnboost.util.TimeUtils._
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
@@ -178,9 +178,31 @@ object GRNBoost {
     * @param params
     * @param nrPartitions
     *
+    * @return
+    */
+  def estimateNrBoostingRounds(expressionsByGene: Dataset[ExpressionByGene],
+                               candidateRegulators: Set[Gene],
+                               targets: Set[Gene] = Set.empty,
+                               params: XGBoostRegressionParams,
+                               nrPartitions: Option[Count] = None): Dataset[RoundsEstimation] = {
+
+    import expressionsByGene.sparkSession.implicits._
+
+    val partitionTaskFactory = EstimateNrBoostingRounds(params)(_, _, _)
+
+    computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskFactory)
+  }
+
+  /**
+    * @param expressionsByGene
+    * @param candidateRegulators
+    * @param targets
+    * @param params
+    * @param nrPartitions
+    *
     * @return Returns a Dataset of LossByRound instances.
     */
-  def calculateLossByRound(expressionsByGene: Dataset[ExpressionByGene],
+  @deprecated def calculateLossByRound(expressionsByGene: Dataset[ExpressionByGene],
                            candidateRegulators: Set[Gene],
                            targets: Set[Gene] = Set.empty,
                            params: XGBoostRegressionParams,
@@ -205,7 +227,7 @@ object GRNBoost {
     *
     * @return Returns a Dataset of OptimizedHyperParams.
     */
-  def optimizeHyperParams(expressionsByGene: Dataset[ExpressionByGene],
+  @deprecated def optimizeHyperParams(expressionsByGene: Dataset[ExpressionByGene],
                           candidateRegulators: Set[Gene],
                           targets: Set[Gene] = Set.empty,
                           params: XGBoostOptimizationParams,
@@ -217,8 +239,6 @@ object GRNBoost {
 
     computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskFactory)
   }
-
-
 
   /**
     * Template function that breaks op the inference problem in partition-local iterator transformations in order to

@@ -13,8 +13,6 @@ object TriangleRegularization {
 
   val DEFAULT_PRECISION = 0.001
 
-  type V = DenseVector[Float]
-
   /**
     * @param values The list of values in which to find the inflection point.
     * @param precision The precision of the radian angle.
@@ -23,9 +21,9 @@ object TriangleRegularization {
     *         The inflection point is the first point that makes an angle equal to PI (in radians) with its
     *         successor and the last point in the data set.
     */
-  def inflectionPoint(values: List[Float],
-                      precision: Double = DEFAULT_PRECISION,
-                      xScaleFactor: Int = 1): Option[(Float, Int)] =
+  def inflectionPointIndex(values: List[Float],
+                           precision: Double = DEFAULT_PRECISION,
+                           xScale: Int = 10): Option[Int] =
     values match {
       case Nil => None
       case _ :: Nil => None
@@ -35,8 +33,8 @@ object TriangleRegularization {
         val min = values.min
         val max = values.max
         val minMaxScaled = values.map(g => (g - min) / (max - min))
-
-        val c = DenseVector(xScaleFactor * (values.length.toFloat - 1), minMaxScaled.last)
+        
+        val c = DenseVector(values.length.toFloat * xScale, minMaxScaled.last)
 
         minMaxScaled
           .sliding(2, 1)
@@ -53,17 +51,17 @@ object TriangleRegularization {
             case _ => ??? // a.k.a. ka-boom
           }
           .headOption
-          .map{ case (_, idx) => (values(idx), idx) }
+          .map{ case (_, idx) => idx }
     }
 
   /**
-    * @param gains
+    * @param list
     * @param precision
     * @return Returns a Seq of inclusion labels (1=in, 0=out) from the inflection point.
     */
-  def labels(gains: List[Float], precision: Double = DEFAULT_PRECISION): Seq[Int] =
-    labelStream(inflectionPoint(gains, precision).map(_._2))
-      .take(gains.size)
+  def labels(list: List[Float], precision: Double = DEFAULT_PRECISION): Seq[Int] =
+    labelStream(inflectionPointIndex(list, precision))
+      .take(list.size)
 
   /**
     * @param inflectionPointIndex
@@ -75,6 +73,8 @@ object TriangleRegularization {
       .getOrElse(continually(1))
 
   private def ~=(x: Double, y: Double, precision: Double) = (x - y).abs < precision
+
+  type V = DenseVector[Float]
 
   /**
     * @return Returns the radian angle between three Gain vectors.

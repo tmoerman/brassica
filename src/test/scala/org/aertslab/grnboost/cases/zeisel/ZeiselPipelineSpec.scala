@@ -13,12 +13,10 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   behavior of "Scenic pipeline on Zeisel"
 
   val boosterParams = Map(
-    "seed" -> 777,
-    "eta"              -> 0.1,
-    "subsample"        -> 0.8,
-    "colsample_bytree" -> 0.25,
-    "max_depth"        -> 1,
-    "silent" -> 1
+    "seed"      -> 777,
+    "eta"       -> 0.1,
+    "max_depth" -> 3,
+    "silent"    -> 1
   )
 
   val params =
@@ -26,10 +24,9 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
       nrRounds = 250,
       boosterParams = boosterParams)
 
-  val zeiselMrna = props("zeisel")
+  val zeiselMrna     = props("zeisel")
   val zeiselFiltered = props("zeiselFiltered")
-
-  val mouseTFs = props("mouseTFs")
+  val mouseTFs       = props("mouseTFs")
 
   it should "run the embarrassingly parallel pipeline from raw" in {
     import spark.implicits._
@@ -38,13 +35,30 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     val expressionByGene = ZeiselReader.apply(spark, zeiselMrna)
 
+    val estimations =
+      GRNBoost
+        .estimateNrBoostingRounds(
+          expressionByGene,
+          candidateRegulators = TFs,
+          targets = Set("Gad1"),
+          params = params)
+        .cache
+
+    estimations.show
+
+    import org.apache.spark.sql.functions._
+
+    val estimatedNrRounds = estimations.select(max("rounds")).first.getInt(0)
+
+    println(s"estimated nr of rounds: $estimatedNrRounds")
+
     val result =
       GRNBoost
         .inferRegulations(
           expressionByGene,
           candidateRegulators = TFs,
           targets = Set("Gad1"),
-          params = params)
+          params = params.copy(nrRounds = estimatedNrRounds))
 
     println(params)
 
