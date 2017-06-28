@@ -18,6 +18,7 @@ case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
                                    (regulators: List[Gene],
                                     regulatorCSC: CSCMatrix[Expression],
                                     partitionIndex: Int) extends PartitionTask[RoundsEstimation] {
+
   import params._
 
   private[this] val cachedRegulatorDMatrix = regulatorCSC.copyToUnlabeledDMatrix
@@ -92,18 +93,24 @@ object EstimateNrBoostingRounds {
     * @param params The regression parameters.
     * @param regulatorDMatrix The DMatrix of regulator expression values.
     * @param indicesByFold A Map of cell indices by fold nr.
+    * @param allCVSets If true, make CV sets with respect to all folds, otherwise only one CV set is constructed in
+    *                  function of the fold slices.
     * @param maxRounds The maximum nr of boosting rounds to try.
     * @param incRounds The increment of boosting rounds for lazily finding the inflection point.
-    * @return
+    * @return Returns a Seq of RoundsEstimation instances.
     */
   def estimateRoundsPerFold(nrFolds: Int,
                             targetGene: Gene,
                             params: XGBoostRegressionParams,
                             regulatorDMatrix: DMatrix,
                             indicesByFold: Map[FoldNr, List[CellIndex]],
+                            allCVSets: Boolean = true,
                             maxRounds: Int = MAX_ROUNDS,
-                            incRounds: Int = INC_ROUNDS): Seq[RoundsEstimation] =
-    (0 until nrFolds)
+                            incRounds: Int = INC_ROUNDS): Seq[RoundsEstimation] = {
+
+    val foldNrs = if (allCVSets) 0 until nrFolds else 0 :: Nil
+
+    foldNrs
       .flatMap(foldNr => {
         val (train, test) = cvSet(foldNr, indicesByFold, regulatorDMatrix)
 
@@ -114,6 +121,7 @@ object EstimateNrBoostingRounds {
 
         estimation
       })
+  }
 
   /**
     * @param foldNr The nr of the fold.
@@ -182,7 +190,6 @@ object EstimateNrBoostingRounds {
     /**
       * @param nextRounds The number of boosting rounds to effect.
       * @param skip Nr of boosting rounds to skip between every evaluation of the losses.
-      *
       * @return Returns a List of losses by round.
       */
     def boostAndExtractLossesByRound(nextRounds: Iterable[Round],
@@ -210,12 +217,12 @@ object EstimateNrBoostingRounds {
   }
 
   /**
-    * @param evaluation An evaluation String.
-    * @return Returns the train and test
+    * @param modelEvaluation A String containing the booster model evaluation.
+    * @return Returns the train and test loss scores, parsed from the model evaluation String.
     */
-  def parseLossScores(evaluation: String, evalMetric: String): (Loss, Loss) = {
+  def parseLossScores(modelEvaluation: String, evalMetric: String): (Loss, Loss) = {
     val losses =
-      evaluation
+      modelEvaluation
         .split("\t")
         .drop(1)
         .map(_.split(":") match {
@@ -227,10 +234,12 @@ object EstimateNrBoostingRounds {
   }
 
   /**
-    * @param foldNr
-    * @param indicesByFold
-    * @param matrix
+    * @param foldNr The current fold nr.
+    * @param indicesByFold The cell indices for each fold, by fold nr.
+    * @param matrix The DMatrix to slice into training and test matrices.
     * @return Returns a pair of Arrays of cell indices that represent the cell IDs of one CV set.
+    *         The fold slice with nr equal to foldNr becomes the test matrix, whereas the rest of the slices
+    *         are used for the training matrix.
     */
   def cvSet(foldNr: FoldNr,
             indicesByFold: Map[FoldNr, List[CellIndex]],

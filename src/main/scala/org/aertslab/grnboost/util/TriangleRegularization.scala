@@ -18,8 +18,8 @@ object TriangleRegularization {
     * @param precision The precision of the radian angle.
     * @return Returns the inflection point and its index where consecutive values form a straight line with the last value.
     *
-    *         The inflection point is the first point that makes an angle equal to PI (in radians) with its
-    *         successor and the last point in the data set.
+    *         The inflection point is the first point that makes an angle equal to PI (in radians) with its successor
+    *         and the last point in the data set.
     */
   def inflectionPointIndex(values: List[Float],
                            precision: Double = DEFAULT_PRECISION,

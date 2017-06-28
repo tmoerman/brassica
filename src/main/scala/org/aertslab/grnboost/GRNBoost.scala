@@ -178,7 +178,7 @@ object GRNBoost {
     * @param params
     * @param nrPartitions
     *
-    * @return
+    * @return Returns a Dataset of RoundsEstimation instances.
     */
   def estimateNrBoostingRounds(expressionsByGene: Dataset[ExpressionByGene],
                                candidateRegulators: Set[Gene],
