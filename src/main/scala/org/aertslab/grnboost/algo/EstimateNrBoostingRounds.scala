@@ -18,7 +18,6 @@ case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
                                    (regulators: List[Gene],
                                     regulatorCSC: CSCMatrix[Expression],
                                     partitionIndex: Int) extends PartitionTask[RoundsEstimation] {
-
   import params._
 
   private[this] val cachedRegulatorDMatrix = regulatorCSC.copyToUnlabeledDMatrix
@@ -31,9 +30,7 @@ case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
-    println(s"-> target: $targetGene \t regulator: $targetIsRegulator \t partition: $partitionIndex")
-
-    val seed = params.boosterParams.get("seed").map(_.toString.toInt).getOrElse(DEFAULT_SEED)
+    println(s"estimating nr boosting rounds -> target: $targetGene \t regulator: $targetIsRegulator \t partition: $partitionIndex")
 
     val foldIndices = indicesByFold(nrFolds, regulatorCSC.rows, seed)
 
@@ -104,13 +101,11 @@ object EstimateNrBoostingRounds {
                             params: XGBoostRegressionParams,
                             regulatorDMatrix: DMatrix,
                             indicesByFold: Map[FoldNr, List[CellIndex]],
-                            allCVSets: Boolean = true,
+                            allCVSets: Boolean = false,
                             maxRounds: Int = MAX_ROUNDS,
-                            incRounds: Int = INC_ROUNDS): Seq[RoundsEstimation] = {
+                            incRounds: Int = INC_ROUNDS): Seq[RoundsEstimation] =
 
-    val foldNrs = if (allCVSets) 0 until nrFolds else 0 :: Nil
-
-    foldNrs
+    (if (allCVSets) 0 until nrFolds else 0 :: Nil)
       .flatMap(foldNr => {
         val (train, test) = cvSet(foldNr, indicesByFold, regulatorDMatrix)
 
@@ -121,7 +116,6 @@ object EstimateNrBoostingRounds {
 
         estimation
       })
-  }
 
   /**
     * @param foldNr The nr of the fold.

@@ -58,10 +58,11 @@ package object grnboost {
 
   val DEFAULT_MAX_BOOSTING_ROUNDS = 5000
 
-  val DEFAULT_NR_FOLDS    = 5
-  val DEFAULT_NR_TRIALS   = 1000L
-  val DEFAULT_SEED        = 666
-  val DEFAULT_EVAL_METRIC = "rmse"
+  val DEFAULT_ESTIMATION_SET = 20
+  val DEFAULT_NR_FOLDS       = 5
+  val DEFAULT_NR_TRIALS      = 1000L
+  val DEFAULT_SEED           = 666
+  val DEFAULT_EVAL_METRIC    = "rmse"
 
   val XGB_THREADS = "nthread"
   val XGB_SILENT  = "silent"
@@ -201,9 +202,6 @@ package object grnboost {
 
     import ds.sparkSession.implicits._
 
-    def normalizeTargetGainOverSum(params: XGBoostRegressionParams)    = ??? // TODO
-    def modifyRegulatorGainByVariance(params: XGBoostRegressionParams) = ??? // TODO
-
     /**
       * @param params
       * @return Returns the Dataset with regularization labels calculated with the Triangle method.
@@ -272,7 +270,11 @@ package object grnboost {
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                                      nrRounds: Int,
                                      nrFolds: Int = DEFAULT_NR_FOLDS,
-                                     regularize: Option[Double] = Some(DEFAULT_PRECISION))
+                                     regularize: Option[Double] = Some(DEFAULT_PRECISION)) {
+
+    def seed = boosterParams.get("seed").map(_.toString.toInt).getOrElse(DEFAULT_SEED)
+
+  }
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the

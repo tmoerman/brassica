@@ -1,13 +1,13 @@
 package org.aertslab.grnboost.lab
 
-import com.holdenkarau.spark.testing.DataFrameSuiteBase
-import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost._
+import org.apache.spark.sql.functions._
+import org.scalatest.{FlatSpec, Matchers}
 
 /**
   * @author Thomas Moerman
   */
-class DatasetLab extends FlatSpec with DataFrameSuiteBase with Matchers {
+class DatasetLab extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   behavior of "Dataset"
 
@@ -16,24 +16,22 @@ class DatasetLab extends FlatSpec with DataFrameSuiteBase with Matchers {
 
     val ds = List(KV("a", 1), KV("b", 2), KV("c", 3)).toDS()
 
-    val pred = Set("c")
+    val filtered = ds.filter(kv => Set("c").contains(kv.key))
 
-    val filtererd = ds.filter(kv => pred.contains(kv.key))
-
-    filtererd.show()
+    filtered.show()
   }
 
   it should "calculate max" in {
     import spark.implicits._
 
-    val ds = List(
+    val list: List[RoundsEstimation] = List(
       RoundsEstimation(0, "Gad1", 0.5f, 25),
       RoundsEstimation(0, "Gad1", 0.5f, 55),
       RoundsEstimation(0, "Gad1", 0.5f, 34),
       RoundsEstimation(0, "Gad1", 0.5f, 666),
-      RoundsEstimation(0, "Gad1", 0.5f, 320)).toDS
+      RoundsEstimation(0, "Gad1", 0.5f, 320))
 
-    import org.apache.spark.sql.functions._
+    val ds = list.toDS
 
     val bla = ds.select(max("rounds"))
 
@@ -41,9 +39,8 @@ class DatasetLab extends FlatSpec with DataFrameSuiteBase with Matchers {
   }
 
   it should "roll up a Dataset" in {
-    import spark.implicits._
-
     import org.apache.spark.sql.functions._
+    import spark.implicits._
 
     val dream1 =
       spark
