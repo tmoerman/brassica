@@ -18,8 +18,8 @@ class ModelSpec extends FlatSpec with Matchers {
   it should "add default booster params where not present" in {
     val b: BoosterParams = Map("eta" -> 0.3)
 
-    b.withDefaults.get("eta").get    shouldBe 0.3
-    b.withDefaults.get("silent").get shouldBe 1
+    b.withDefaults("eta")    shouldBe 0.3
+    b.withDefaults("silent") shouldBe 1
   }
 
 }

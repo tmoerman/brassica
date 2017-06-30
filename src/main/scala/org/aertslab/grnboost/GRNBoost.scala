@@ -47,20 +47,22 @@ object GRNBoost {
 
     // lazy values, initialized in function of goal.
 
-    lazy val ds  = readExpressionsByGene(spark, input.get.getAbsolutePath, ignoreHeaders, delimiter)
+    val ds = readExpressionsByGene(spark, input.get.getAbsolutePath, skipHeaders, delimiter).cache
 
     lazy val TFs = regulators.map(file => readRegulators(file.getAbsolutePath)).getOrElse(ds.genes).toSet
 
     lazy val (sampleIndices, maybeSampled) =
       sampleSize
-        .map(ds.subSample(_))
+        .map(nr => ds.subSample(nr))
         .getOrElse(None, ds)
 
-    lazy val roundsEstimationGenes =
+    lazy val estimationTargets =
       if (estimationSet.isLeft) {
         val nr = estimationSet.left.get
         val genes = maybeSampled.genes
         new Random(protoParams.seed).shuffle(genes)
+
+        // TODO max of ...
 
         genes.take(nr).toSet
       } else {
@@ -71,14 +73,18 @@ object GRNBoost {
       estimatedNrBoostingRounds(
         maybeSampled,
         TFs,
-        roundsEstimationGenes,
+        estimationTargets,
         protoParams,
         nrPartitions)
 
     lazy val finalParams =
       nrBoostingRounds
         .orElse(estimatedNrRounds)
-        .map(nr => protoParams.copy(nrRounds = nr) )
+        .map(nr => {
+          println(s"estimated nr of boosting rounds: $nr")
+
+          protoParams.copy(nrRounds = nr)
+        })
         .getOrElse(protoParams)
 
     lazy val regulations =

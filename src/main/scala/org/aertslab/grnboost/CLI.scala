@@ -25,15 +25,15 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """.stripMargin)
       .action{ case (file, cfg) => cfg.modify(_.inf.each.input).setTo(Some(file)) }
 
-  private val ignoreHeaders =
-    opt[Int]("ignore-headers")
+  private val skipHeaders =
+    opt[Int]("skip-headers").abbr("skip")
       .optional
       .valueName("<nr>")
       .text(
         """
-          |  The number of input file header lines to ignore. Default: 0.
+          |  The number of input file header lines to skip. Default: 0.
         """.stripMargin)
-      .action{ case (nr, cfg) => cfg.modify(_.inf.each.ignoreHeaders).setTo(nr) }
+      .action{ case (nr, cfg) => cfg.modify(_.inf.each.skipHeaders).setTo(nr) }
 
   private val output =
     opt[File]("output").abbr("o")
@@ -244,7 +244,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         |Launch GRN inference.
       """.stripMargin)
     .children(
-      input, ignoreHeaders, output, regulators, delimiter, outputFormat, sample, targets, xgbParam,
+      input, skipHeaders, output, regulators, delimiter, outputFormat, sample, targets, xgbParam,
       regularize, truncate, nrBoostingRounds, nrPartitions, transposed,
       estimationGenes, nrEstimationGenes,
       iterated, dryRun, configRun)
@@ -299,7 +299,7 @@ object Format {
 
 /**
   * @param input Required. The input file.
-  * @param ignoreHeaders The number of header lines to ignore in the input file.
+  * @param skipHeaders The number of header lines to ignore in the input file.
   * @param inputTransposed Flag to indicate the input file is transposed, i.e. FIXME description.
   * @param delimiter The delimiter used to parse the input file. Default: TAB.
   * @param regulators File containing regulator genes. Expects on gene per line.
@@ -319,7 +319,7 @@ object Format {
   * @param iterated Hidden, experimental. Use iterated DMatrix initialization instead of copying.
   */
 case class InferenceConfig(input:             Option[File]            = None,
-                           ignoreHeaders:     Int                     = 0,
+                           skipHeaders:       Int                     = 0,
                            inputTransposed:   Boolean                 = false,
                            delimiter:         String                  = "\t",
                            regulators:        Option[File]            = None,

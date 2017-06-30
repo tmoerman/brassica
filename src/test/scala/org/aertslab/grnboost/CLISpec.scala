@@ -86,9 +86,7 @@ class CLISpec extends FlatSpec with Matchers {
 
     val parsed = CLI.parse(args).get.inf.get
 
-    parsed.boosterParams shouldBe Map("eta" -> 0.1, "nthread" -> 1, "silent" -> 1, "seed" -> "777")
+    parsed.boosterParams shouldBe DEFAULT_BOOSTER_PARAMS + (XGB_SEED -> "777")
   }
-
-  it should ""
 
 }
