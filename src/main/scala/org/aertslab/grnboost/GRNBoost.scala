@@ -1,15 +1,13 @@
 package org.aertslab.grnboost
 
-import java.io.File
-
 import breeze.linalg.CSCMatrix
 import org.aertslab.grnboost.DataReader._
 import org.aertslab.grnboost.algo._
-import org.aertslab.grnboost.util.IOUtils._
-import org.aertslab.grnboost.util.TimeUtils._
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
 
 import scala.reflect.ClassTag
+import scala.util.{Random, Try}
 
 /**
   * @author Thomas Moerman
@@ -22,15 +20,15 @@ object GRNBoost {
     */
   def main(args: Array[String]): Unit =
     CLI(args: _*) match {
-      case Some(Config(Some(inferenceConfig), None)) => infer(inferenceConfig)
-      case _                                         => Unit
+      case Some(Config(Some(inferenceConfig), None)) => run(inferenceConfig)
+      case _                                         => ??? // a.k.a. ka-boom
     }
 
   /**
     * Perform GRN inference in function of specified InferenceConfig.
     * @param inferenceConfig
     */
-  def infer(inferenceConfig: InferenceConfig): Unit = {
+  def run(inferenceConfig: InferenceConfig): XGBoostRegressionParams = {
     import inferenceConfig._
 
     val spark =
@@ -41,62 +39,104 @@ object GRNBoost {
 
     import spark.implicits._
 
-    val (_, wallTime) = profile {
-      val ds  = readExpressionsByGene(spark, input.get.getAbsolutePath, ignoreHeaders, delimiter)
-      val TFs = readRegulators(regulators.get.getAbsolutePath)
+    val protoParams =
+      XGBoostRegressionParams(
+        nrRounds = -1,
+        nrFolds = nrFolds,
+        boosterParams = boosterParams)
 
-      val (sampleIndices, maybeSampled) =
-        ds.subSample(sampleSize)
+    // lazy values, initialized in function of goal.
 
-      val nrRounds =
-        nrBoostingRounds.getOrElse {
-          val (prepSampleIndices, prepSample) = ds.subSample(Some(prepSampleSize))
+    lazy val ds  = readExpressionsByGene(spark, input.get.getAbsolutePath, ignoreHeaders, delimiter)
 
-          // predicate for stopping i.f.o. triangle ~= PI
+    lazy val TFs = regulators.map(file => readRegulators(file.getAbsolutePath)).getOrElse(ds.genes).toSet
 
+    lazy val (sampleIndices, maybeSampled) =
+      sampleSize
+        .map(ds.subSample(_))
+        .getOrElse(None, ds)
 
-        }
+    lazy val roundsEstimationGenes =
+      if (estimationSet.isLeft) {
+        val nr = estimationSet.left.get
+        val genes = maybeSampled.genes
+        new Random(protoParams.seed).shuffle(genes)
 
-      val params =
-        XGBoostRegressionParams(
-          nrRounds = nrBoostingRounds.getOrElse(1000), // FIXME early stop mechanism needed!
-          boosterParams = boosterParams)
+        genes.take(nr).toSet
+      } else {
+        estimationSet.right.get
+      }
 
-      val regulations =
-        if (iterated)
-          inferRegulationsIterated(maybeSampled, TFs.toSet, targets.toSet, params, nrPartitions)
-        else
-          inferRegulations(maybeSampled, TFs.toSet, targets.toSet, params, nrPartitions)
+    lazy val estimatedNrRounds =
+      estimatedNrBoostingRounds(
+        maybeSampled,
+        TFs,
+        roundsEstimationGenes,
+        protoParams,
+        nrPartitions)
 
-      val maybeTruncated =
-        truncate
-          .map(nr => regulations.sort($"gain").limit(nr))
-          .getOrElse(regulations)
+    lazy val finalParams =
+      nrBoostingRounds
+        .orElse(estimatedNrRounds)
+        .map(nr => protoParams.copy(nrRounds = nr) )
+        .getOrElse(protoParams)
 
-      val sorted =
-        maybeTruncated
-          .sort($"regulator", $"target", $"gain")
+    lazy val regulations =
+      if (iterated)
+        inferRegulationsIterated(maybeSampled, TFs, targets, finalParams, nrPartitions)
+      else
+        inferRegulations(maybeSampled, TFs, targets, finalParams, nrPartitions)
 
-      sorted
-        .saveTxt(output.get.getAbsolutePath, delimiter)
+    lazy val maybeTruncated =
+      truncate
+        .map(nr => regulations.sort($"gain").limit(nr))
+        .getOrElse(regulations)
 
-      sampleIndices
-        .foreach(ids => {
-          val sampleLogFile = new File(output.get, "_sample.log")
-          writeToFile(sampleLogFile, ids.mkString("\n"))
-        })
+    lazy val sorted =
+      maybeTruncated
+        .sort($"regulator", $"target", $"gain")
+
+    def writeReport: Unit = if (report) {
+      //    sampleIndices
+      //      .foreach(ids => {
+      //        val sampleLogFile = new File(output.get, "_sample.log")
+      //        writeToFile(sampleLogFile, ids.mkString("\n"))
+      //      })
+      //
+      //    val runLogFile = new File(output.get, "_run.log")
+      //
+      //    val runLogText =
+      //      s"""
+      //        |* Inference configuration:
+      //        |${inferenceConfig.toString}
+      //        |
+      //        |* Wall time: ${pretty(wallTime)}"}
+      //      """.stripMargin
+      //
+      //    writeToFile(runLogFile.getAbsolutePath, runLogText)
     }
 
-    val runLogFile = new File(output.get, "_run.log")
-    val runLogText =
-      s"""
-        |* Inference configuration:
-        |${inferenceConfig.toString}
-        |
-        |* Wall time: ${pretty(wallTime)}"}
-      """.stripMargin
+    goal match {
+      case DRY_RUN => protoParams
+      case CFG_RUN => finalParams
+      case INF_RUN =>
 
-    writeToFile(runLogFile.getAbsolutePath, runLogText)
+        writeReport
+
+        finalParams
+    }
+
+    // TODO update params with inference config params
+
+//    sorted
+//      .saveTxt(output.get.getAbsolutePath, delimiter)
+//
+//    sampleIndices
+//      .foreach(ids => {
+//        val sampleLogFile = new File(output.get, "_sample.log")
+//        writeToFile(sampleLogFile, ids.mkString("\n"))
+//      })
+
   }
 
   /**
@@ -180,11 +220,11 @@ object GRNBoost {
     *
     * @return Returns a Dataset of RoundsEstimation instances.
     */
-  def estimateNrBoostingRounds(expressionsByGene: Dataset[ExpressionByGene],
-                               candidateRegulators: Set[Gene],
-                               targets: Set[Gene] = Set.empty,
-                               params: XGBoostRegressionParams,
-                               nrPartitions: Option[Count] = None): Dataset[RoundsEstimation] = {
+  def roundsEstimations(expressionsByGene: Dataset[ExpressionByGene],
+                        candidateRegulators: Set[Gene],
+                        targets: Set[Gene] = Set.empty,
+                        params: XGBoostRegressionParams,
+                        nrPartitions: Option[Count] = None): Dataset[RoundsEstimation] = {
 
     import expressionsByGene.sparkSession.implicits._
 
@@ -192,6 +232,28 @@ object GRNBoost {
 
     computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskFactory)
   }
+
+  /**
+    * @param expressionsByGene
+    * @param candidateRegulators
+    * @param targets
+    * @param params
+    * @param nrPartitions
+    *
+    * @return
+    */
+  def estimatedNrBoostingRounds(expressionsByGene: Dataset[ExpressionByGene],
+                                candidateRegulators: Set[Gene],
+                                targets: Set[Gene] = Set.empty,
+                                params: XGBoostRegressionParams,
+                                nrPartitions: Option[Count] = None): Option[Int] = Try {
+
+    roundsEstimations(expressionsByGene, candidateRegulators, targets, params, nrPartitions)
+      .select(max("rounds"))
+      .first
+      .getInt(0)
+
+  }.toOption
 
   /**
     * @param expressionsByGene
@@ -283,6 +345,7 @@ object GRNBoost {
     repartitioned
       .mapPartitionsWithIndex{ case (partitionIndex, partitionIterator) => {
         if (partitionIterator.nonEmpty) {
+
           val regulators    = regulatorsBroadcast.value
           val regulatorCSC  = regulatorCSCBroadcast.value
           val partitionTask = partitionTaskFactory.apply(regulators, regulatorCSC, partitionIndex)

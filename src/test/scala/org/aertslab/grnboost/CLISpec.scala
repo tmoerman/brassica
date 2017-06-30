@@ -61,7 +61,7 @@ class CLISpec extends FlatSpec with Matchers {
     val parsed = CLI.parse(args).get.inf.get
 
     parsed.inputTransposed shouldBe true
-    parsed.dryRun          shouldBe true
+    parsed.goal            shouldBe DRY_RUN
   }
 
   it should "capture target genes" in {
@@ -74,7 +74,7 @@ class CLISpec extends FlatSpec with Matchers {
 
     val parsed = CLI.parse(args).get.inf.get
 
-    parsed.targets shouldBe Seq("Tspan2", "Dlx1", "Neurod2")
+    parsed.targets shouldBe Set("Tspan2", "Dlx1", "Neurod2")
   }
 
   it should "capture XGBoost params" in {
@@ -88,5 +88,7 @@ class CLISpec extends FlatSpec with Matchers {
 
     parsed.boosterParams shouldBe Map("eta" -> 0.1, "nthread" -> 1, "silent" -> 1, "seed" -> "777")
   }
+
+  it should ""
 
 }
