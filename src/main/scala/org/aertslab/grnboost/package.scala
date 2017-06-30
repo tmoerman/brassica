@@ -69,20 +69,21 @@ package object grnboost {
   val XGB_ETA     = "eta"
   val XGB_SEED    = "seed"
   val XGB_METRIC  = "eval_metric"
+  val XGB_MAX_DEPTH  = "max_depth"
 
   val DEFAULT_BOOSTER_PARAMS: BoosterParams = Map(
-    XGB_SILENT  -> 1,
-    XGB_THREADS -> 1,
-    XGB_ETA     -> 0.1
+    XGB_SILENT    -> 1,
+    XGB_THREADS   -> 1,
+    XGB_ETA       -> 0.1,
+    XGB_MAX_DEPTH -> 3
   )
 
   implicit class BoosterParamsFunctions(boosterParams: BoosterParams) {
 
     def withDefaults: BoosterParams =
-      Some(boosterParams)
-        .map(p => if (p contains XGB_THREADS) p else p + (XGB_THREADS -> 1))
-        .map(p => if (p contains XGB_SILENT)  p else p + (XGB_SILENT -> 1))
-        .get
+      DEFAULT_BOOSTER_PARAMS
+        .foldLeft(boosterParams){ case (params, (k, v)) =>
+          if (params contains k) params else params updated (k, v) }
 
     def withSeed(seed: Seed): BoosterParams =
       boosterParams.updated("seed", seed)
