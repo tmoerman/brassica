@@ -24,8 +24,6 @@ class GRNBoostSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     csc.rows shouldBe ZEISEL_CELL_COUNT
     csc.cols shouldBe 1
-
-    println(csc.toDense.t)
   }
 
   "small test for CSCMatrix builder" should "work" in {
@@ -39,9 +37,8 @@ class GRNBoostSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     val csc = GRNBoost.reduceToRegulatorCSCMatrix(ds, List("gene2", "gene3"))
 
-    println(csc)
-
-    // val m = Matrices.dense(4, 2, Array(2.0, 2.1, 2.2, 2.3, 3.0, 3.1, 3.2, 3.3))
+    csc.rows shouldBe 4
+    csc.cols shouldBe 2
   }
 
 }

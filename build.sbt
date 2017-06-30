@@ -18,7 +18,6 @@ resolvers += Resolver.mavenLocal
 resolvers += Resolver.bintrayRepo("bkirwi", "maven")
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
 
-// Change this to another test framework if you prefer
 libraryDependencies ++= Seq(
 
   "ml.dmlc"        % "xgboost4j"  % "0.7"   exclude("com.esotericsoftware.kryo", "kryo"),
