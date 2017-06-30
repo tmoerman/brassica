@@ -1,5 +1,7 @@
 package org.aertslab.grnboost
 
+import java.lang.Math.min
+
 import breeze.linalg.CSCMatrix
 import org.aertslab.grnboost.DataReader._
 import org.aertslab.grnboost.algo._
@@ -28,7 +30,7 @@ object GRNBoost {
     * Perform GRN inference in function of specified InferenceConfig.
     * @param inferenceConfig
     */
-  def run(inferenceConfig: InferenceConfig): XGBoostRegressionParams = {
+  def run(inferenceConfig: InferenceConfig): (InferenceConfig, XGBoostRegressionParams) = {
     import inferenceConfig._
 
     val spark =
@@ -47,7 +49,7 @@ object GRNBoost {
 
     // lazy values, initialized in function of goal.
 
-    val ds = readExpressionsByGene(spark, input.get.getAbsolutePath, skipHeaders, delimiter).cache
+    lazy val ds = readExpressionsByGene(spark, input.get.getAbsolutePath, skipHeaders, delimiter).cache
 
     lazy val TFs = regulators.map(file => readRegulators(file.getAbsolutePath)).getOrElse(ds.genes).toSet
 
@@ -58,33 +60,25 @@ object GRNBoost {
 
     lazy val estimationTargets =
       if (estimationSet.isLeft) {
-        val nr = estimationSet.left.get
-        val genes = maybeSampled.genes
-        new Random(protoParams.seed).shuffle(genes)
+        val nr = min(estimationSet.left.get, maybeSampled.count).toInt
 
-        // TODO max of ...
-
-        genes.take(nr).toSet
+        new Random(protoParams.seed)
+          .shuffle(maybeSampled.genes)
+          .take(nr)
+          .toSet
       } else {
         estimationSet.right.get
       }
 
+    lazy val updatedInferenceConfig = inferenceConfig.copy(estimationSet = Right(estimationTargets))
+
     lazy val estimatedNrRounds =
-      estimatedNrBoostingRounds(
-        maybeSampled,
-        TFs,
-        estimationTargets,
-        protoParams,
-        nrPartitions)
+      estimatedNrBoostingRounds(maybeSampled, TFs, estimationTargets, protoParams, nrPartitions)
 
     lazy val finalParams =
       nrBoostingRounds
         .orElse(estimatedNrRounds)
-        .map(nr => {
-          println(s"estimated nr of boosting rounds: $nr")
-
-          protoParams.copy(nrRounds = nr)
-        })
+        .map(estimation => protoParams.copy(nrRounds = estimation))
         .getOrElse(protoParams)
 
     lazy val regulations =
@@ -123,13 +117,13 @@ object GRNBoost {
     }
 
     goal match {
-      case DRY_RUN => protoParams
-      case CFG_RUN => finalParams
+      case DRY_RUN => (inferenceConfig, protoParams)
+      case CFG_RUN => (updatedInferenceConfig, finalParams)
       case INF_RUN =>
 
         writeReport
 
-        finalParams
+        (updatedInferenceConfig, finalParams)
     }
 
     // TODO update params with inference config params

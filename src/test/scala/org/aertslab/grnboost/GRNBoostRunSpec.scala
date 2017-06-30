@@ -18,13 +18,11 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     val inferenceCfg = CLI.parse(args).get.inf.get
 
-    val params = GRNBoost.run(inferenceCfg)
+    val (_, params) = GRNBoost.run(inferenceCfg)
 
     inferenceCfg.goal shouldBe DRY_RUN
 
     println(params)
-
-    params.toString
   }
 
   val zeiselFiltered = props("zeiselFiltered")
@@ -35,12 +33,14 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
       "-i", zeiselFiltered, "--skip-headers", "1",
       "-tf", "src/test/resources/TF/mm9_TFs.txt",
       "-o", "src/test/resources/zeisel/out.txt",
-      "--nr-estimation-genes", "1",
+      "--nr-estimation-genes", "2",
       "--cfg-run")
 
     val inferenceCfg = CLI.parse(args).get.inf.get
 
-    GRNBoost.run(inferenceCfg)
+    val (updatedCfg, params) = GRNBoost.run(inferenceCfg)
+
+    updatedCfg.estimationSet.right.get.size shouldBe 2
   }
 
 }

@@ -183,25 +183,19 @@ object EstimateNrBoostingRounds {
 
     /**
       * @param nextRounds The number of boosting rounds to effect.
-      * @param skip Nr of boosting rounds to skip between every evaluation of the losses.
       * @return Returns a List of losses by round.
       */
-    def boostAndExtractLossesByRound(nextRounds: Iterable[Round],
-                                     skip: Int = SKIP_ROUNDS): List[(Round, (Loss, Loss))] = {
-
-      println(s"next rounds: ${nextRounds.head}")
-
+    def boostAndExtractLossesByRound(nextRounds: Iterable[Round]): List[(Round, (Loss, Loss))] =
       nextRounds
-        .flatMap(round => {
+        .map(round => {
           booster.update(train, round)
 
           val evalSet = booster.evalSet(mats, names, round)
           val lossScores = parseLossScores(evalSet, metric)
 
-          (round, lossScores) :: Nil // TODO if (round % skip == 0) Seq(lossScores) else Nil
+          (round, lossScores)
         })
         .toList
-    }
 
     Stream
       .range(0, maxRounds)
