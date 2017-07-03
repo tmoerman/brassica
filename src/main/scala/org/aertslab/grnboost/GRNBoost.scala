@@ -81,20 +81,27 @@ object GRNBoost {
         .map(estimation => protoParams.copy(nrRounds = estimation))
         .getOrElse(protoParams)
 
-    lazy val regulations =
-      if (iterated)
-        inferRegulationsIterated(maybeSampled, TFs, targets, finalParams, nrPartitions)
-      else
-        inferRegulations(maybeSampled, TFs, targets, finalParams, nrPartitions)
+    // pour this into a pipeline style monad...
 
-    lazy val maybeTruncated =
-      truncate
-        .map(nr => regulations.sort($"gain").limit(nr))
-        .getOrElse(regulations)
-
-    lazy val sorted =
-      maybeTruncated
-        .sort($"regulator", $"target", $"gain")
+    lazy val monadicRegulations =
+      Some(maybeSampled)
+        .map(expressionsByGene =>
+          if (iterated)
+            inferRegulationsIterated(expressionsByGene, TFs, targets, finalParams, nrPartitions)
+          else
+            inferRegulations(expressionsByGene, TFs, targets, finalParams, nrPartitions))
+        .map(regulations =>
+          if (regularize)
+            regulations
+              .withRegularizationLabels(finalParams)
+              .filter($"include" === 1)
+          else
+            regulations.withRegularizationLabels(finalParams))
+        .map(regulations =>
+          truncate
+            .map(nr => regulations.sort($"gain").limit(nr))
+            .getOrElse(regulations))
+        .map(_.sort($"regulator", $"target", $"gain"))
 
     def writeReport: Unit = if (report) {
       //    sampleIndices
@@ -117,26 +124,20 @@ object GRNBoost {
     }
 
     goal match {
-      case DRY_RUN => (inferenceConfig, protoParams)
-      case CFG_RUN => (updatedInferenceConfig, finalParams)
-      case INF_RUN =>
+      case DRY_RUN =>
+        (inferenceConfig, protoParams)
 
-        writeReport
+      case CFG_RUN =>
+        (updatedInferenceConfig, finalParams)
+
+      case INF_RUN =>
+        monadicRegulations
+          .foreach(_.saveTxt(output.get.getAbsolutePath, ! regularize, delimiter))
+
+        // FIXME writeReport
 
         (updatedInferenceConfig, finalParams)
     }
-
-    // TODO update params with inference config params
-
-//    sorted
-//      .saveTxt(output.get.getAbsolutePath, delimiter)
-//
-//    sampleIndices
-//      .foreach(ids => {
-//        val sampleLogFile = new File(output.get, "_sample.log")
-//        writeToFile(sampleLogFile, ids.mkString("\n"))
-//      })
-
   }
 
   /**

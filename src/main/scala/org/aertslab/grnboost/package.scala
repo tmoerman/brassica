@@ -230,14 +230,18 @@ package object grnboost {
     /**
       * Save the Dataset as a text file with specified delimiter
       * @param path Target file path.
+      * @param includeLabel Include the label.
       * @param delimiter Default tab.
       */
-    def saveTxt(path: Path, delimiter: String = "\t"): Unit =
+    def saveTxt(path: Path, includeLabel: Boolean = true, delimiter: String = "\t"): Unit = {
+      val nr = if (includeLabel) 4 else 3
+
       ds
         .rdd
-        .map(_.productIterator.mkString(delimiter))
+        .map(_.productIterator.take(nr).mkString(delimiter))
         .repartition(1)
         .saveAsTextFile(path)
+    }
 
   }
 

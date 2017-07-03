@@ -43,4 +43,22 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     updatedCfg.estimationSet.right.get.size shouldBe 2
   }
 
+  "run" should "pass smoke for 1 target" in {
+    val args = Array(
+      "infer",
+      "-i", zeiselFiltered, "--skip-headers", "1",
+      "-tf", "src/test/resources/TF/mm9_TFs.txt",
+      "-o", "src/test/resources/zeisel/out.txt.blaaaaa",
+      "--nr-estimation-genes", "2",
+      "--targets", "Gad1")
+
+    val inferenceCfg = CLI.parse(args).get.inf.get
+
+    val (updatedCfg, params) = GRNBoost.run(inferenceCfg)
+
+    updatedCfg.estimationSet.right.get.size shouldBe 2
+
+
+  }
+
 }

@@ -151,7 +151,9 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .valueName("<true/false>")
       .text(
         """
-          |  Flag whether to enable or disable regularization (triangle method). Default: true.
+          |  Flag whether to enable or disable regularization (using the triangle method). Default: true.
+          |  When true, only regulations approved by the triangle method will be emitted.
+          |  When false, the regularization labels will be included as a 4th column.
         """.stripMargin)
       .action{ case (reg, cfg) => cfg.modify(_.inf.each.regularize).setTo(reg) }
 
