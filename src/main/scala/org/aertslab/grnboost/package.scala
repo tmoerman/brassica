@@ -64,12 +64,12 @@ package object grnboost {
   val DEFAULT_SEED           = 666
   val DEFAULT_EVAL_METRIC    = "rmse"
 
-  val XGB_THREADS = "nthread"
-  val XGB_SILENT  = "silent"
-  val XGB_ETA     = "eta"
-  val XGB_SEED    = "seed"
-  val XGB_METRIC  = "eval_metric"
-  val XGB_MAX_DEPTH  = "max_depth"
+  val XGB_THREADS   = "nthread"
+  val XGB_SILENT    = "silent"
+  val XGB_ETA       = "eta"
+  val XGB_SEED      = "seed"
+  val XGB_METRIC    = "eval_metric"
+  val XGB_MAX_DEPTH = "max_depth"
 
   val DEFAULT_BOOSTER_PARAMS: BoosterParams = Map(
     XGB_SILENT    -> 1,
