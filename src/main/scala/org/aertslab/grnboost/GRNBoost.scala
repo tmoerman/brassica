@@ -6,11 +6,10 @@ import java.lang.Math.min
 import breeze.linalg.CSCMatrix
 import org.aertslab.grnboost.DataReader._
 import org.aertslab.grnboost.algo._
+import org.aertslab.grnboost.util.IOUtils._
 import org.aertslab.grnboost.util.TimeUtils._
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
-import org.aertslab.grnboost.util.IOUtils._
-import org.joda.time.DateTime
 import org.joda.time.DateTime.now
 import org.joda.time.format.DateTimeFormat
 
@@ -119,7 +118,7 @@ object GRNBoost {
           truncate
             .map(nr => result.sort($"gain").limit(nr))
             .getOrElse(result))
-        .map(_.sort($"regulator", $"target", $"gain"))
+        .map(_.sort($"regulator", $"gain".desc))
 
     def writeReport(wallTime: Duration,
                     sampleIndices: Option[Seq[CellIndex]],
