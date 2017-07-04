@@ -17,4 +17,5 @@ $SPARK_HOME/bin/spark-submit \
   infer \
   -i  /media/tmo/data/work/datasets/dream5/training\ data/Network\ 1\ -\ in\ silico/net1_expression_data.transposed.tsv \
   -tf /media/tmo/data/work/datasets/dream5/training\ data/Network\ 1\ -\ in\ silico/net1_transcription_factors.tsv \
-  -o  /media/tmo/data/work/datasets/dream5/grnboost/net1/net1_grnboost.tsv
+  -o  /media/tmo/data/work/datasets/dream5/grnboost/net1/net1_grnboost.tsv \
+  --truncate 100000

@@ -10,6 +10,9 @@ import org.aertslab.grnboost.util.TimeUtils._
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
 import org.aertslab.grnboost.util.IOUtils._
+import org.joda.time.DateTime
+import org.joda.time.DateTime.now
+import org.joda.time.format.DateTimeFormat
 
 import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
@@ -45,6 +48,8 @@ object GRNBoost {
     */
   def run(inferenceConfig: InferenceConfig): (InferenceConfig, XGBoostRegressionParams) = {
     import inferenceConfig._
+
+    val started = DateTimeFormat.forPattern("yyyy-MM-dd:hh.mm.ss").print(now)
 
     val spark =
       SparkSession
@@ -120,17 +125,29 @@ object GRNBoost {
                     sampleIndices: Option[Seq[CellIndex]],
                     inferenceConfig: InferenceConfig): Unit = if (report) {
 
-      val sampleLogFile = new File(s"${output.get}.sample")
-      val runLogFile    = new File(s"${output.get}.log")
+      val finished = DateTimeFormat.forPattern("yyyy-MM-dd:hh.mm.ss").print(now)
 
-      sampleIndices.foreach(cellIds => writeToFile(sampleLogFile, cellIds.mkString("\n")))
+      val estimationLogFile = new File(s"${output.get}.estimation.log")
+      val sampleLogFile     = new File(s"${output.get}.sample.log")
+      val runLogFile        = new File(s"${output.get}.run.log")
+
+      writeToFile(
+        estimationLogFile,
+        "# Genes used for boosting rounds estimation\n\n" + estimationTargets.toSeq.sorted.mkString("\n"))
+
+      sampleIndices.foreach(cellIds =>
+        writeToFile(
+          sampleLogFile,
+          "# Cells sampled\n\n" + cellIds.sorted.mkString("\n")))
 
       val runLogText =
         s"""
+          |# GRNboost run log
+          |
+          |* Started: $started, finished: $finished, wall time: ${pretty(wallTime)}
+          |
           |* Inference configuration:
           |${inferenceConfig.toString}
-          |
-          |* Wall time: ${pretty(wallTime)}
         """.stripMargin
 
       writeToFile(runLogFile, runLogText)
@@ -141,7 +158,6 @@ object GRNBoost {
         (inferenceConfig, protoParams)
 
       case CFG_RUN =>
-
         val (_, wallTime) = profile { updatedParams.hashCode }
 
         writeReport(wallTime, sampleIndices, updatedInferenceConfig)
@@ -149,7 +165,6 @@ object GRNBoost {
         (updatedInferenceConfig, updatedParams)
 
       case INF_RUN =>
-
         val (_, wallTime) = profile {
           regulations.foreach(_.saveTxt(output.get.getAbsolutePath, ! regularize, delimiter))
         }
