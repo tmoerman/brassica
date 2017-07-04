@@ -123,7 +123,7 @@ object GRNBoost {
           |* Inference configuration:
           |${inferenceConfig.toString}
           |
-          |* Wall time: ${pretty(wallTime)}"}
+          |* Wall time: ${pretty(wallTime)}"
         """.stripMargin
 
       writeToFile(runLogFile, runLogText)
