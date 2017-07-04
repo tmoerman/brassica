@@ -53,14 +53,13 @@ class CLISpec extends FlatSpec with Matchers {
   it should "not complain when required arguments are provided" in {
     val args = Array(
       "infer",
-      "-i", "src/test/resources/genie3/data.txt", "--transposed",
+      "-i", "src/test/resources/genie3/data.txt",
       "-tf", "src/test/resources/TF/mm9_TFs.txt",
       "-o", "src/test/resources/genie3/out.txt",
       "--dry-run")
 
     val parsed = CLI.parse(args).get.inf.get
 
-    parsed.inputTransposed shouldBe true
     parsed.goal            shouldBe DRY_RUN
   }
 

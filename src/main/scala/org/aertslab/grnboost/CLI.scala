@@ -17,7 +17,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
   private val input =
     opt[File]("input").abbr("i")
       .required
-      .valueName("<file|dir>")
+      .valueName("<file>")
       .validate(file => if (file.exists) success else failure(s"Input file ($file) does not exist."))
       .text(
         """
@@ -38,7 +38,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
   private val output =
     opt[File]("output").abbr("o")
       .required
-      .valueName("<dir>")
+      .valueName("<file>")
       .validate(file => if (file.exists) failure(s"output file ($file) already exists") else success)
       .text(
         """
@@ -196,15 +196,6 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """.stripMargin)
       .action{ case (_, cfg) => cfg.modify(_.inf.each.goal).setTo(CFG_RUN) }
 
-  private val transposed =
-    opt[Unit]("transposed")
-      .optional
-      .text(
-        """
-          |  Set this flag if the input rows=observations and cols=genes.
-        """.stripMargin)
-      .action{ case (_, cfg) => cfg.modify(_.inf.each.inputTransposed).setTo(true) }
-
   private val report =
     opt[Boolean]("report")
       .optional
@@ -246,10 +237,8 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         |Launch GRN inference.
       """.stripMargin)
     .children(
-      input, skipHeaders, output, regulators, delimiter, outputFormat, sample, targets, xgbParam,
-      regularize, truncate, nrBoostingRounds, nrPartitions, transposed,
-      estimationGenes, nrEstimationGenes,
-      iterated, dryRun, configRun)
+      input, skipHeaders, output, regulators, delimiter, outputFormat, sample, targets, xgbParam, regularize, truncate,
+      nrBoostingRounds, nrPartitions, estimationGenes, nrEstimationGenes, iterated, dryRun, configRun)
 
   override def renderingMode = OneColumn
 
@@ -302,7 +291,6 @@ object Format {
 /**
   * @param input Required. The input file.
   * @param skipHeaders The number of header lines to ignore in the input file.
-  * @param inputTransposed Flag to indicate the input file is transposed, i.e. FIXME description.
   * @param delimiter The delimiter used to parse the input file. Default: TAB.
   * @param regulators File containing regulator genes. Expects on gene per line.
   * @param output Required. The output file.
@@ -322,7 +310,6 @@ object Format {
   */
 case class InferenceConfig(input:             Option[File]            = None,
                            skipHeaders:       Int                     = 0,
-                           inputTransposed:   Boolean                 = false,
                            delimiter:         String                  = "\t",
                            regulators:        Option[File]            = None,
                            output:            Option[File]            = None,

@@ -1,7 +1,11 @@
 package org.aertslab
 
+import java.io.File
+
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
 import org.aertslab.grnboost.util.TriangleRegularization._
+import org.apache.commons.io.FileUtils
+import org.apache.commons.io.FileUtils.{copyFile, deleteDirectory}
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
@@ -233,14 +237,23 @@ package object grnboost {
       * @param includeLabel Include the label.
       * @param delimiter Default tab.
       */
-    def saveTxt(path: Path, includeLabel: Boolean = true, delimiter: String = "\t"): Unit = {
+    def saveTxt(path: Path,
+                includeLabel: Boolean = true,
+                delimiter: String = "\t"): Unit = {
+
       val nr = if (includeLabel) 4 else 3
+
+      val temp = s"$path.temp"
 
       ds
         .rdd
         .map(_.productIterator.take(nr).mkString(delimiter))
         .repartition(1)
-        .saveAsTextFile(path)
+        .saveAsTextFile(temp)
+
+      copyFile(new File(s"$temp/part-00000"), new File(path), false)
+
+      deleteDirectory(new File(temp))
     }
 
   }

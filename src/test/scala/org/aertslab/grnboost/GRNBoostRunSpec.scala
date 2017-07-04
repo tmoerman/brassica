@@ -3,7 +3,7 @@ package org.aertslab.grnboost
 import java.io.File
 
 import org.aertslab.grnboost.util.PropsReader.props
-import org.apache.commons.io.FileUtils.deleteDirectory
+import org.apache.commons.io.FileUtils.deleteQuietly
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.io.Source
@@ -49,8 +49,10 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   }
 
   "run" should "pass smoke for 1 target" in {
-    val outPath = "src/test/resources/zeisel/out.regularized"
-    val outDir  = new File(outPath)
+    val outPath = "src/test/resources/zeisel/out.regularized.txt"
+    val out  = new File(outPath)
+
+    deleteQuietly(out)
 
     val args = Array(
       "infer",
@@ -66,9 +68,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     updatedCfg.estimationSet.right.get.size shouldBe 2
 
-    Source.fromFile(outPath + "/part-00000").getLines.size shouldBe 7
-
-    deleteDirectory(outDir)
+    Source.fromFile(outPath).getLines.size shouldBe 7
   }
 
 }
