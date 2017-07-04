@@ -60,6 +60,8 @@ object GRNBoost {
 
     import spark.implicits._
 
+    lazy val parallelism = nrPartitions.orElse(Some(spark.sparkContext.defaultParallelism))
+
     lazy val ds = readExpressionsByGene(spark, input.get.getAbsolutePath, skipHeaders, delimiter).cache
 
     lazy val TFs = regulators.map(file => readRegulators(file.getAbsolutePath)).getOrElse(ds.genes).toSet
@@ -81,12 +83,13 @@ object GRNBoost {
         estimationSet.right.get
       }
 
-    lazy val estimatedNrRounds = estimatedNrBoostingRounds(maybeSampled, TFs, estimationTargets, protoParams, nrPartitions)
+    lazy val estimatedNrRounds = estimatedNrBoostingRounds(maybeSampled, TFs, estimationTargets, protoParams, parallelism)
 
     lazy val updatedInferenceConfig =
       inferenceConfig
-        .copy(estimationSet = Right(estimationTargets))
+        .copy(estimationSet    = Right(estimationTargets))
         .copy(nrBoostingRounds = estimatedNrRounds)
+        .copy(nrPartitions     = parallelism)
 
     lazy val updatedParams =
       nrBoostingRounds
@@ -98,9 +101,9 @@ object GRNBoost {
       Some(maybeSampled)
         .map(expressionsByGene =>
           if (iterated)
-            inferRegulationsIterated(expressionsByGene, TFs, targets, updatedParams, nrPartitions)
+            inferRegulationsIterated(expressionsByGene, TFs, targets, updatedParams, parallelism)
           else
-            inferRegulations(expressionsByGene, TFs, targets, updatedParams, nrPartitions))
+            inferRegulations(expressionsByGene, TFs, targets, updatedParams, parallelism))
         .map(result =>
           if (regularize)
             result.withRegularizationLabels(updatedParams).filter($"include" === 1)
