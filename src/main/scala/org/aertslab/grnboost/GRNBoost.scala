@@ -83,7 +83,8 @@ object GRNBoost {
         estimationSet.right.get
       }
 
-    lazy val estimatedNrRounds = estimatedNrBoostingRounds(maybeSampled, TFs, estimationTargets, protoParams, parallelism)
+    lazy val estimatedNrRounds =
+      estimatedNrBoostingRounds(maybeSampled, TFs, estimationTargets, protoParams, parallelism)
 
     lazy val updatedInferenceConfig =
       inferenceConfig
@@ -115,7 +116,10 @@ object GRNBoost {
             .getOrElse(result))
         .map(_.sort($"regulator", $"target", $"gain"))
 
-    def writeReport(wallTime: Duration, sampleIndices: Option[Seq[CellIndex]], inferenceConfig: InferenceConfig): Unit = if (report) {
+    def writeReport(wallTime: Duration,
+                    sampleIndices: Option[Seq[CellIndex]],
+                    inferenceConfig: InferenceConfig): Unit = if (report) {
+
       val sampleLogFile = new File(s"${output.get}.sample")
       val runLogFile    = new File(s"${output.get}.log")
 
@@ -146,7 +150,9 @@ object GRNBoost {
 
       case INF_RUN =>
 
-        val (_, wallTime) = profile { regulations.foreach(_.saveTxt(output.get.getAbsolutePath, ! regularize, delimiter)) }
+        val (_, wallTime) = profile {
+          regulations.foreach(_.saveTxt(output.get.getAbsolutePath, ! regularize, delimiter))
+        }
 
         writeReport(wallTime, sampleIndices, updatedInferenceConfig)
 
