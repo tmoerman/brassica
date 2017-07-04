@@ -4,7 +4,6 @@ import java.io.File
 
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
 import org.aertslab.grnboost.util.TriangleRegularization._
-import org.apache.commons.io.FileUtils
 import org.apache.commons.io.FileUtils.{copyFile, deleteDirectory}
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
@@ -233,25 +232,26 @@ package object grnboost {
 
     /**
       * Save the Dataset as a text file with specified delimiter
-      * @param path Target file path.
+      *
+      * @param out Target output file path.
       * @param includeLabel Include the label.
       * @param delimiter Default tab.
       */
-    def saveTxt(path: Path,
+    def saveTxt(out: Path,
                 includeLabel: Boolean = true,
                 delimiter: String = "\t"): Unit = {
 
-      val nr = if (includeLabel) 4 else 3
+      val nrCols = if (includeLabel) 4 else 3
 
-      val temp = s"$path.temp"
+      val temp = s"$out.temp"
 
       ds
         .rdd
-        .map(_.productIterator.take(nr).mkString(delimiter))
+        .map(_.productIterator.take(nrCols).mkString(delimiter))
         .repartition(1)
         .saveAsTextFile(temp)
 
-      copyFile(new File(s"$temp/part-00000"), new File(path), false)
+      copyFile(new File(temp, "part-00000"), new File(out), false)
 
       deleteDirectory(new File(temp))
     }

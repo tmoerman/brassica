@@ -15,11 +15,17 @@ class CLISpec extends FlatSpec with Matchers {
 
   behavior of "CommandLine argument parsing"
 
+  it should "Print about text" in {
+    CLI("about") shouldBe Some(Config(None))
+  }
+
   it should "Print an error when no command is specified" in {
     val captured = new ByteArrayOutputStream
     withErr(captured) {
-      CLI() shouldBe Some(Config(None, None))
+      CLI() shouldBe Some(Config(None))
     }
+
+    println(captured.toString)
   }
 
   it should "Complain when the 'infer' command is specified with insufficient params are specified" in {
@@ -45,7 +51,7 @@ class CLISpec extends FlatSpec with Matchers {
   it should "Print help" in {
     val captured = new ByteArrayOutputStream
     withOut(captured) {
-      CLI("--help") shouldBe Some(Config(None, None))
+      CLI("--help") shouldBe Some(Config(None))
     }
     captured.toString should startWith ("GRNBoost 0.1")
   }

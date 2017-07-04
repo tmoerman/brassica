@@ -1,13 +1,17 @@
 package org.aertslab.grnboost
 
+import java.io.File
 import java.lang.Math.min
 
 import breeze.linalg.CSCMatrix
 import org.aertslab.grnboost.DataReader._
 import org.aertslab.grnboost.algo._
+import org.aertslab.grnboost.util.TimeUtils._
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
+import org.aertslab.grnboost.util.IOUtils._
 
+import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
 import scala.util.{Random, Try}
 
@@ -16,14 +20,23 @@ import scala.util.{Random, Try}
   */
 object GRNBoost {
 
+  val ABOUT =
+    """
+      |GRNBoost
+      |--------
+      |
+      |https://github.com/aertslab/GRNBoost/
+    """.stripMargin
+
   /**
     * Main application entry point.
     * @param args
     */
   def main(args: Array[String]): Unit =
     CLI(args: _*) match {
-      case Some(Config(Some(inferenceConfig), None)) => run(inferenceConfig)
-      case _                                         => ??? // a.k.a. ka-boom
+      case Some(Config(Some(inferenceConfig))) => run(inferenceConfig)
+      case Some(Config(None))                  => println(ABOUT)
+      case _                                   => ??? // a.k.a. ka-boom
     }
 
   /**
@@ -54,7 +67,7 @@ object GRNBoost {
     lazy val TFs = regulators.map(file => readRegulators(file.getAbsolutePath)).getOrElse(ds.genes).toSet
 
     lazy val (sampleIndices, maybeSampled) =
-      sampleSize
+      sample
         .map(nr => ds.subSample(nr))
         .getOrElse(None, ds)
 
@@ -72,8 +85,7 @@ object GRNBoost {
 
     lazy val updatedInferenceConfig = inferenceConfig.copy(estimationSet = Right(estimationTargets))
 
-    lazy val estimatedNrRounds =
-      estimatedNrBoostingRounds(maybeSampled, TFs, estimationTargets, protoParams, nrPartitions)
+    lazy val estimatedNrRounds = estimatedNrBoostingRounds(maybeSampled, TFs, estimationTargets, protoParams, nrPartitions)
 
     lazy val finalParams =
       nrBoostingRounds
@@ -83,44 +95,39 @@ object GRNBoost {
 
     // pour this into a pipeline style monad...
 
-    lazy val monadicRegulations =
+    lazy val regulations =
       Some(maybeSampled)
         .map(expressionsByGene =>
           if (iterated)
             inferRegulationsIterated(expressionsByGene, TFs, targets, finalParams, nrPartitions)
           else
             inferRegulations(expressionsByGene, TFs, targets, finalParams, nrPartitions))
-        .map(regulations =>
+        .map(result =>
           if (regularize)
-            regulations
-              .withRegularizationLabels(finalParams)
-              .filter($"include" === 1)
+            result.withRegularizationLabels(finalParams).filter($"include" === 1)
           else
-            regulations.withRegularizationLabels(finalParams))
-        .map(regulations =>
+            result.withRegularizationLabels(finalParams))
+        .map(result =>
           truncate
-            .map(nr => regulations.sort($"gain").limit(nr))
-            .getOrElse(regulations))
+            .map(nr => result.sort($"gain").limit(nr))
+            .getOrElse(result))
         .map(_.sort($"regulator", $"target", $"gain"))
 
-    def writeReport: Unit = if (report) {
-      //    sampleIndices
-      //      .foreach(ids => {
-      //        val sampleLogFile = new File(output.get, "_sample.log")
-      //        writeToFile(sampleLogFile, ids.mkString("\n"))
-      //      })
-      //
-      //    val runLogFile = new File(output.get, "_run.log")
-      //
-      //    val runLogText =
-      //      s"""
-      //        |* Inference configuration:
-      //        |${inferenceConfig.toString}
-      //        |
-      //        |* Wall time: ${pretty(wallTime)}"}
-      //      """.stripMargin
-      //
-      //    writeToFile(runLogFile.getAbsolutePath, runLogText)
+    def writeReport(wallTime: Duration, sampleIndices: Option[Seq[CellIndex]], inferenceConfig: InferenceConfig): Unit = if (report) {
+      val sampleLogFile = new File(s"${output.get}.sample")
+      val runLogFile    = new File(s"${output.get}.log")
+
+      sampleIndices.foreach(cellIds => writeToFile(sampleLogFile, cellIds.mkString("\n")))
+
+      val runLogText =
+        s"""
+          |* Inference configuration:
+          |${inferenceConfig.toString}
+          |
+          |* Wall time: ${pretty(wallTime)}"}
+        """.stripMargin
+
+      writeToFile(runLogFile, runLogText)
     }
 
     goal match {
@@ -128,13 +135,18 @@ object GRNBoost {
         (inferenceConfig, protoParams)
 
       case CFG_RUN =>
+
+        val (_, wallTime) = profile { finalParams.hashCode }
+
+        writeReport(wallTime, sampleIndices, updatedInferenceConfig)
+
         (updatedInferenceConfig, finalParams)
 
       case INF_RUN =>
-        monadicRegulations
-          .foreach(_.saveTxt(output.get.getAbsolutePath, ! regularize, delimiter))
 
-        // FIXME writeReport
+        val (_, wallTime) = profile { regulations.foreach(_.saveTxt(output.get.getAbsolutePath, ! regularize, delimiter)) }
+
+        writeReport(wallTime, sampleIndices, updatedInferenceConfig)
 
         (updatedInferenceConfig, finalParams)
     }

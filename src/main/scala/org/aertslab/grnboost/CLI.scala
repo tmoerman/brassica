@@ -25,16 +25,6 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """.stripMargin)
       .action{ case (file, cfg) => cfg.modify(_.inf.each.input).setTo(Some(file)) }
 
-  private val skipHeaders =
-    opt[Int]("skip-headers").abbr("skip")
-      .optional
-      .valueName("<nr>")
-      .text(
-        """
-          |  The number of input file header lines to skip. Default: 0.
-        """.stripMargin)
-      .action{ case (nr, cfg) => cfg.modify(_.inf.each.skipHeaders).setTo(nr) }
-
   private val output =
     opt[File]("output").abbr("o")
       .required
@@ -57,8 +47,18 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """.stripMargin)
       .action{ case (file, cfg) => cfg.modify(_.inf.each.regulators).setTo(Some(file)) }
 
+  private val skipHeaders =
+    opt[Int]("skip-headers").abbr("skip")
+      .optional
+      .valueName("<nr>")
+      .text(
+        """
+          |  The number of input file header lines to skip. Default: 0.
+        """.stripMargin)
+      .action{ case (nr, cfg) => cfg.modify(_.inf.each.skipHeaders).setTo(nr) }
+
   private val delimiter =
-    opt[String]("delimiter").abbr("d")
+    opt[String]("delimiter")
       .optional
       .valueName("<del>")
       .text(
@@ -68,8 +68,9 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .action{ case (del, cfg) => cfg.modify(_.inf.each.delimiter).setTo(del) }
 
   private val outputFormat =
-    opt[String]("output-format").abbr("of")
+    opt[String]("output-format")
       .optional
+      .hidden // FIXME implement this functionality
       .valueName("<list|matrix|parquet>")
       .validate(string =>
         Try(Format(string))
@@ -90,7 +91,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  Use a sample of size <nr> of the observations to infer the GRN.
         """.stripMargin)
-      .action{ case (nr, cfg) => cfg.modify(_.inf.each.sampleSize.each).setTo(nr.toInt) }
+      .action{ case (nr, cfg) => cfg.modify(_.inf.each.sample.each).setTo(nr.toInt) }
 
   private val targets =
     opt[Seq[Gene]]("targets")
@@ -202,7 +203,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .valueName("<true/false>")
       .text(
         """
-          |  Set whether to write a report about the inference run to file.
+          |  Set whether to write a report about the inference run to file. Default: true.
         """.stripMargin)
       .action{ case (report, cfg) => cfg.modify(_.inf.each.report).setTo(report) }
 
@@ -232,13 +233,12 @@ object CLI extends OptionParser[Config]("GRNBoost") {
 
   cmd("infer")
     .action{ (_, cfg) => cfg.copy(inf = Some(InferenceConfig())) }
-    .text(
-      """
-        |Launch GRN inference.
-      """.stripMargin)
     .children(
       input, skipHeaders, output, regulators, delimiter, outputFormat, sample, targets, xgbParam, regularize, truncate,
-      nrBoostingRounds, nrPartitions, estimationGenes, nrEstimationGenes, iterated, dryRun, configRun)
+      nrBoostingRounds, nrPartitions, estimationGenes, nrEstimationGenes, iterated, dryRun, configRun, report)
+
+  cmd("about")
+    .action{ (_, cfg) => cfg }
 
   override def renderingMode = OneColumn
 
@@ -251,11 +251,9 @@ object CLI extends OptionParser[Config]("GRNBoost") {
 }
 
 /*
-
 TODO
 - importance score: SUM_GAIN, AVG_GAIN,
 - outCols: gain, freq
-
 */
 
 trait BaseConfig extends Product {
@@ -264,8 +262,7 @@ trait BaseConfig extends Product {
 
 }
 
-case class Config(inf: Option[InferenceConfig] = None,
-                  bla: Option[TestConfig]      = None) extends BaseConfig
+case class Config(inf: Option[InferenceConfig] = None) extends BaseConfig
 
 sealed trait Goal
 case object DRY_RUN extends Goal // only inspect configuration params
@@ -290,12 +287,12 @@ object Format {
 
 /**
   * @param input Required. The input file.
-  * @param skipHeaders The number of header lines to ignore in the input file.
-  * @param delimiter The delimiter used to parse the input file. Default: TAB.
   * @param regulators File containing regulator genes. Expects on gene per line.
   * @param output Required. The output file.
+  * @param skipHeaders The number of header lines to ignore in the input file.
+  * @param delimiter The delimiter used to parse the input file. Default: TAB.
   * @param outputFormat The output format: list, matrix or parquet.
-  * @param sampleSize The nr of randomly sampled observations to take into account in the inference.
+  * @param sample The nr of randomly sampled observations to take into account in the inference.
   * @param nrPartitions The nr of Spark partitions to use for inference.
   * @param truncate The max nr of regulatory connections to return.
   * @param nrBoostingRounds The nr of boosting rounds.
@@ -309,12 +306,12 @@ object Format {
   * @param iterated Hidden, experimental. Use iterated DMatrix initialization instead of copying.
   */
 case class InferenceConfig(input:             Option[File]            = None,
-                           skipHeaders:       Int                     = 0,
-                           delimiter:         String                  = "\t",
                            regulators:        Option[File]            = None,
                            output:            Option[File]            = None,
+                           skipHeaders:       Int                     = 0,
+                           delimiter:         String                  = "\t",
                            outputFormat:      Format                  = LIST,
-                           sampleSize:        Option[Int]             = None,
+                           sample:            Option[Int]             = None,
                            nrPartitions:      Option[Int]             = None,
                            truncate:          Option[Int]             = None,
                            nrBoostingRounds:  Option[Int]             = None,
@@ -326,5 +323,3 @@ case class InferenceConfig(input:             Option[File]            = None,
                            goal:              Goal                    = INF_RUN,
                            report:            Boolean                 = true,
                            iterated:          Boolean                 = false) extends BaseConfig
-
-case class TestConfig(bla: String = "bla")
