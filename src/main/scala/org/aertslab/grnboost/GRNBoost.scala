@@ -52,15 +52,13 @@ object GRNBoost {
         .appName(GRN_BOOST)
         .getOrCreate
 
-    import spark.implicits._
-
     val protoParams =
       XGBoostRegressionParams(
         nrRounds = -1,
         nrFolds = nrFolds,
         boosterParams = boosterParams)
 
-    // lazy values, initialized in function of goal.
+    import spark.implicits._
 
     lazy val ds = readExpressionsByGene(spark, input.get.getAbsolutePath, skipHeaders, delimiter).cache
 
@@ -83,30 +81,31 @@ object GRNBoost {
         estimationSet.right.get
       }
 
-    lazy val updatedInferenceConfig = inferenceConfig.copy(estimationSet = Right(estimationTargets))
-
     lazy val estimatedNrRounds = estimatedNrBoostingRounds(maybeSampled, TFs, estimationTargets, protoParams, nrPartitions)
 
-    lazy val finalParams =
+    lazy val updatedInferenceConfig =
+      inferenceConfig
+        .copy(estimationSet = Right(estimationTargets))
+        .copy(nrBoostingRounds = estimatedNrRounds)
+
+    lazy val updatedParams =
       nrBoostingRounds
         .orElse(estimatedNrRounds)
         .map(estimation => protoParams.copy(nrRounds = estimation))
         .getOrElse(protoParams)
 
-    // pour this into a pipeline style monad...
-
-    lazy val regulations =
+    lazy val regulations = // pattern: monadic pipeline
       Some(maybeSampled)
         .map(expressionsByGene =>
           if (iterated)
-            inferRegulationsIterated(expressionsByGene, TFs, targets, finalParams, nrPartitions)
+            inferRegulationsIterated(expressionsByGene, TFs, targets, updatedParams, nrPartitions)
           else
-            inferRegulations(expressionsByGene, TFs, targets, finalParams, nrPartitions))
+            inferRegulations(expressionsByGene, TFs, targets, updatedParams, nrPartitions))
         .map(result =>
           if (regularize)
-            result.withRegularizationLabels(finalParams).filter($"include" === 1)
+            result.withRegularizationLabels(updatedParams).filter($"include" === 1)
           else
-            result.withRegularizationLabels(finalParams))
+            result.withRegularizationLabels(updatedParams))
         .map(result =>
           truncate
             .map(nr => result.sort($"gain").limit(nr))
@@ -136,11 +135,11 @@ object GRNBoost {
 
       case CFG_RUN =>
 
-        val (_, wallTime) = profile { finalParams.hashCode }
+        val (_, wallTime) = profile { updatedParams.hashCode }
 
         writeReport(wallTime, sampleIndices, updatedInferenceConfig)
 
-        (updatedInferenceConfig, finalParams)
+        (updatedInferenceConfig, updatedParams)
 
       case INF_RUN =>
 
@@ -148,7 +147,7 @@ object GRNBoost {
 
         writeReport(wallTime, sampleIndices, updatedInferenceConfig)
 
-        (updatedInferenceConfig, finalParams)
+        (updatedInferenceConfig, updatedParams)
     }
   }
 
