@@ -50,7 +50,7 @@ class TriangleRegularizationSpec extends FlatSpec with Matchers {
   }
 
   it should "yield the inflection point for an example list" in {
-    inflectionPointIndex(gains)    shouldBe Some(5)
+    inflectionPointIndex(gains)    shouldBe Some(7)
     labels(gains).take(gains.size) shouldBe List.fill(5)(1) ++ List.fill(14)(0)
   }
 
@@ -95,9 +95,9 @@ class TriangleRegularizationSpec extends FlatSpec with Matchers {
         .flatMap(inflectionPointIndex(_))
         .headOption
 
-    atom.get shouldBe 2
+    atom.get shouldBe 3
 
-    point shouldBe Some(5)
+    point shouldBe Some(7)
   }
 
 }
