@@ -165,7 +165,7 @@ object GRNBoost {
 
       case INF_RUN =>
         val (_, wallTime) = profile {
-          regulations.foreach(_.saveTxt(output.get.getAbsolutePath, ! regularize, delimiter))
+          regulations.foreach(_.saveTxt(output.get.getAbsolutePath, includeFlags, delimiter))
         }
 
         writeReport(wallTime, sampleIndices, updatedInferenceConfig)

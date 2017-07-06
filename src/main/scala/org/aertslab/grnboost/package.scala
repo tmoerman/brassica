@@ -234,14 +234,14 @@ package object grnboost {
       * Save the Dataset as a text file with specified delimiter
       *
       * @param out Target output file path.
-      * @param includeLabel Include the label.
+      * @param includeFlags Include the label.
       * @param delimiter Default tab.
       */
     def saveTxt(out: Path,
-                includeLabel: Boolean = true,
+                includeFlags: Boolean = true,
                 delimiter: String = "\t"): Unit = {
 
-      val nrCols = if (includeLabel) 4 else 3
+      val nrCols = if (includeFlags) 4 else 3
 
       val temp = s"$out.temp"
 
