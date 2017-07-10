@@ -13,7 +13,6 @@ import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
 import org.joda.time.DateTime.now
 import org.joda.time.format.DateTimeFormat
 
-import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
 import scala.util.{Random, Try}
 
@@ -48,7 +47,8 @@ object GRNBoost {
   def run(inferenceConfig: InferenceConfig): (InferenceConfig, XGBoostRegressionParams) = {
     import inferenceConfig._
 
-    val started = DateTimeFormat.forPattern("yyyy-MM-dd:hh.mm.ss").print(now)
+    val started = now
+    val startedPretty = DateTimeFormat.forPattern("yyyy-MM-dd:hh.mm.ss").print(started)
 
     val spark =
       SparkSession
@@ -87,8 +87,12 @@ object GRNBoost {
         estimationSet.right.get
       }
 
-    lazy val estimatedNrRounds =
-      estimatedNrBoostingRounds(maybeSampled, TFs, estimationTargets, protoParams, parallelism)
+    lazy val estimatedNrRounds = {
+      println(s"estimating nr of boosting rounds...")
+      val result = estimatedNrBoostingRounds(maybeSampled, TFs, estimationTargets, protoParams, parallelism)
+      println(s"estimated nr of boosting rounds: $result")
+      result
+    }
 
     lazy val updatedInferenceConfig =
       inferenceConfig
@@ -120,11 +124,11 @@ object GRNBoost {
             .getOrElse(result))
         .map(_.sort($"regulator", $"gain".desc))
 
-    def writeReport(wallTime: Duration,
-                    sampleIndices: Option[Seq[CellIndex]],
+    def writeReport(sampleIndices: Option[Seq[CellIndex]],
                     inferenceConfig: InferenceConfig): Unit = if (report) {
 
-      val finished = DateTimeFormat.forPattern("yyyy-MM-dd:hh.mm.ss").print(now)
+      val finished = now
+      val finishedPretty = DateTimeFormat.forPattern("yyyy-MM-dd:hh.mm.ss").print(finished)
 
       val estimationLogFile = new File(s"${output.get}.estimation.log")
       val sampleLogFile     = new File(s"${output.get}.sample.log")
@@ -143,7 +147,7 @@ object GRNBoost {
         s"""
           |# GRNboost run log
           |
-          |* Started: $started, finished: $finished, wall time: ${pretty(wallTime)}
+          |* Started: $startedPretty, finished: $finishedPretty, diff: ${pretty(diff(started, finished))}
           |
           |* Inference configuration:
           |${inferenceConfig.toString}
@@ -152,26 +156,29 @@ object GRNBoost {
       writeToFile(runLogFile, runLogText)
     }
 
-    goal match {
-      case DRY_RUN =>
-        (inferenceConfig, protoParams)
+    val result =
+      goal match {
+        case DRY_RUN =>
+          (inferenceConfig, protoParams)
 
-      case CFG_RUN =>
-        val (_, wallTime) = profile { updatedParams.hashCode }
+        case CFG_RUN =>
+          println(updatedParams.toString)
 
-        writeReport(wallTime, sampleIndices, updatedInferenceConfig)
+          writeReport(sampleIndices, updatedInferenceConfig)
 
-        (updatedInferenceConfig, updatedParams)
+          (updatedInferenceConfig, updatedParams)
 
-      case INF_RUN =>
-        val (_, wallTime) = profile {
+        case INF_RUN =>
           regulations.foreach(_.saveTxt(output.get.getAbsolutePath, includeFlags, delimiter))
-        }
 
-        writeReport(wallTime, sampleIndices, updatedInferenceConfig)
+          writeReport(sampleIndices, updatedInferenceConfig)
 
-        (updatedInferenceConfig, updatedParams)
-    }
+          (updatedInferenceConfig, updatedParams)
+      }
+
+    Thread.sleep(1000)
+
+    result
   }
 
   /**
