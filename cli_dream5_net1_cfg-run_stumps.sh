@@ -18,7 +18,7 @@ $SPARK_HOME/bin/spark-submit \
   -i  /media/tmo/data/work/datasets/dream5/training\ data/Network\ 1\ -\ in\ silico/net1_expression_data.transposed.tsv \
   -tf /media/tmo/data/work/datasets/dream5/training\ data/Network\ 1\ -\ in\ silico/net1_transcription_factors.tsv \
   -o  /media/tmo/data/work/datasets/dream5/grnboost/net1/net1_grnboost.tsv \
-  -p eta 0.001 \
-  -p max_depth 1 \
-  -p colsample_bytree 0.072 \
+  -p eta=0.001 \
+  -p max_depth=1 \
+  -p colsample_bytree=0.072 \
   --cfg-run
