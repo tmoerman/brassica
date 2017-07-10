@@ -38,7 +38,7 @@ object GRNBoost {
     CLI(args: _*) match {
       case Some(Config(Some(inferenceConfig))) => run(inferenceConfig)
       case Some(Config(None))                  => println(ABOUT)
-      case _                                   => ??? // a.k.a. ka-boom
+      case _                                   => println("Input validation failure occurred, see error message above.")
     }
 
   /**
