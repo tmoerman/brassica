@@ -10,6 +10,7 @@ import org.aertslab.grnboost.util.IOUtils._
 import org.aertslab.grnboost.util.TimeUtils._
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
+import org.joda.time.DateTime
 import org.joda.time.DateTime.now
 import org.joda.time.format.DateTimeFormat
 
@@ -47,9 +48,6 @@ object GRNBoost {
   def run(inferenceConfig: InferenceConfig): (InferenceConfig, XGBoostRegressionParams) = {
     import inferenceConfig._
 
-    val started = now
-    val startedPretty = DateTimeFormat.forPattern("yyyy-MM-dd:hh.mm.ss").print(started)
-
     val spark =
       SparkSession
         .builder
@@ -61,120 +59,144 @@ object GRNBoost {
         nrRounds = -1,
         nrFolds = nrFolds,
         boosterParams = boosterParams)
+    
+    goal match {
+      case DRY_RUN => (inferenceConfig, protoParams)
+      case CFG_RUN => configRun(spark, inferenceConfig, protoParams)
+      case INF_RUN => inferenceRun(spark, inferenceConfig, protoParams)
+    }
+  }
 
+  private def configRun(spark: SparkSession, inferenceConfig: InferenceConfig, protoParams: XGBoostRegressionParams) = {
+    import inferenceConfig._
+
+    val started = now
+
+    val (_, sampleIndices, _, estimationTargets, _, updatedInferenceConfig, updatedParams) =
+      prepRun(spark, inferenceConfig, protoParams)
+
+    if (report) writeReport(started, output.get, sampleIndices, updatedInferenceConfig, estimationTargets)
+
+    (updatedInferenceConfig, updatedParams)
+  }
+
+  private def inferenceRun(spark: SparkSession, inferenceConfig: InferenceConfig, protoParams: XGBoostRegressionParams) = {
+    import inferenceConfig._
     import spark.implicits._
 
-    lazy val parallelism = nrPartitions.orElse(Some(spark.sparkContext.defaultParallelism))
+    val started = now
 
-    lazy val ds = readExpressionsByGene(spark, input.get.getAbsolutePath, skipHeaders, delimiter, missing).cache
+    val (candidateRegulators, sampleIndices, maybeSampled, estimationTargets, parallelism, updatedInferenceConfig, updatedParams) =
+      prepRun(spark, inferenceConfig, protoParams)
 
-    lazy val TFs = regulators.map(file => readRegulators(file.getAbsolutePath)).getOrElse(ds.genes).toSet
+    val regulations =
+      if (iterated)
+        inferRegulationsIterated(maybeSampled, candidateRegulators, targets, updatedParams, parallelism)
+      else
+        inferRegulations(maybeSampled, candidateRegulators, targets, updatedParams, parallelism)
 
-    lazy val (sampleIndices, maybeSampled) =
+    val maybeRegularized =
+      if (regularize)
+        regulations.withRegularizationLabels(updatedParams).filter($"include" === 1)
+      else
+        regulations.withRegularizationLabels(updatedParams)
+
+    val maybeTruncated =
+      truncate
+        .map(nr => maybeRegularized.sort($"gain").limit(nr))
+        .getOrElse(maybeRegularized)
+
+    maybeTruncated
+      .sort($"regulator", $"gain".desc)
+      .saveTxt(output.get.getAbsolutePath, includeFlags, delimiter)
+
+    if (report)
+      writeReport(started, output.get, sampleIndices, updatedInferenceConfig, estimationTargets)
+
+    (updatedInferenceConfig, updatedParams)
+  }
+
+  /**
+    * @param spark
+    * @param inferenceConfig
+    * @param protoParams
+    * @return Returns intermediate computations relevant to both cfg_run and inf_run.
+    */
+  private def prepRun(spark: SparkSession, inferenceConfig: InferenceConfig, protoParams: XGBoostRegressionParams) = {
+    import inferenceConfig._
+
+    val ds = readExpressionsByGene(spark, input.get.getAbsolutePath, skipHeaders, delimiter, missing).cache
+
+    val candidateRegulators = regulators.map(file => readRegulators(file.getAbsolutePath)).getOrElse(ds.genes).toSet
+
+    val (sampleIndices, maybeSampled) =
       sample
         .map(nr => ds.subSample(nr))
         .getOrElse(None, ds)
 
-    lazy val estimationTargets =
-
-      if (estimationSet.isLeft) {
-        val nr = min(estimationSet.left.get, maybeSampled.count).toInt
-
+    val estimationTargets =
+      if (estimationSet.isLeft)
         new Random(protoParams.seed)
           .shuffle(maybeSampled.genes)
-          .take(nr)
+          .take(min(estimationSet.left.get, maybeSampled.count).toInt)
           .toSet
-      } else {
+      else
         estimationSet.right.get
-      }
 
-    lazy val estimatedNrRounds = {
-      println(s"estimating nr of boosting rounds...")
-      val result = estimateNrBoostingRounds(maybeSampled, TFs, estimationTargets, protoParams, parallelism)
-      println(s"estimated nr of boosting rounds: $result")
-      result
-    }
+    val parallelism = nrPartitions.orElse(Some(spark.sparkContext.defaultParallelism))
 
-    lazy val updatedInferenceConfig =
+    val estimatedNrRounds = estimateNrBoostingRounds(maybeSampled, candidateRegulators, estimationTargets, protoParams, parallelism)
+
+    val updatedInferenceConfig =
       inferenceConfig
-        .copy(estimationSet    = Right(estimationTargets))
+        .copy(estimationSet = Right(estimationTargets))
         .copy(nrBoostingRounds = estimatedNrRounds.toOption)
-        .copy(nrPartitions     = parallelism)
+        .copy(nrPartitions = parallelism)
 
-    lazy val updatedParams =
+    val updatedParams =
       nrBoostingRounds
         .orElse(estimatedNrRounds.toOption)
         .map(estimation => protoParams.copy(nrRounds = estimation))
         .getOrElse(protoParams)
 
-    lazy val regulations = // pattern: monadic pipeline
-      Some(maybeSampled)
-        .map(expressionsByGene =>
-          if (iterated)
-            inferRegulationsIterated(expressionsByGene, TFs, targets, updatedParams, parallelism)
-          else
-            inferRegulations(expressionsByGene, TFs, targets, updatedParams, parallelism))
-        .map(result =>
-          if (regularize)
-            result.withRegularizationLabels(updatedParams).filter($"include" === 1)
-          else
-            result.withRegularizationLabels(updatedParams))
-        .map(result =>
-          truncate
-            .map(nr => result.sort($"gain").limit(nr))
-            .getOrElse(result))
-        .map(_.sort($"regulator", $"gain".desc))
+    (candidateRegulators, sampleIndices, maybeSampled, estimationTargets, parallelism, updatedInferenceConfig, updatedParams)
+  }
 
-    def writeReport(sampleIndices: Option[Seq[CellIndex]],
-                    inferenceConfig: InferenceConfig): Unit = if (report) {
+  private def writeReport(started: DateTime,
+                          output: File,
+                          sampleIndices: Option[Seq[CellIndex]],
+                          inferenceConfig: InferenceConfig,
+                          estimationTargets: Set[Gene]): Unit = {
 
-      val finished = now
-      val finishedPretty = DateTimeFormat.forPattern("yyyy-MM-dd:hh.mm.ss").print(finished)
+    val estimationLogFile = new File(s"$output.estimation.log")
+    val sampleLogFile     = new File(s"$output.sample.log")
+    val runLogFile        = new File(s"$output.run.log")
 
-      val estimationLogFile = new File(s"${output.get}.estimation.log")
-      val sampleLogFile     = new File(s"${output.get}.sample.log")
-      val runLogFile        = new File(s"${output.get}.run.log")
+    writeToFile(
+      estimationLogFile,
+      "# Genes used for boosting rounds estimation\n\n" + estimationTargets.toSeq.sorted.mkString("\n"))
 
+    sampleIndices.foreach(cellIds =>
       writeToFile(
-        estimationLogFile,
-        "# Genes used for boosting rounds estimation\n\n" + estimationTargets.toSeq.sorted.mkString("\n"))
+        sampleLogFile,
+        "# Cells sampled\n\n" + cellIds.sorted.mkString("\n")))
 
-      sampleIndices.foreach(cellIds =>
-        writeToFile(
-          sampleLogFile,
-          "# Cells sampled\n\n" + cellIds.sorted.mkString("\n")))
+    val finished = now
+    val format = DateTimeFormat.forPattern("yyyy-MM-dd:hh.mm.ss")
+    val startedPretty  = format.print(started)
+    val finishedPretty = format.print(finished)
 
-      val runLogText =
-        s"""
-          |# GRNboost run log
-          |
-          |* Started: $startedPretty, finished: $finishedPretty, diff: ${pretty(diff(started, finished))}
-          |
-          |* Inference configuration:
-          |${inferenceConfig.toString}
-        """.stripMargin
+    val runLogText =
+      s"""
+        |# GRNboost run log
+        |
+        |* Started: $startedPretty, finished: $finishedPretty, diff: ${pretty(diff(started, finished))}
+        |
+        |* Inference configuration:
+        |${inferenceConfig.toString}
+      """.stripMargin
 
-      writeToFile(runLogFile, runLogText)
-    }
-
-    goal match {
-      case DRY_RUN =>
-        (inferenceConfig, protoParams)
-
-      case CFG_RUN =>
-        println(updatedParams.toString)
-
-        writeReport(sampleIndices, updatedInferenceConfig)
-
-        (updatedInferenceConfig, updatedParams)
-
-      case INF_RUN =>
-        regulations.foreach(_.saveTxt(output.get.getAbsolutePath, includeFlags, delimiter))
-
-        writeReport(sampleIndices, updatedInferenceConfig)
-
-        (updatedInferenceConfig, updatedParams)
-    }
+    writeToFile(runLogFile, runLogText)
   }
 
   /**
