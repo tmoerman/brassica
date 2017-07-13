@@ -21,4 +21,4 @@ $SPARK_HOME/bin/spark-submit \
   -p eta=0.001 \
   -p max_depth=1 \
   -p colsample_bytree=0.072 \
-  -truncate 100000
+  --truncate 100000
