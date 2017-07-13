@@ -86,6 +86,8 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   }
 
   it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
+    import spark.implicits._
+
     val TFs = readRegulators(mouseTFs).toSet
 
     val expressionByGene = readExpressionsByGene(spark, zeiselFiltered)
@@ -100,7 +102,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     println(params)
 
-    result.show
+    result.sort($"gain".desc).show
   }
 
   val zeiselParquet = props("zeiselParquet")
