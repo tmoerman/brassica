@@ -89,11 +89,15 @@ object GRNBoost {
     val (candidateRegulators, sampleIndices, maybeSampled, estimationTargets, parallelism, updatedInferenceConfig, updatedParams) =
       prepRun(spark, inferenceConfig, protoParams)
 
+    println("inferring regulations")
+
     val regulations =
       if (iterated)
         inferRegulationsIterated(maybeSampled, candidateRegulators, targets, updatedParams, parallelism)
       else
         inferRegulations(maybeSampled, candidateRegulators, targets, updatedParams, parallelism)
+
+    println("adding regularization labels")
 
     val maybeRegularized =
       if (regularize)
@@ -103,12 +107,20 @@ object GRNBoost {
 
     val maybeTruncated =
       truncate
-        .map(nr => maybeRegularized.sort($"gain").limit(nr))
+        .map(nr => {
+          println(s"truncating top $nr")
+
+          maybeRegularized.sort($"gain").limit(nr)
+        })
         .getOrElse(maybeRegularized)
+
+    println("saving")
 
     maybeTruncated
       .sort($"regulator", $"gain".desc)
       .saveTxt(output.get.getAbsolutePath, includeFlags, delimiter)
+
+    println("writing report")
 
     if (report)
       writeReport(started, output.get, sampleIndices, updatedInferenceConfig, estimationTargets)
