@@ -87,7 +87,7 @@ object TriangleRegularization {
       .map(fill(_)(1) ++ continually(0))
       .getOrElse(continually(1))
 
-  def ~=(x: Double, y: Double, precision: Double) = (x - y).abs < precision
+  def ~=(x: Double, y: Double, precision: Double): Boolean = (x - y).abs < precision
 
   type V = DenseVector[Float]
 
@@ -103,31 +103,29 @@ object TriangleRegularization {
     acos(cos_angle)
   }
 
-  implicit def pimp[E](indexedStream: Stream[(E, Int)]): StreamFunctions[E] = new StreamFunctions(indexedStream)
+  /**
+    * "Pimp my class" extension of a indexed stream of generic type E.
+    */
+  implicit class StreamFunctions[E](stream: Stream[(E, Int)]) {
 
-}
+    type T = ((E, Int), Count)
 
-/**
-  * "Pimp my class" extension of a indexed stream of generic type E.
-  */
-class StreamFunctions[E](stream: Stream[(E, Int)]) {
+    val ZERO: Option[T] = None
 
-  type T = ((E, Int), Count)
+    def firstStreak(predicate: E => Boolean, streak: Count): Option[T] =
+      stream
+        .scanLeft(ZERO){ case (acc, (current, idx)) =>
+          acc
+            .map{ case ((prev, _), count) => ((current, idx), if (prev == current) count + 1 else 1) }
+            .orElse(Some((current, 0), 1))
+        }
+        .dropWhile{
+          case Some(((e, _), count)) => ! predicate(e) || count < streak
+          case None                  => true
+        }
+        .headOption
+        .flatten
 
-  val ZERO: Option[T] = None
-
-  def firstStreak(predicate: E => Boolean, streak: Count) =
-    stream
-      .scanLeft(ZERO){ case (acc, (current, idx)) =>
-        acc
-          .map{ case ((prev, _), count) => ((current, idx), if (prev == current) count + 1 else 1) }
-          .orElse(Some((current, 0), 1))
-      }
-      .dropWhile{
-        case Some(((e, _), count)) => ! predicate(e) || count < streak
-        case None                  => true
-      }
-      .headOption
-      .flatten
+  }
 
 }
