@@ -159,7 +159,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .valueName("<true/false>")
       .text(
         """
-          |  Flag whether to enable or disable regularization (using the triangle method). Default: true.
+          |  Flag whether to enable or disable regularization (using the triangle method). Default: false.
           |  When true, only regulations approved by the triangle method will be emitted.
           |  When false, all regulations will be emitted.
           |  Use the 'include-flags' option to specify whether to output the include flags in the result list.
@@ -337,7 +337,7 @@ case class InferenceConfig(input:             Option[File]            = None,
                            nrBoostingRounds:  Option[Int]             = None,
                            estimationSet:     Either[Int, Set[Gene]]  = Left(DEFAULT_ESTIMATION_SET),
                            nrFolds:           Int                     = DEFAULT_NR_FOLDS,
-                           regularize:        Boolean                 = true,
+                           regularize:        Boolean                 = false,
                            includeFlags:      Boolean                 = false,
                            targets:           Set[Gene]               = Set.empty,
                            boosterParams:     BoosterParams           = DEFAULT_BOOSTER_PARAMS,
