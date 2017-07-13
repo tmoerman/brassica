@@ -66,7 +66,7 @@ object GRNBoost {
 
     lazy val parallelism = nrPartitions.orElse(Some(spark.sparkContext.defaultParallelism))
 
-    lazy val ds = readExpressionsByGene(spark, input.get.getAbsolutePath, skipHeaders, delimiter).cache
+    lazy val ds = readExpressionsByGene(spark, input.get.getAbsolutePath, skipHeaders, delimiter, missing).cache
 
     lazy val TFs = regulators.map(file => readRegulators(file.getAbsolutePath)).getOrElse(ds.genes).toSet
 
@@ -76,6 +76,7 @@ object GRNBoost {
         .getOrElse(None, ds)
 
     lazy val estimationTargets =
+
       if (estimationSet.isLeft) {
         val nr = min(estimationSet.left.get, maybeSampled.count).toInt
 
@@ -89,7 +90,7 @@ object GRNBoost {
 
     lazy val estimatedNrRounds = {
       println(s"estimating nr of boosting rounds...")
-      val result = estimatedNrBoostingRounds(maybeSampled, TFs, estimationTargets, protoParams, parallelism)
+      val result = estimateNrBoostingRounds(maybeSampled, TFs, estimationTargets, protoParams, parallelism)
       println(s"estimated nr of boosting rounds: $result")
       result
     }
@@ -97,12 +98,12 @@ object GRNBoost {
     lazy val updatedInferenceConfig =
       inferenceConfig
         .copy(estimationSet    = Right(estimationTargets))
-        .copy(nrBoostingRounds = estimatedNrRounds)
+        .copy(nrBoostingRounds = estimatedNrRounds.toOption)
         .copy(nrPartitions     = parallelism)
 
     lazy val updatedParams =
       nrBoostingRounds
-        .orElse(estimatedNrRounds)
+        .orElse(estimatedNrRounds.toOption)
         .map(estimation => protoParams.copy(nrRounds = estimation))
         .getOrElse(protoParams)
 
@@ -156,29 +157,24 @@ object GRNBoost {
       writeToFile(runLogFile, runLogText)
     }
 
-    val result =
-      goal match {
-        case DRY_RUN =>
-          (inferenceConfig, protoParams)
+    goal match {
+      case DRY_RUN =>
+        (inferenceConfig, protoParams)
 
-        case CFG_RUN =>
-          println(updatedParams.toString)
+      case CFG_RUN =>
+        println(updatedParams.toString)
 
-          writeReport(sampleIndices, updatedInferenceConfig)
+        writeReport(sampleIndices, updatedInferenceConfig)
 
-          (updatedInferenceConfig, updatedParams)
+        (updatedInferenceConfig, updatedParams)
 
-        case INF_RUN =>
-          regulations.foreach(_.saveTxt(output.get.getAbsolutePath, includeFlags, delimiter))
+      case INF_RUN =>
+        regulations.foreach(_.saveTxt(output.get.getAbsolutePath, includeFlags, delimiter))
 
-          writeReport(sampleIndices, updatedInferenceConfig)
+        writeReport(sampleIndices, updatedInferenceConfig)
 
-          (updatedInferenceConfig, updatedParams)
-      }
-
-    Thread.sleep(1000)
-
-    result
+        (updatedInferenceConfig, updatedParams)
+    }
   }
 
   /**
@@ -284,18 +280,18 @@ object GRNBoost {
     *
     * @return
     */
-  def estimatedNrBoostingRounds(expressionsByGene: Dataset[ExpressionByGene],
-                                candidateRegulators: Set[Gene],
-                                targets: Set[Gene] = Set.empty,
-                                params: XGBoostRegressionParams,
-                                nrPartitions: Option[Count] = None): Option[Int] = Try {
+  def estimateNrBoostingRounds(expressionsByGene: Dataset[ExpressionByGene],
+                               candidateRegulators: Set[Gene],
+                               targets: Set[Gene] = Set.empty,
+                               params: XGBoostRegressionParams,
+                               nrPartitions: Option[Count] = None): Try[Int] = Try {
 
     roundsEstimations(expressionsByGene, candidateRegulators, targets, params, nrPartitions)
       .select(max("rounds"))
       .first
       .getInt(0)
 
-  }.toOption
+  }
 
   /**
     * @param expressionsByGene
