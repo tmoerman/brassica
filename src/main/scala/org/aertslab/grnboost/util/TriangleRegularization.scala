@@ -20,7 +20,9 @@ object TriangleRegularization {
     * @param values The list of values in which to find the inflection point.
     * @param precision The precision of the radian angle.
     * @param xScale
-    * @param streak Specifies how many times we want to have a PI angle in a row. Makes the algorithm more robust to
+    * @param streak Length of a "streak", a.k.a. a list of consecutive Pi values.
+    *
+    *               Specifies how many times we want to have a PI angle in a row. Makes the algorithm more robust to
     *               small "kinks" in the values where e.g. two consecutive values make an angle with the last value
     *               before the actual inflection point beyond which the angles are all PI.
     *
@@ -110,9 +112,7 @@ object TriangleRegularization {
   */
 class StreamFunctions[E](stream: Stream[(E, Int)]) {
 
-  type Idx = Int
-
-  type T = ((E, Idx), Count)
+  type T = ((E, Int), Count)
 
   val ZERO: Option[T] = None
 
@@ -125,7 +125,7 @@ class StreamFunctions[E](stream: Stream[(E, Int)]) {
       }
       .dropWhile{
         case Some(((e, _), count)) => ! predicate(e) || count < streak
-        case None                    => true
+        case None                  => true
       }
       .headOption
       .flatten
