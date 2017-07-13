@@ -14,6 +14,8 @@ import scala.io.Source
   */
 object DataReader {
 
+  val DEFAULT_MISSING = Set(NaN, 0d)
+
   /**
     * @param spark The SparkSession instance.
     * @param path The file path.
@@ -26,7 +28,7 @@ object DataReader {
                             path: Path,
                             nrHeaders: Int = 1,
                             delimiter: String = "\t",
-                            missing: Set[Double] = Set(NaN, 0d)): Dataset[ExpressionByGene] = {
+                            missing: Set[Double] = DEFAULT_MISSING): Dataset[ExpressionByGene] = {
 
     import spark.implicits._
 

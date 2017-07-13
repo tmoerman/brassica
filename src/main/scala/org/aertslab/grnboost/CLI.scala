@@ -4,6 +4,7 @@ import java.io.File
 
 import scopt.OptionParser
 import com.softwaremill.quicklens._
+import org.aertslab.grnboost.DataReader.DEFAULT_MISSING
 import scopt.RenderingMode.OneColumn
 
 import scala.util.Try
@@ -66,6 +67,12 @@ object CLI extends OptionParser[Config]("GRNBoost") {
           |  The delimiter to use in input and output files. Default: TAB.
         """.stripMargin)
       .action{ case (del, cfg) => cfg.modify(_.inf.each.delimiter).setTo(del) }
+
+//  private val missing = // FIXME complete this
+//    opt[Double]("missing")
+//      .optional
+//      .valueName("<value>")
+//      .text()
 
   private val outputFormat =
     opt[String]("output-format")
@@ -336,4 +343,5 @@ case class InferenceConfig(input:             Option[File]            = None,
                            boosterParams:     BoosterParams           = DEFAULT_BOOSTER_PARAMS,
                            goal:              Goal                    = INF_RUN,
                            report:            Boolean                 = true,
-                           iterated:          Boolean                 = false) extends BaseConfig
+                           iterated:          Boolean                 = false,
+                           missing:           Set[Double]             = DEFAULT_MISSING) extends BaseConfig
