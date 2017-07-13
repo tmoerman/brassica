@@ -6,6 +6,7 @@ import org.aertslab.grnboost.util.RDDFunctions._
 import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.sql._
 
+import scala.Double.NaN
 import scala.io.Source
 
 /**
@@ -17,12 +18,15 @@ object DataReader {
     * @param spark The SparkSession instance.
     * @param path The file path.
     * @param nrHeaders The number of header lines in the file.
+    * @param delimiter The delimiter for splitting lines into arrays of values.
+    * @param missing The placeholders for missing values. Default: {Nan, 0}.
     * @return Returns a Dataset of ExpressionByGene read from the specified path.
     */
   def readExpressionsByGene(spark: SparkSession,
                             path: Path,
                             nrHeaders: Int = 1,
-                            delimiter: String = "\t"): Dataset[ExpressionByGene] = {
+                            delimiter: String = "\t",
+                            missing: Set[Double] = Set(NaN, 0d)): Dataset[ExpressionByGene] = {
 
     import spark.implicits._
 
@@ -39,7 +43,7 @@ object DataReader {
             values
               .zipWithIndex
               .map{ case (v, idx) => (idx, v.toDouble) }
-              .filterNot{ case (_, v) => v == 0d }
+              .filterNot{ case (_, v) => missing.contains(v) }
 
           ExpressionByGene(gene, Vectors.sparse(length, tuples))
 
