@@ -3,7 +3,7 @@
 echo "SBT .jar assembly"
 sbt assembly
 
-echo "Launching cfg-run"
+echo "Launching inference"
 $SPARK_HOME/bin/spark-submit \
   --class org.aertslab.grnboost.GRNBoost \
   --master local[*] \

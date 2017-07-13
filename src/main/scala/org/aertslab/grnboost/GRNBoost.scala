@@ -89,15 +89,11 @@ object GRNBoost {
     val (candidateRegulators, sampleIndices, maybeSampled, estimationTargets, parallelism, updatedInferenceConfig, updatedParams) =
       prepRun(spark, inferenceConfig, protoParams)
 
-    println("inferring regulations")
-
     val regulations =
       if (iterated)
         inferRegulationsIterated(maybeSampled, candidateRegulators, targets, updatedParams, parallelism)
       else
         inferRegulations(maybeSampled, candidateRegulators, targets, updatedParams, parallelism)
-
-    println("adding regularization labels")
 
     val maybeRegularized =
       if (regularize)
@@ -107,11 +103,7 @@ object GRNBoost {
 
     val maybeTruncated =
       truncate
-        .map(nr => {
-          println(s"truncating top $nr")
-
-          maybeRegularized.sort($"gain").limit(nr)
-        })
+        .map(nr => maybeRegularized.sort($"gain").limit(nr))
         .getOrElse(maybeRegularized)
 
     println("saving")
@@ -146,28 +138,43 @@ object GRNBoost {
         .map(nr => ds.subSample(nr))
         .getOrElse(None, ds)
 
-    val estimationTargets =
-      if (estimationSet.isLeft)
-        new Random(protoParams.seed)
-          .shuffle(maybeSampled.genes)
-          .take(min(estimationSet.left.get, maybeSampled.count).toInt)
-          .toSet
-      else
-        estimationSet.right.get
-
     val parallelism = nrPartitions.orElse(Some(spark.sparkContext.defaultParallelism))
 
-    val estimatedNrRounds = estimateNrBoostingRounds(maybeSampled, candidateRegulators, estimationTargets, protoParams, parallelism)
+    val (finalNrRounds, estimationTargets): (Option[Int], Set[Gene]) = (nrBoostingRounds, estimationSet) match {
 
+      case (None, Left(estimationTargetSetSize)) =>
+
+        val estimationTargets =
+          new Random(protoParams.seed)
+            .shuffle(maybeSampled.genes)
+            .take(min(estimationTargetSetSize, maybeSampled.count).toInt)
+            .toSet
+
+        val estimatedNrRounds = estimateNrBoostingRounds(maybeSampled, candidateRegulators, estimationTargets, protoParams, parallelism).toOption
+
+        (estimatedNrRounds, estimationTargets)
+
+      case (None, Right(estimationTargetSet)) =>
+
+        val estimatedNrRounds = estimateNrBoostingRounds(maybeSampled, candidateRegulators, estimationTargetSet, protoParams, parallelism).toOption
+
+        (estimatedNrRounds, estimationTargetSet)
+
+      case (nr, _) =>
+
+        (nr, Set.empty)
+
+    }
+    
     val updatedInferenceConfig =
       inferenceConfig
         .copy(estimationSet = Right(estimationTargets))
-        .copy(nrBoostingRounds = estimatedNrRounds.toOption)
+        .copy(nrBoostingRounds = finalNrRounds)
         .copy(nrPartitions = parallelism)
 
     val updatedParams =
       nrBoostingRounds
-        .orElse(estimatedNrRounds.toOption)
+        .orElse(finalNrRounds)
         .map(estimation => protoParams.copy(nrRounds = estimation))
         .getOrElse(protoParams)
 
