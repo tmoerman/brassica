@@ -4,6 +4,7 @@ import java.lang.Math.min
 
 import breeze.linalg.CSCMatrix
 import ml.dmlc.xgboost4j.java.XGBoostUtils.createBooster
+import ml.dmlc.xgboost4j.java.{Booster => JBooster}
 import ml.dmlc.xgboost4j.scala.DMatrix
 import ml.dmlc.xgboost4j.scala.XGBoostConversions._
 import org.aertslab.grnboost._
@@ -109,41 +110,23 @@ object EstimateNrBoostingRounds {
       .flatMap(foldNr => {
         val (train, test) = cvSet(foldNr, indicesByFold, regulatorDMatrix)
 
-        val estimation = estimateFoldRounds(foldNr, targetGene, params, train, test, maxRounds, incRounds)
+        val booster = createBooster(params.boosterParams, train, test)
 
-        train.delete()
-        test.delete()
+        val estimation =
+          lossesByRoundReductions(params.boosterParams, booster, train, test, maxRounds, incRounds)
+            .flatMap(lossesByRound =>
+              inflectionPointIndex(lossesByRound.map { case (_, (_, testLoss)) => testLoss })
+                .map(lossesByRound(_))
+                .toSeq)
+            .headOption
+            .map { case (round, (_, testLoss)) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
+
+        booster.dispose
+        train.delete
+        test.delete
 
         estimation
       })
-
-  /**
-    * @param foldNr The nr of the fold.
-    * @param params Params.
-    * @param train Training DMatrix.
-    * @param test Test DMatrix
-    * @param maxRounds The maximum nr of boosting rounds to try.
-    * @param incRounds The increment of boosting rounds for lazily finding the inflection point.
-    * @return Returns an Option of RoundsEstimation.
-    */
-  def estimateFoldRounds(foldNr: FoldNr,
-                         targetGene: Gene,
-                         params: XGBoostRegressionParams,
-                         train: DMatrix,
-                         test: DMatrix,
-                         maxRounds: Int = MAX_ROUNDS,
-                         incRounds: Int = INC_ROUNDS): Option[RoundsEstimation] = {
-
-    import params._
-
-    lossesByRoundReductions(boosterParams, train, test, maxRounds, incRounds)
-      .flatMap(lossesByRound =>
-        inflectionPointIndex(lossesByRound.map{ case (_, (_, testLoss)) => testLoss })
-          .map(lossesByRound(_))
-          .toSeq)
-      .headOption
-      .map{ case (round, (_, testLoss)) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
-  }
 
   /**
     * Function factored out for testing purposes.
@@ -160,6 +143,7 @@ object EstimateNrBoostingRounds {
     *     ...
     *
     * @param boosterParams Booster parameter map.
+    * @param booster The Booster instance.
     * @param train The training DMatrix.
     * @param test The test DMatrix
     * @param maxRounds The maximum nr of boosting rounds to consider.
@@ -168,15 +152,15 @@ object EstimateNrBoostingRounds {
     *         as a sublist.
     */
   def lossesByRoundReductions(boosterParams: BoosterParams,
+                              booster: JBooster,
                               train: DMatrix,
                               test: DMatrix,
                               maxRounds: Int = MAX_ROUNDS,
                               incRounds: Int = INC_ROUNDS): Stream[List[(Round, (Loss, Loss))]] = {
 
-    val booster = createBooster(boosterParams, train, test)
-
     val mats   = Array(train, test)
     val names  = Array("train", "test")
+
     val metric = boosterParams.getOrElse(XGB_METRIC, DEFAULT_EVAL_METRIC).toString
 
     val ZERO = List[(Round, (Loss, Loss))]()
