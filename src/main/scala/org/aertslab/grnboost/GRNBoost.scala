@@ -91,11 +91,11 @@ object GRNBoost {
 
     val regulations =
       if (iterated)
-        inferRegulationsIterated(maybeSampled, candidateRegulators, targets, updatedParams, parallelism).cache
+        inferRegulationsIterated(maybeSampled, candidateRegulators, targets, updatedParams, parallelism)
       else
-        inferRegulations(maybeSampled, candidateRegulators, targets, updatedParams, parallelism).cache
+        inferRegulations(maybeSampled, candidateRegulators, targets, updatedParams, parallelism)
 
-    val maybeRegularized = regulations
+    val maybeRegularized =
       if (regularized)
         withRegularizationLabels(regulations, updatedParams).filter($"include" === 1)
       else
