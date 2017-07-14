@@ -46,6 +46,8 @@ object TriangleRegularization {
 
       val c = DenseVector(values.length.toFloat * xScale, minMaxScaled.last)
 
+      val ZERO: Option[((Boolean, Int), Count)] = None
+
       minMaxScaled
         .sliding(2, 1)
         .zipWithIndex
@@ -60,7 +62,18 @@ object TriangleRegularization {
 
           case _ => ??? // a.k.a. ka-boom
         }
-        .firstStreak(_ == true, streak)
+        // find first streak
+        .scanLeft(ZERO){ case (acc, (current, idx)) =>
+          acc
+            .map{ case ((prev, _), count) => ((current, idx), if (prev == current) count + 1 else 1) }
+            .orElse(Some((current, 0), 1))
+        }
+        .dropWhile{
+          case Some(((isPi: Boolean, _), count)) => (! isPi) || count < streak
+          case _                                 => true
+        }
+        .headOption
+        .flatten
         .map{ case ((_, idx), _) => idx }
   }
 
@@ -101,31 +114,6 @@ object TriangleRegularization {
     val cos_angle = (x dot y) / (norm(x) * norm(y))
 
     acos(cos_angle)
-  }
-
-  /**
-    * "Pimp my class" extension of a indexed stream of generic type E.
-    */
-  implicit class StreamFunctions[E](stream: Stream[(E, Int)]) {
-
-    type T = ((E, Int), Count)
-
-    val ZERO: Option[T] = None
-
-    def firstStreak(predicate: E => Boolean, streak: Count): Option[T] =
-      stream
-        .scanLeft(ZERO){ case (acc, (current, idx)) =>
-          acc
-            .map{ case ((prev, _), count) => ((current, idx), if (prev == current) count + 1 else 1) }
-            .orElse(Some((current, 0), 1))
-        }
-        .dropWhile{
-          case Some(((e, _), count)) => ! predicate(e) || count < streak
-          case None                  => true
-        }
-        .headOption
-        .flatten
-
   }
 
 }

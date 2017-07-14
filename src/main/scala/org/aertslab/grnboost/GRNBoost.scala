@@ -8,7 +8,6 @@ import org.aertslab.grnboost.DataReader._
 import org.aertslab.grnboost.algo._
 import org.aertslab.grnboost.util.IOUtils._
 import org.aertslab.grnboost.util.TimeUtils._
-import org.aertslab.grnboost.util.TriangleRegularization.labels
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
 import org.joda.time.DateTime
