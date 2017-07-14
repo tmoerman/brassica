@@ -102,8 +102,8 @@ object GRNBoost {
         regulations.withRegularizationLabels(updatedParams)
 
     val maybeTruncated =
-      truncate
-        .map(nr => maybeRegularized.sort($"gain").limit(nr))
+      truncated
+        .map(nr => maybeRegularized.truncate(nr))
         .getOrElse(maybeRegularized)
 
     println("saving")

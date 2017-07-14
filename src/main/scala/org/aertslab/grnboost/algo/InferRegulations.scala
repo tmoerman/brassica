@@ -125,7 +125,9 @@ object InferRegulations {
 
     val boosterModelDump = booster.getModelDump(withStats = true).toSeq
 
-    aggregateGainByGene(params)(boosterModelDump)
+    val scoresByGene = aggregateScoresByGene(params)(boosterModelDump)
+
+    scoresByGene
       .toSeq
       .map{ case (geneIndex, scores) =>
         Regulation(regulators(geneIndex), targetGene, scores.gain)
@@ -140,7 +142,7 @@ object InferRegulations {
     * @return Returns the feature importance metrics parsed from all trees (amount == nr boosting rounds) in the
     *         specified trained booster model.
     */
-  def aggregateGainByGene(params: XGBoostRegressionParams)(modelDump: ModelDump): Map[GeneIndex, Scores] =
+  def aggregateScoresByGene(params: XGBoostRegressionParams)(modelDump: ModelDump): Map[GeneIndex, Scores] =
     modelDump
       .flatMap(parseImportanceScores)
       .foldLeft(Map[GeneIndex, Scores]() withDefaultValue Scores.ZERO) { case (acc, (geneIndex, scores)) =>

@@ -31,13 +31,13 @@ class InferRegulationsSpec extends FlatSpec with Matchers {
   behavior of "aggregating booster metrics"
 
   it should "aggregate correctly for 1 tree" in {
-    val gains = aggregateGainByGene(null)(Seq(treeDumpWithStats))
+    val gains = aggregateScoresByGene(null)(Seq(treeDumpWithStats))
 
     gains(223) shouldBe 1012.38f + 53.1558f
   }
 
   it should "aggregate correctly for multiple trees" in {
-    val gains = aggregateGainByGene(null)(Seq(treeDumpWithStats, treeDumpWithStats))
+    val gains = aggregateScoresByGene(null)(Seq(treeDumpWithStats, treeDumpWithStats))
 
     gains(223) shouldBe 2 * (1012.38f + 53.1558f)
   }

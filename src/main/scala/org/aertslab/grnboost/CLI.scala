@@ -185,7 +185,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
           |  Only keep the specified number regulations with highest importance score. Default: unlimited.
           |  (Motivated by the 100.000 regulations limit for the DREAM challenges.)
         """.stripMargin)
-      .action{ case (nr, cfg) => cfg.modify(_.inf.each.truncate).setTo(Some(nr)) }
+      .action{ case (nr, cfg) => cfg.modify(_.inf.each.truncated).setTo(Some(nr)) }
 
   private val nrPartitions =
     opt[Int]("nr-partitions").abbr("par")
@@ -313,7 +313,7 @@ object Format {
   * @param outputFormat The output format: list, matrix or parquet.
   * @param sample The nr of randomly sampled observations to take into account in the inference.
   * @param nrPartitions The nr of Spark partitions to use for inference.
-  * @param truncate The max nr of regulatory connections to return.
+  * @param truncated The max nr of regulatory connections to return.
   * @param nrBoostingRounds The nr of boosting rounds.
   * @param estimationSet A nr or set of genes to estimate the nr of boosting rounds, if no nr is specified.
   * @param nrFolds The nr of folds to use to estimate the nr of boosting rounds with cross validation.
@@ -333,7 +333,7 @@ case class InferenceConfig(input:             Option[File]            = None,
                            outputFormat:      Format                  = LIST,
                            sample:            Option[Int]             = None,
                            nrPartitions:      Option[Int]             = None,
-                           truncate:          Option[Int]             = None,
+                           truncated:         Option[Int]             = None,
                            nrBoostingRounds:  Option[Int]             = None,
                            estimationSet:     Either[Int, Set[Gene]]  = Left(DEFAULT_ESTIMATION_SET),
                            nrFolds:           Int                     = DEFAULT_NR_FOLDS,

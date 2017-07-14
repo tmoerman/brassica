@@ -206,6 +206,8 @@ package object grnboost {
 
     import ds.sparkSession.implicits._
 
+    def truncate(top: Int): Dataset[Regulation] = ds.sort($"gain".desc).limit(top)
+
     /**
       * @param params
       * @return Returns the Dataset with regularization labels calculated with the Triangle method.
