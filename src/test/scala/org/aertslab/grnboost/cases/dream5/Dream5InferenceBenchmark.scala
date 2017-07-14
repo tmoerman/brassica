@@ -13,16 +13,24 @@ import org.scalatest.{FlatSpec, Matchers}
   */
 class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
+//  val boosterParams = Map(
+//    "seed"      -> 777,
+//    "eta"       -> 0.1,
+//    "max_depth" -> 2,
+//    "silent"    -> 1
+//  )
+
   val boosterParams = Map(
     "seed"      -> 777,
-    "eta"       -> 0.1,
-    "max_depth" -> 2,
+    "eta"       -> 0.001,
+    "max_depth" -> 1,
+    "colsample_bytree" -> 0.072,
     "silent"    -> 1
   )
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 100,
+      nrRounds = 670,
       boosterParams = boosterParams)
 
   "Dream5 regulation inference" should "run" in {
@@ -54,8 +62,7 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
             nrPartitions = Some(spark.sparkContext.defaultParallelism))
           .cache
 
-      regulations
-        .withRegularizationLabels(params)
+      withRegularizationLabels(regulations, params)
         .sort($"regulator", $"target", $"gain".desc)
         .rdd
         .map(r => s"${r.regulator}\t${r.target}\t${r.gain}")

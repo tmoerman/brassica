@@ -199,38 +199,39 @@ package object grnboost {
   }
 
   /**
+    * Not part of the implicit pimp class because of Scala TypeChecker StackOverflow issues.
+    *
+    * @param params
+    * @return Returns the Dataset with regularization labels calculated with the Triangle method.
+    */
+  def withRegularizationLabels(ds: Dataset[Regulation], params: XGBoostRegressionParams): Dataset[Regulation] = {
+    import ds.sparkSession.implicits._
+
+    params
+      .regularize
+      .map(precision =>
+        ds
+          .rdd
+          .groupBy(_.target)
+          .values
+          .flatMap(_.toList match {
+            case Nil => Nil
+            case list =>
+              val sorted = list.sortBy(-_.gain)
+              val gains = sorted.map(_.gain)
+
+              (sorted zip labels(gains, precision)).map { case (reg, label) => reg.copy(include = label) }
+          })
+          .toDS
+      )
+      .getOrElse(ds)
+  }
+
+  /**
     * Implicit pimp class.
     * @param ds
     */
   implicit class RegulationDatasetFunctions(val ds: Dataset[Regulation]) {
-
-    import ds.sparkSession.implicits._
-
-    def truncate(top: Int): Dataset[Regulation] = ds.sort($"gain".desc).limit(top)
-
-    /**
-      * @param params
-      * @return Returns the Dataset with regularization labels calculated with the Triangle method.
-      */
-    def withRegularizationLabels(params: XGBoostRegressionParams): Dataset[Regulation] =
-      params
-        .regularize
-        .map(precision =>
-          ds
-            .rdd
-            .groupBy(_.target)
-            .values
-            .flatMap(_.toList match {
-              case Nil  => Nil
-              case list =>
-                val sorted = list.sortBy(-_.gain)
-                val gains = sorted.map(_.gain)
-
-                (sorted zip labels(gains, precision)).map{ case (reg, label) => reg.copy(include = label) }
-            })
-            .toDS
-        )
-        .getOrElse(ds)
 
     /**
       * Save the Dataset as a text file with specified delimiter

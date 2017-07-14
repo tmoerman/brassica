@@ -8,6 +8,7 @@ import org.aertslab.grnboost.DataReader._
 import org.aertslab.grnboost.algo._
 import org.aertslab.grnboost.util.IOUtils._
 import org.aertslab.grnboost.util.TimeUtils._
+import org.aertslab.grnboost.util.TriangleRegularization.labels
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
 import org.joda.time.DateTime
@@ -95,15 +96,15 @@ object GRNBoost {
       else
         inferRegulations(maybeSampled, candidateRegulators, targets, updatedParams, parallelism)
 
-    val maybeRegularized =
+    val maybeRegularized = regulations
       if (regularize)
-        regulations.withRegularizationLabels(updatedParams).filter($"include" === 1)
+        withRegularizationLabels(regulations, updatedParams).filter($"include" === 1)
       else
-        regulations.withRegularizationLabels(updatedParams)
+        withRegularizationLabels(regulations, updatedParams)
 
     val maybeTruncated =
       truncated
-        .map(nr => maybeRegularized.truncate(nr))
+        .map(nr => maybeRegularized.sort($"gain".desc).limit(nr))
         .getOrElse(maybeRegularized)
 
     println("saving")
