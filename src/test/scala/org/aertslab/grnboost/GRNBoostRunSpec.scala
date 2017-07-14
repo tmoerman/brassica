@@ -65,11 +65,13 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     val inferenceCfg = CLI.parse(args).get.inf.get
 
+    inferenceCfg.regularized shouldBe true
+
     val (updatedCfg, params) = GRNBoost.run(inferenceCfg)
 
     updatedCfg.estimationSet.right.get.size shouldBe 2
 
-    Source.fromFile(outPath).getLines.size shouldBe 7 //FIXME fix test
+    Source.fromFile(outPath).getLines.size shouldBe 14 //FIXME fix test
   }
 
 }

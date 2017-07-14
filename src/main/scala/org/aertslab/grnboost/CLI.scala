@@ -163,7 +163,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
           |  When disabled, all regulations will be emitted.
           |  Use the 'include-flags' option to specify whether to output the include flags in the result list.
         """.stripMargin)
-      .action{ case (reg, cfg) => cfg.modify(_.inf.each.regularized).setTo(true) }
+      .action{ case (_, cfg) => cfg.modify(_.inf.each.regularized).setTo(true) }
 
   private val includeFlags =
     opt[Boolean]("include-flags")
