@@ -2,6 +2,7 @@ package org.aertslab.grnboost.cases.dream5
 
 import java.lang.Runtime.getRuntime
 
+import org.aertslab.grnboost.Specs.Server
 import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost.util.PropsReader.props
@@ -14,7 +15,7 @@ class Dream5OptimizationBenchmark extends FlatSpec with GRNBoostSuiteBase with M
 
   val writePath = props("dream5Optimization")
 
-  "Dream5 hyperparam optimization" should "run" ignore {
+  "Dream5 hyperparam optimization" should "run" taggedAs Server ignore {
     Seq(3).foreach(optimizeHyperParams)
   }
 
@@ -25,10 +26,6 @@ class Dream5OptimizationBenchmark extends FlatSpec with GRNBoostSuiteBase with M
       onlyBestTrial = false)
 
   val nrCores = getRuntime.availableProcessors
-
-//  val TF_50     = (  1 to   0 + (nrCores / 2)).map(i => s"G$i").toList
-//  val NORMAL_50 = (501 to 500 + (nrCores / 2)).map(i => s"G$i").toList
-//  val TARGETS   = TF_50 ::: NORMAL_50
 
   val TARGETS = "G3" :: Nil
 
@@ -60,7 +57,7 @@ class Dream5OptimizationBenchmark extends FlatSpec with GRNBoostSuiteBase with M
   }
 
   // http://stackoverflow.com/questions/31789939/calculate-the-standard-deviation-of-grouped-data-in-a-spark-dataframe
-  "adding a standardized loss column" should "work" in {
+  "adding a standardized loss column" should "work" taggedAs Server in {
 
     import spark.implicits._
     import org.apache.spark.sql.functions._

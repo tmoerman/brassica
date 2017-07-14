@@ -4,6 +4,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost._
 import DataReader._
 import org.aertslab.grnboost.util.PropsReader.props
+import org.scalatest.tagobjects.Slow
 
 /**
   * @author Thomas Moerman
@@ -28,7 +29,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   val zeiselFiltered = props("zeiselFiltered")
   val mouseTFs       = props("mouseTFs")
 
-  it should "run the embarrassingly parallel pipeline from raw" in {
+  it should "run the embarrassingly parallel pipeline from raw" taggedAs Slow in {
     import spark.implicits._
 
     val TFs = readRegulators(mouseTFs).toSet
@@ -67,7 +68,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
       .show(250)
   }
 
-  it should "run on a slice of the cells" in {
+  it should "run on a slice of the cells" taggedAs Slow in {
     val TFs = readRegulators(mouseTFs).toSet
 
     val expressionByGene = ZeiselReader.apply(spark, zeiselMrna).slice(0 until 1000)
@@ -85,7 +86,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     result.show
   }
 
-  it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
+  it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" taggedAs Slow in {
     import spark.implicits._
 
     val TFs = readRegulators(mouseTFs).toSet

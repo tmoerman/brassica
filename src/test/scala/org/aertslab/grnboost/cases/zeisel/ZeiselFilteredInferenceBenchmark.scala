@@ -6,9 +6,10 @@ import org.apache.commons.io.FileUtils._
 import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost.DataReader._
+import org.aertslab.grnboost.Specs.Server
 import org.aertslab.grnboost.util.PropsReader.props
 import org.aertslab.grnboost.util.{PropsReader, TimeUtils}
-import org.aertslab.grnboost.{GRNBoost, XGBoostRegressionParams, GRNBoostSuiteBase}
+import org.aertslab.grnboost.{GRNBoost, GRNBoostSuiteBase, XGBoostRegressionParams}
 
 /**
   * @author Thomas Moerman
@@ -34,7 +35,7 @@ class ZeiselFilteredInferenceBenchmark extends FlatSpec with GRNBoostSuiteBase w
 
   val mouseTFs = props("mouseTFs")
 
-  "the (filtered, cfr. Sara) Zeisel emb.par pipeline from parquet" should "run" in {
+  "the (filtered, cfr. Sara) Zeisel emb.par pipeline from parquet" should "run" taggedAs Server in {
     val TFs = readRegulators(mouseTFs).toSet
 
     val ds = readExpressionsByGene(spark, zeiselFiltered)

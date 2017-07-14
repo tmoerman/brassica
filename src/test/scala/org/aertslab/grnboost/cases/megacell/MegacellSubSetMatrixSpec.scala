@@ -2,6 +2,7 @@ package org.aertslab.grnboost.cases.megacell
 
 import java.io.File
 
+import org.aertslab.grnboost.Specs.Server
 import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost._
 
@@ -14,14 +15,14 @@ class MegacellSubSetMatrixSpec extends FlatSpec with GRNBoostSuiteBase with Matc
 
   val parquet   = "/media/tmo/data/work/datasets/megacell/parquet_full"
 
-  "it" should "work" ignore {
+  "it" should "work" taggedAs Server ignore {
     val subSetDir = "/media/tmo/data/work/datasets/megacell/out/cell.subsets/100k/nr.rounds.100"
     val outDir    = "/media/tmo/data/work/datasets/megacell/out/matrix.subsets/100k/nr.rounds.100"
 
     doit(parquet, subSetDir, outDir)
   }
 
-  "it" should "work for 3k and 10k" in {
+  "it" should "work for 3k and 10k" taggedAs Server in {
 
     val subSets =
       Seq(

@@ -4,6 +4,7 @@ import java.io.File
 
 import org.aertslab.grnboost.util.PropsReader.props
 import org.apache.commons.io.FileUtils.deleteQuietly
+import org.scalatest.tagobjects.Slow
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.io.Source
@@ -13,7 +14,7 @@ import scala.io.Source
   */
 class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
-  "dry-run" should "run" in {
+  "dry-run" should "run" taggedAs Slow in {
     val args = Array(
       "infer",
       "-i", "src/test/resources/genie3/data.txt",
@@ -32,7 +33,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val zeiselFiltered = props("zeiselFiltered")
 
-  "cfg-run" should "pass smoke test" in {
+  "cfg-run" should "pass smoke test" taggedAs Slow in {
     val args = Array(
       "infer",
       "-i", zeiselFiltered, "--skip-headers", "1",
@@ -48,7 +49,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     updatedCfg.estimationSet.right.get.size shouldBe 2
   }
 
-  "run" should "pass smoke for 1 target" in {
+  "run" should "pass smoke for 1 target" taggedAs Slow in {
     val outPath = "src/test/resources/zeisel/out.regularized.txt"
     val out  = new File(outPath)
 
@@ -71,7 +72,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     updatedCfg.estimationSet.right.get.size shouldBe 2
 
-    Source.fromFile(outPath).getLines.size shouldBe 14 //FIXME fix test
+    Source.fromFile(outPath).getLines.size shouldBe 14
   }
 
 }

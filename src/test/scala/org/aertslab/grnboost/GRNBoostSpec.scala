@@ -4,6 +4,7 @@ import org.aertslab.grnboost.cases.zeisel.ZeiselReader
 import org.aertslab.grnboost.cases.zeisel.ZeiselReader.ZEISEL_CELL_COUNT
 import org.aertslab.grnboost.util.PropsReader
 import org.apache.spark.ml.linalg.Vectors.dense
+import org.scalatest.tagobjects.Slow
 import org.scalatest.{FlatSpec, Matchers}
 
 /**
@@ -15,7 +16,7 @@ class GRNBoostSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   import spark.implicits._
 
-  "converting to a CSCMatrix" should "work" in {
+  "converting to a CSCMatrix" should "work" taggedAs Slow in {
     val ds = ZeiselReader.apply(spark, zeiselMrna)
 
     val predictors = "Tspan12" :: Nil
@@ -26,7 +27,7 @@ class GRNBoostSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     csc.cols shouldBe 1
   }
 
-  "small test for CSCMatrix builder" should "work" in {
+  "small test for CSCMatrix builder" should "work" taggedAs Slow in {
     val ds =
       Seq(
         ExpressionByGene("gene1", dense(1.0, 1.1, 1.2, 1.3)),

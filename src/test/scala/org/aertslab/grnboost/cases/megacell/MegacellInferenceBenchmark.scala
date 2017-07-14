@@ -1,6 +1,7 @@
 package org.aertslab.grnboost.cases.megacell
 
 import org.aertslab.grnboost.DataReader.readRegulators
+import org.aertslab.grnboost.Specs.Server
 import org.aertslab.grnboost.util.PropsReader.props
 import org.aertslab.grnboost._
 import org.apache.spark.sql.SaveMode.Overwrite
@@ -25,15 +26,15 @@ class MegacellInferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Ma
       nrRounds = 12,
       boosterParams = boosterParamsBio)
 
-  val full = props("megacellFull")
-  val out  = props("megacellOut")
-
-  "Megacell Gene Network Inference" should "work on a lot of cells" in {
+  "Megacell Gene Network Inference" should "work on a lot of cells" taggedAs Server in {
     inferSub(250000)
   }
 
   private def inferSub(nrCells: CellCount) = {
     import spark.implicits._
+
+    val full = props("megacellFull")
+    val out  = props("megacellOut")
 
     val TFs = readRegulators(mouseTFs).toSet
 

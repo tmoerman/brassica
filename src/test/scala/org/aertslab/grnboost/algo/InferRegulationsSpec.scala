@@ -18,28 +18,28 @@ class InferRegulationsSpec extends FlatSpec with Matchers {
   val treeDumpWithStats = Source.fromFile(new File("src/test/resources/xgb/treeDumpWithStats.txt")).getLines.mkString("\n")
 
   it should "parse tree metrics" in {
-    val gainMap = parseImportanceScores(treeDumpWithStats)
+    val scoresMap = parseImportanceScores(treeDumpWithStats)
 
-    gainMap.size shouldBe 28
+    scoresMap.size shouldBe 28
 
-    val (featureIdx, gain) = gainMap(0)
+    val (featureIdx, score) = scoresMap(0)
 
     featureIdx shouldBe 223
-    gain shouldBe 1012.38f
+    score.gain shouldBe 1012.38f
   }
 
   behavior of "aggregating booster metrics"
 
   it should "aggregate correctly for 1 tree" in {
-    val gains = aggregateScoresByGene(null)(Seq(treeDumpWithStats))
+    val scores = aggregateScoresByGene(null)(Seq(treeDumpWithStats))
 
-    gains(223) shouldBe 1012.38f + 53.1558f
+    scores(223).gain shouldBe 1012.38f + 53.1558f
   }
 
   it should "aggregate correctly for multiple trees" in {
     val gains = aggregateScoresByGene(null)(Seq(treeDumpWithStats, treeDumpWithStats))
 
-    gains(223) shouldBe 2 * (1012.38f + 53.1558f)
+    gains(223).gain shouldBe 2 * (1012.38f + 53.1558f)
   }
 
 }

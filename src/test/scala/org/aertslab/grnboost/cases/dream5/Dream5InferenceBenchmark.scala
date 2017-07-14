@@ -2,6 +2,7 @@ package org.aertslab.grnboost.cases.dream5
 
 import java.io.File
 
+import org.aertslab.grnboost.Specs.Server
 import org.aertslab.grnboost.util.PropsReader
 import org.aertslab.grnboost.util.TimeUtils.{pretty, profile}
 import org.aertslab.grnboost.{GRNBoostSuiteBase, XGBoostRegressionParams, _}
@@ -13,18 +14,10 @@ import org.scalatest.{FlatSpec, Matchers}
   */
 class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
-//  val boosterParams = Map(
-//    "seed"      -> 777,
-//    "eta"       -> 0.1,
-//    "max_depth" -> 2,
-//    "silent"    -> 1
-//  )
-
   val boosterParams = Map(
     "seed"      -> 777,
-    "eta"       -> 0.001,
-    "max_depth" -> 1,
-    "colsample_bytree" -> 0.072,
+    "eta"       -> 0.1,
+    "max_depth" -> 2,
     "silent"    -> 1
   )
 
@@ -33,7 +26,7 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
       nrRounds = 670,
       boosterParams = boosterParams)
 
-  "Dream5 regulation inference" should "run" in {
+  "Dream5 regulation inference" should "run" taggedAs Server in {
     Seq(1, 3, 4)
       .map(n => computeNetwork(n, params))
       .foreach { case (nw, duration) => println(s"\n Dream5 nw$nw wall time: ${pretty(duration)}\n") }

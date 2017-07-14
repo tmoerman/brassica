@@ -1,9 +1,10 @@
 package org.aertslab.grnboost.cases.genie3
 
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
-import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost._
 import org.aertslab.grnboost.util.PropsReader.props
+import org.scalatest.tagobjects.Slow
+import org.scalatest.{FlatSpec, Matchers}
 
 /**
   * @author Thomas Moerman
@@ -12,7 +13,7 @@ class Genie3ReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
   behavior of "GenieReader"
 
-  it should "parse the DataFrame correctly" in {
+  it should "parse the DataFrame correctly" taggedAs Slow in {
     val (df, genes) = Genie3Reader.apply(spark, props("genie3"))
 
     genes.size shouldBe 10

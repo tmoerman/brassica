@@ -7,6 +7,7 @@ import org.aertslab.grnboost.cases.dream5.{Dream5Reader, network}
 import org.aertslab.grnboost.util.BreezeUtils._
 import org.aertslab.grnboost.{GRNBoost, GRNBoostSuiteBase, XGBoostRegressionParams, _}
 import org.apache.spark.SparkConf
+import org.scalatest.tagobjects.Slow
 import org.scalatest.{FlatSpec, Matchers, Suite}
 
 /**
@@ -22,7 +23,7 @@ class BoosterLab extends FlatSpec with GRNBoostSuiteBase with Matchers { self: S
 
   behavior of "serializing Booster models"
 
-  it should "work" in {
+  it should "work" taggedAs Slow in {
 
     val (dataFile, tfFile) = network(3)
 

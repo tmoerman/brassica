@@ -2,9 +2,9 @@ package org.aertslab.grnboost.cases.zeisel
 
 import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost.util.PropsReader.props
-import org.aertslab.grnboost.{XGBoostRegressionParams, GRNBoost, GRNBoostSuiteBase}
-
+import org.aertslab.grnboost.{GRNBoost, GRNBoostSuiteBase, XGBoostRegressionParams}
 import org.aertslab.grnboost.DataReader._
+import org.aertslab.grnboost.Specs.Server
 import org.aertslab.grnboost._
 
 /**
@@ -32,7 +32,7 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Ma
       nrRounds = 7,
       boosterParams = boosterParams)
 
-  it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
+  it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" taggedAs Server in {
     import spark.implicits._
 
     val TFs = readRegulators(mouseTFs).toSet

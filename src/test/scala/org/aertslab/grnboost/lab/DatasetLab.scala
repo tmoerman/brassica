@@ -1,5 +1,6 @@
 package org.aertslab.grnboost.lab
 
+import org.aertslab.grnboost.Specs.Server
 import org.aertslab.grnboost._
 import org.apache.spark.sql.functions._
 import org.scalatest.{FlatSpec, Matchers}
@@ -38,7 +39,7 @@ class DatasetLab extends FlatSpec with GRNBoostSuiteBase with Matchers {
     println(bla.first.getInt(0))
   }
 
-  it should "roll up a Dataset" in {
+  it should "roll up a Dataset" taggedAs Server ignore {
     import org.apache.spark.sql.functions._
     import spark.implicits._
 
@@ -50,7 +51,7 @@ class DatasetLab extends FlatSpec with GRNBoostSuiteBase with Matchers {
         .map{ case Array(reg, tar, imp) => Regulation(reg, tar, imp.toFloat) }
         .toDS
 
-    val sums = dream1.rollup("target").agg(stddev("importance"), sum("importance"), max("importance"))
+    val sums = dream1.rollup("target").agg(stddev("gain"), sum("gain"), max("gain"))
 
     sums.show
   }

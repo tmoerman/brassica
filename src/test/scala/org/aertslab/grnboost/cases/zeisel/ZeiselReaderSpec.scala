@@ -5,6 +5,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost.cases.zeisel.ZeiselReader._
 import org.aertslab.grnboost.util.PropsReader.props
 import org.aertslab.grnboost.DataReader._
+import org.scalatest.tagobjects.Slow
 
 /**
   * @author Thomas Moerman
@@ -19,13 +20,13 @@ class ZeiselReaderSpec extends FlatSpec with DataFrameSuiteBase with Matchers {
 
   val mouseTFs = props("mouseTFs")
 
-  it should "parse the mouse TFs properly" in {
+  it should "parse the mouse TFs properly" taggedAs Slow in {
     val TFs = readRegulators(mouseTFs)
 
     TFs.size shouldBe MOUSE_TF_COUNT
   }
 
-  it should "read column vectors correctly" in {
+  it should "read column vectors correctly" taggedAs Slow in {
     import spark.implicits._
 
     val ds = ZeiselReader.apply(spark, zeiselMrna)
