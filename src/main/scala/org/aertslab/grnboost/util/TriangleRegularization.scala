@@ -50,8 +50,8 @@ object TriangleRegularization {
 
       minMaxScaled
         .sliding(2, 1)
+        .toSeq
         .zipWithIndex
-        .toStream
         .map {
           case (va :: vb :: _, i) =>
             val a = DenseVector(i.toFloat,      va)
@@ -86,7 +86,7 @@ object TriangleRegularization {
              precision: Double = DEFAULT_PRECISION,
              streak: Int = DEFAULT_STREAK): Seq[Int] = {
 
-    val idxOpt = inflectionPointIndex(list, precision).map(_ - streak + 1)
+    val idxOpt = inflectionPointIndex(list, precision, streak).map(_ - streak + 1)
 
     labelStream(idxOpt).take(list.size)
   }

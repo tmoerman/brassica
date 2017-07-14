@@ -153,18 +153,17 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """.stripMargin)
       .action{ case (nr, cfg) => cfg.modify(_.inf.each.estimationSet).setTo(Left(nr)) }
 
-  private val regularize =
-    opt[Boolean]("regularize")
+  private val regularized =
+    opt[Unit]("regularized")
       .optional
-      .valueName("<true/false>")
       .text(
         """
-          |  Flag whether to enable or disable regularization (using the triangle method). Default: false.
-          |  When true, only regulations approved by the triangle method will be emitted.
-          |  When false, all regulations will be emitted.
+          |  Enable regularization (using the triangle method). Default: disabled
+          |  When enabled, only regulations approved by the triangle method will be emitted.
+          |  When disabled, all regulations will be emitted.
           |  Use the 'include-flags' option to specify whether to output the include flags in the result list.
         """.stripMargin)
-      .action{ case (reg, cfg) => cfg.modify(_.inf.each.regularize).setTo(reg) }
+      .action{ case (reg, cfg) => cfg.modify(_.inf.each.regularized).setTo(true) }
 
   private val includeFlags =
     opt[Boolean]("include-flags")
@@ -253,7 +252,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
     .action{ (_, cfg) => cfg.copy(inf = Some(InferenceConfig())) }
     .children(
       input, skipHeaders, output, regulators, delimiter, outputFormat, sample, targets,
-      xgbParam, regularize, includeFlags, truncate, nrBoostingRounds, nrPartitions,
+      xgbParam, regularized, includeFlags, truncate, nrBoostingRounds, nrPartitions,
       estimationGenes, nrEstimationGenes, iterated, dryRun, configRun, report)
 
   cmd("about")
@@ -317,7 +316,7 @@ object Format {
   * @param nrBoostingRounds The nr of boosting rounds.
   * @param estimationSet A nr or set of genes to estimate the nr of boosting rounds, if no nr is specified.
   * @param nrFolds The nr of folds to use to estimate the nr of boosting rounds with cross validation.
-  * @param regularize Use triangle cutoff to prune the inferred regulatory connections.
+  * @param regularized Use triangle cutoff to prune the inferred regulatory connections.
   * @param includeFlags When true, the regularization include flags are also emitted in the output list.
   * @param targets A Set of target genes to infer the regulators for. Defaults to all.
   * @param boosterParams Booster parameters.
@@ -337,7 +336,7 @@ case class InferenceConfig(input:             Option[File]            = None,
                            nrBoostingRounds:  Option[Int]             = None,
                            estimationSet:     Either[Int, Set[Gene]]  = Left(DEFAULT_ESTIMATION_SET),
                            nrFolds:           Int                     = DEFAULT_NR_FOLDS,
-                           regularize:        Boolean                 = false,
+                           regularized:       Boolean                 = false,
                            includeFlags:      Boolean                 = false,
                            targets:           Set[Gene]               = Set.empty,
                            boosterParams:     BoosterParams           = DEFAULT_BOOSTER_PARAMS,

@@ -91,12 +91,12 @@ object GRNBoost {
 
     val regulations =
       if (iterated)
-        inferRegulationsIterated(maybeSampled, candidateRegulators, targets, updatedParams, parallelism)
+        inferRegulationsIterated(maybeSampled, candidateRegulators, targets, updatedParams, parallelism).cache
       else
-        inferRegulations(maybeSampled, candidateRegulators, targets, updatedParams, parallelism)
+        inferRegulations(maybeSampled, candidateRegulators, targets, updatedParams, parallelism).cache
 
     val maybeRegularized = regulations
-      if (regularize)
+      if (regularized)
         withRegularizationLabels(regulations, updatedParams).filter($"include" === 1)
       else
         withRegularizationLabels(regulations, updatedParams)
@@ -106,13 +106,9 @@ object GRNBoost {
         .map(nr => maybeRegularized.sort($"gain".desc).limit(nr))
         .getOrElse(maybeRegularized)
 
-    println("saving")
-
     maybeTruncated
       .sort($"regulator", $"gain".desc)
       .saveTxt(output.get.getAbsolutePath, includeFlags, delimiter)
-
-    println("writing report")
 
     if (report)
       writeReport(started, output.get, sampleIndices, updatedInferenceConfig, estimationTargets)

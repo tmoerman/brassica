@@ -218,9 +218,10 @@ package object grnboost {
             case Nil => Nil
             case list =>
               val sorted = list.sortBy(-_.gain)
-              val gains = sorted.map(_.gain)
+              val gains  = sorted.map(_.gain)
+              val result = (sorted zip labels(gains, precision)).map { case (reg, label) => reg.copy(include = label) }
 
-              (sorted zip labels(gains, precision)).map { case (reg, label) => reg.copy(include = label) }
+              result
           })
           .toDS
       )

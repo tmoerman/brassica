@@ -16,7 +16,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   "dry-run" should "run" in {
     val args = Array(
       "infer",
-      "-i", "src/test/resources/genie3/data.txt", "--transposed",
+      "-i", "src/test/resources/genie3/data.txt",
       "-tf", "src/test/resources/TF/mm9_TFs.txt",
       "-o", "src/test/resources/genie3/out.meh",
       "--dry-run")
@@ -60,6 +60,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
       "-tf", "src/test/resources/TF/mm9_TFs.txt",
       "-o", outPath,
       "--nr-estimation-genes", "2",
+      "--regularized",
       "--targets", "Gad1")
 
     val inferenceCfg = CLI.parse(args).get.inf.get
@@ -68,7 +69,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     updatedCfg.estimationSet.right.get.size shouldBe 2
 
-    Source.fromFile(outPath).getLines.size shouldBe 7
+    Source.fromFile(outPath).getLines.size shouldBe 7 //FIXME fix test
   }
 
 }
