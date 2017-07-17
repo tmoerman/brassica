@@ -121,9 +121,9 @@ object EstimateNrBoostingRounds {
             .headOption
             .map { case (round, (_, testLoss)) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
 
-        booster.dispose
-        train.delete
-        test.delete
+        // booster.dispose
+        // train.delete
+        // test.delete
 
         estimation
       })
@@ -181,7 +181,7 @@ object EstimateNrBoostingRounds {
           } catch {
             case e: Throwable =>
               val msg = s"Error in booster.update(train, round: $round) for target $targetGene"
-              
+
               System.err.print()
               e.printStackTrace(System.err)
               throw new RuntimeException(msg, e)
