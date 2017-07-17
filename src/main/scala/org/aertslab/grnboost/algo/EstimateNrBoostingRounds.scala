@@ -180,8 +180,11 @@ object EstimateNrBoostingRounds {
             booster.update(train, round)
           } catch {
             case e: Throwable =>
+              val msg = s"Error in booster.update(train, round: $round) for target $targetGene"
+              
+              System.err.print()
               e.printStackTrace(System.err)
-              throw new RuntimeException(s"Error in booster.update(train, round: $round)", e)
+              throw new RuntimeException(msg, e)
           }
 
           val evalSet = booster.evalSet(mats, names, round)
