@@ -173,7 +173,6 @@ object EstimateNrBoostingRounds {
     def boostAndExtractLossesByRound(booster: JBooster, nextRounds: List[Round]): List[(Round, (Loss, Loss))] =
       nextRounds
         .map(round => {
-          synchronized {
             try {
               println(s"--> updating booster round $round for $targetGene")
 
@@ -191,7 +190,6 @@ object EstimateNrBoostingRounds {
                 e.printStackTrace(System.err)
                 throw new Exception(msg, e)
             }
-          }
         })
 
     Stream
