@@ -36,17 +36,17 @@ object GRNBoost {
     */
   def main(args: Array[String]): Unit =
     CLI(args: _*) match {
-      case Some(Config(Some(inferenceConfig))) => run(inferenceConfig)
-      case Some(Config(None))                  => println(ABOUT)
-      case _                                   => println("Input validation failure occurred, see error message above.")
+      case Some(Config(Some(xgbConfig))) => run(xgbConfig)
+      case Some(Config(None))            => println(ABOUT)
+      case _                             => println("Input validation failure occurred, see error message above.")
     }
 
   /**
     * Perform GRN inference in function of specified InferenceConfig.
-    * @param inferenceConfig
+    * @param xgbConfig
     */
-  def run(inferenceConfig: InferenceConfig): (InferenceConfig, XGBoostRegressionParams) = {
-    import inferenceConfig._
+  def run(xgbConfig: XGBoostConfig): (XGBoostConfig, XGBoostRegressionParams) = {
+    import xgbConfig._
 
     val spark =
       SparkSession
@@ -59,28 +59,28 @@ object GRNBoost {
         nrRounds = -1,
         nrFolds = nrFolds,
         boosterParams = boosterParams)
-    
+
     goal match {
-      case DRY_RUN => (inferenceConfig, protoParams)
-      case CFG_RUN => configRun(spark, inferenceConfig, protoParams)
-      case INF_RUN => inferenceRun(spark, inferenceConfig, protoParams)
+      case DRY_RUN => (xgbConfig, protoParams)
+      case CFG_RUN => configRun(spark, xgbConfig, protoParams)
+      case INF_RUN => inferenceRun(spark, xgbConfig, protoParams)
     }
   }
 
-  private def configRun(spark: SparkSession, inferenceConfig: InferenceConfig, protoParams: XGBoostRegressionParams) = {
-    import inferenceConfig._
+  private def configRun(spark: SparkSession, xgbConfig: XGBoostConfig, protoParams: XGBoostRegressionParams) = {
+    import xgbConfig._
 
     val started = now
 
     val (_, sampleIndices, _, estimationTargets, _, updatedInferenceConfig, updatedParams) =
-      prepRun(spark, inferenceConfig, protoParams)
+      prepRun(spark, xgbConfig, protoParams)
 
     if (report) writeReport(started, output.get, sampleIndices, updatedInferenceConfig, estimationTargets)
 
     (updatedInferenceConfig, updatedParams)
   }
 
-  private def inferenceRun(spark: SparkSession, inferenceConfig: InferenceConfig, protoParams: XGBoostRegressionParams) = {
+  private def inferenceRun(spark: SparkSession, inferenceConfig: XGBoostConfig, protoParams: XGBoostRegressionParams) = {
     import inferenceConfig._
     import spark.implicits._
 
@@ -118,12 +118,12 @@ object GRNBoost {
 
   /**
     * @param spark
-    * @param inferenceConfig
+    * @param xgbConfig
     * @param protoParams
     * @return Returns intermediate computations relevant to both cfg_run and inf_run.
     */
-  private def prepRun(spark: SparkSession, inferenceConfig: InferenceConfig, protoParams: XGBoostRegressionParams) = {
-    import inferenceConfig._
+  private def prepRun(spark: SparkSession, xgbConfig: XGBoostConfig, protoParams: XGBoostRegressionParams) = {
+    import xgbConfig._
 
     val ds = readExpressionsByGene(spark, input.get.getAbsolutePath, skipHeaders, delimiter, missing).cache
 
@@ -162,8 +162,8 @@ object GRNBoost {
 
     }
     
-    val updatedInferenceConfig =
-      inferenceConfig
+    val updatedXgbConfig =
+      xgbConfig
         .copy(estimationSet = Right(estimationTargets))
         .copy(nrBoostingRounds = finalNrRounds)
         .copy(nrPartitions = parallelism)
@@ -174,13 +174,13 @@ object GRNBoost {
         .map(estimation => protoParams.copy(nrRounds = estimation))
         .getOrElse(protoParams)
 
-    (candidateRegulators, sampleIndices, maybeSampled, estimationTargets, parallelism, updatedInferenceConfig, updatedParams)
+    (candidateRegulators, sampleIndices, maybeSampled, estimationTargets, parallelism, updatedXgbConfig, updatedParams)
   }
 
   private def writeReport(started: DateTime,
                           output: File,
                           sampleIndices: Option[Seq[CellIndex]],
-                          inferenceConfig: InferenceConfig,
+                          inferenceConfig: XGBoostConfig,
                           estimationTargets: Set[Gene]): Unit = {
 
     val estimationLogFile = new File(s"$output.estimation.log")

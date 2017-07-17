@@ -22,7 +22,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
       "-o", "src/test/resources/genie3/out.meh",
       "--dry-run")
 
-    val inferenceCfg = CLI.parse(args).get.inf.get
+    val inferenceCfg = CLI.parse(args).get.xgb.get
 
     val (_, params) = GRNBoost.run(inferenceCfg)
 
@@ -42,7 +42,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
       "--nr-estimation-genes", "2",
       "--cfg-run")
 
-    val inferenceCfg = CLI.parse(args).get.inf.get
+    val inferenceCfg = CLI.parse(args).get.xgb.get
 
     val (updatedCfg, params) = GRNBoost.run(inferenceCfg)
 
@@ -64,11 +64,11 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
       "--regularized",
       "--targets", "Gad1")
 
-    val inferenceCfg = CLI.parse(args).get.inf.get
+    val inferenceCfg = CLI.parse(args).get.xgb.get
 
     inferenceCfg.regularized shouldBe true
 
-    val (updatedCfg, params) = GRNBoost.run(inferenceCfg)
+    val (updatedCfg, _) = GRNBoost.run(inferenceCfg)
 
     updatedCfg.estimationSet.right.get.size shouldBe 2
 

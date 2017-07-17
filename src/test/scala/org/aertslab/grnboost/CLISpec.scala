@@ -64,7 +64,7 @@ class CLISpec extends FlatSpec with Matchers {
       "-o", "src/test/resources/genie3/out.txt",
       "--dry-run")
 
-    val parsed = CLI.parse(args).get.inf.get
+    val parsed = CLI.parse(args).get.xgb.get
 
     parsed.goal            shouldBe DRY_RUN
   }
@@ -77,7 +77,7 @@ class CLISpec extends FlatSpec with Matchers {
       "-o", "src/test/resources/genie3/out.txt",
       "--targets", "Tspan2,Dlx1,Neurod2")
 
-    val parsed = CLI.parse(args).get.inf.get
+    val parsed = CLI.parse(args).get.xgb.get
 
     parsed.targets shouldBe Set("Tspan2", "Dlx1", "Neurod2")
   }
@@ -89,7 +89,7 @@ class CLISpec extends FlatSpec with Matchers {
       "-o", "src/test/resources/genie3/out.txt",
       "-p", "seed=777")
 
-    val parsed = CLI.parse(args).get.inf.get
+    val parsed = CLI.parse(args).get.xgb.get
 
     parsed.boosterParams shouldBe DEFAULT_BOOSTER_PARAMS + (XGB_SEED -> "777")
   }
