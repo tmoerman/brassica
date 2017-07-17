@@ -172,7 +172,14 @@ object EstimateNrBoostingRounds {
     def boostAndExtractLossesByRound(nextRounds: Iterable[Round]): List[(Round, (Loss, Loss))] =
       nextRounds
         .map(round => {
-          booster.update(train, round)
+
+          try {
+            booster.update(train, round)
+          } catch {
+            case e: Error =>
+              e.printStackTrace(System.err)
+              throw new RuntimeException(s"Error in booster.update(train, round: $round)", e)
+          }
 
           val evalSet = booster.evalSet(mats, names, round)
           val lossScores = parseLossScores(evalSet, metric)
