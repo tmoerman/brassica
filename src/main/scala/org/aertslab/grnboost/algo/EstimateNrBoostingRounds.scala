@@ -199,6 +199,7 @@ object EstimateNrBoostingRounds {
 
     val unparsed =
       (0 until maxRounds)
+        .toList
         .map(round => {
           booster.update(train, round)
           booster.evalSet(mats, names, round)
