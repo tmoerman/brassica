@@ -182,7 +182,7 @@ object EstimateNrBoostingRounds {
             case e: Throwable =>
               val msg = s"Error in booster.update(train, round: $round) for target $targetGene"
 
-              System.err.print()
+              System.err.print(msg)
               e.printStackTrace(System.err)
               throw new RuntimeException(msg, e)
           }
