@@ -7,6 +7,6 @@ import org.scalatest.Tag
   */
 object Specs {
 
-  object Server extends Tag("Server")
+  object Server extends Tag("org.aertslab.grnboost.Server")
 
 }
