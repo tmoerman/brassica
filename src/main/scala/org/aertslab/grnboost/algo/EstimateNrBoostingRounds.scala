@@ -3,10 +3,9 @@ package org.aertslab.grnboost.algo
 import java.lang.Math.min
 
 import breeze.linalg.CSCMatrix
-import ml.dmlc.xgboost4j.java.XGBoostUtils.createBooster
 import ml.dmlc.xgboost4j.java.{Booster => JBooster}
-import ml.dmlc.xgboost4j.scala.DMatrix
 import ml.dmlc.xgboost4j.scala.XGBoostConversions._
+import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
 import org.aertslab.grnboost._
 import org.aertslab.grnboost.algo.EstimateNrBoostingRounds._
 import org.aertslab.grnboost.util.BreezeUtils._
@@ -110,9 +109,9 @@ object EstimateNrBoostingRounds {
       .flatMap(foldNr => {
         import params._
 
-        val (train, test) = cvSet(foldNr, indicesByFold, regulatorDMatrix)
+//        val (train, test) = cvSet(foldNr, indicesByFold, regulatorDMatrix)
 
-        val booster = createBooster(params.boosterParams, train, test)
+//        val booster = createBooster(params.boosterParams, train, test)
 
         //        val estimation =
         //          lossesByRoundReductions(targetGene, params.boosterParams, booster, train, test, maxRounds, incRounds)
@@ -123,38 +122,54 @@ object EstimateNrBoostingRounds {
         //            .headOption
         //            .map { case (round, (_, testLoss)) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
 
-        val mats = Array(train, test)
-        val names = Array("train", "test")
-
+//        val mats = Array(train, test)
+//        val names = Array("train", "test")
+//
         val metric = boosterParams.getOrElse(XGB_METRIC, DEFAULT_EVAL_METRIC).toString
+//
+//        val lossesByRound =
+//          (0 to maxRounds)
+//            .toList
+//            .map(round => {
+//
+//              booster.update(train, round)
+//
+//              val evalSet = booster.evalSet(mats, names, round)
+//              val lossScores = parseLossScores(evalSet, metric)
+//
+//              (round, lossScores)
+//            })
 
-        val lossesByRound =
-          (0 to maxRounds)
+        val lossesByRoundCV =
+          XGBoost
+            .crossValidation(regulatorDMatrix, params.boosterParams, maxRounds, params.nrFolds)
+            .map(eval => parseLossScores(eval, metric) )
+            .zipWithIndex
             .toList
-            .map(round => {
 
-              booster.update(train, round)
+        val idx = inflectionPointIndex(lossesByRoundCV.map(_._1._2))
 
-              val evalSet = booster.evalSet(mats, names, round)
-              val lossScores = parseLossScores(evalSet, metric)
+        val est =
+          idx
+            .map(lossesByRoundCV(_))
+            .map{ case ((_, testLoss), round) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
 
-              (round, lossScores)
-            })
+//        val testLosses =
+//          lossesByRound
+//            .map { case (_, (_, testLoss)) => testLoss }
+//
+//        val estimation =
+//          inflectionPointIndex(testLosses)
+//            .map(lossesByRound)
+//            .map{ case (round, (_, testLoss)) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
+//
+//        booster.dispose
+//        train.delete
+//        test.delete
+//
+//        estimation
 
-        val testLosses =
-          lossesByRound
-            .map { case (_, (_, testLoss)) => testLoss }
-
-        val estimation =
-          inflectionPointIndex(testLosses)
-            .map(lossesByRound)
-            .map{ case (round, (_, testLoss)) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
-
-        booster.dispose
-        train.delete
-        test.delete
-
-        estimation
+        est
       })
 
   }
