@@ -113,7 +113,7 @@ object EstimateNrBoostingRounds {
         val booster = createBooster(params.boosterParams, train, test)
 
         val estimation =
-          lossesByRoundReductions(params.boosterParams, booster, train, test, maxRounds, incRounds)
+          lossesByRoundReductions(targetGene, params.boosterParams, booster, train, test, maxRounds, incRounds)
             .flatMap(lossesByRound =>
               inflectionPointIndex(lossesByRound.map { case (_, (_, testLoss)) => testLoss })
                 .map(lossesByRound(_))
@@ -151,7 +151,8 @@ object EstimateNrBoostingRounds {
     * @return Returns a Stream of Lists of Losses by boosting round. Every subsequent list contains the previous one
     *         as a sublist.
     */
-  def lossesByRoundReductions(boosterParams: BoosterParams,
+  def lossesByRoundReductions(targetGene: Gene, // TODO remove later
+                              boosterParams: BoosterParams,
                               booster: JBooster,
                               train: DMatrix,
                               test: DMatrix,
@@ -169,14 +170,16 @@ object EstimateNrBoostingRounds {
       * @param nextRounds The number of boosting rounds to effect.
       * @return Returns a List of losses by round.
       */
-    def boostAndExtractLossesByRound(nextRounds: Iterable[Round]): List[(Round, (Loss, Loss))] =
+    def boostAndExtractLossesByRound(booster: JBooster, nextRounds: Iterable[Round]): List[(Round, (Loss, Loss))] =
       nextRounds
         .map(round => {
 
           try {
+            println(s"--> updating booster round $round for $targetGene")
+
             booster.update(train, round)
           } catch {
-            case e: Error =>
+            case e: Throwable =>
               e.printStackTrace(System.err)
               throw new RuntimeException(s"Error in booster.update(train, round: $round)", e)
           }
@@ -192,7 +195,7 @@ object EstimateNrBoostingRounds {
       .range(0, maxRounds)
       .sliding(incRounds, incRounds)
       .toStream // necessary to make next step lazy
-      .scanLeft(ZERO){ (acc, nextRounds) => acc ::: boostAndExtractLossesByRound(nextRounds) }
+      .scanLeft(ZERO){ (acc, nextRounds) => acc ::: boostAndExtractLossesByRound(booster, nextRounds) }
   }
 
   /**
