@@ -65,22 +65,6 @@ public class XGBoostTMO {
         String[] names;
         Booster booster;
 
-        /**
-         * create an cross validation package
-         *
-         * @param dtrain train data
-         * @param dtest  test data
-         * @param params parameters
-         * @throws XGBoostError native error
-         */
-        public CVPack(DMatrix dtrain, DMatrix dtest, Map<String, Object> params)
-                throws XGBoostError {
-            dmats = new DMatrix[]{dtrain, dtest};
-            booster = new Booster(params, dmats);
-            names = new String[]{"train", "test"};
-            this.dtrain = dtrain;
-            this.dtest = dtest;
-        }
 
         public CVPack(DMatrix dtrain, DMatrix dtest, Booster booster) throws XGBoostError {
             dmats = new DMatrix[]{dtrain, dtest};
@@ -100,15 +84,6 @@ public class XGBoostTMO {
             booster.update(dtrain, iter);
         }
 
-        /**
-         * update one iteration
-         *
-         * @param obj  customized objective
-         * @throws XGBoostError native error
-         */
-        public void update(IObjective obj) throws XGBoostError {
-            booster.update(dtrain, obj);
-        }
 
         /**
          * evaluation
@@ -121,15 +96,5 @@ public class XGBoostTMO {
             return booster.evalSet(dmats, names, iter);
         }
 
-        /**
-         * evaluation
-         *
-         * @param eval customized eval
-         * @return evaluation
-         * @throws XGBoostError native error
-         */
-        public String eval(IEvaluation eval) throws XGBoostError {
-            return booster.evalSet(dmats, names, eval);
-        }
     }
 }
