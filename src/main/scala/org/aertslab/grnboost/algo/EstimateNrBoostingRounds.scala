@@ -166,58 +166,38 @@ object EstimateNrBoostingRounds {
 
     val ZERO = List[(Round, (Loss, Loss))]()
 
-//    /**
-//      * @param nextRounds The number of boosting rounds to effect.
-//      * @return Returns a List of losses by round.
-//      */
-//    def boostAndExtractLossesByRound(booster: JBooster, nextRounds: Iterable[Round]): List[(Round, (Loss, Loss))] =
-//      nextRounds
-//        .map(round => {
-//
-//          try {
-//            println(s"--> updating booster round $round for $targetGene")
-//
-//            booster.update(train, round)
-//
-//            val evalSet = booster.evalSet(mats, names, round)
-//            val lossScores = parseLossScores(evalSet, metric)
-//
-//            (round, lossScores)
-//          } catch {
-//            case e: Throwable =>
-//              val msg = s"Error in booster.update(train, round: $round) for target $targetGene"
-//
-//              System.err.print(msg)
-//              e.printStackTrace(System.err)
-//              throw new Error(msg, e)
-//          }
-//        })
-//        .toList
-
     /**
       * @param nextRounds The number of boosting rounds to effect.
       * @return Returns a List of losses by round.
       */
-    def boostAndExtractLossesByRound2(booster: JBooster, nextRounds: List[Round]): List[(Round, (Loss, Loss))] = {
-      println(s"$targetGene -> rounds: ${nextRounds.mkString(", ")}")
+    def boostAndExtractLossesByRound(booster: JBooster, nextRounds: List[Round]): List[(Round, (Loss, Loss))] =
+      nextRounds
+        .map(round => {
 
-      // first, mutate the booster
-      nextRounds.foreach{round => booster.update(train, round)}
+          try {
+            println(s"--> updating booster round $round for $targetGene")
 
-      // next: extract eval sets
-      nextRounds.map(round => {
-        val evalSet = booster.evalSet(mats, names, round)
-        val lossScores = parseLossScores(evalSet, metric)
+            booster.update(train, round)
 
-        (round, lossScores)
-      })
-    }
+            val evalSet = booster.evalSet(mats, names, round)
+            val lossScores = parseLossScores(evalSet, metric)
+
+            (round, lossScores)
+          } catch {
+            case e: Throwable =>
+              val msg = s"Error in booster.update(train, round: $round) for target $targetGene"
+
+              System.err.print(msg)
+              e.printStackTrace(System.err)
+              throw new Error(msg, e)
+          }
+        })
 
     Stream
       .range(0, maxRounds)
       .sliding(incRounds, incRounds)
       .toStream // necessary to make next step lazy
-      .scanLeft(ZERO){ (acc, nextRounds) => acc ::: boostAndExtractLossesByRound2(booster, nextRounds.toList) }
+      .scanLeft(ZERO){ (acc, nextRounds) => acc ::: boostAndExtractLossesByRound(booster, nextRounds.toList) }
   }
 
   /**
