@@ -199,6 +199,8 @@ object EstimateNrBoostingRounds {
       * @return Returns a List of losses by round.
       */
     def boostAndExtractLossesByRound2(booster: JBooster, nextRounds: List[Round]): List[(Round, (Loss, Loss))] = {
+      println(s"$targetGene -> rounds: ${nextRounds.mkString(", ")}")
+
       // first, mutate the booster
       nextRounds.foreach{round => booster.update(train, round)}
 
