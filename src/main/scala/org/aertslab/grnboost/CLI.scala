@@ -24,7 +24,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  REQUIRED. Input file or directory.
         """.stripMargin)
-      .action{ case (file, cfg) => cfg.modify(_.inf.each.input).setTo(Some(file)) }
+      .action{ case (file, cfg) => cfg.modify(_.xgb.each.input).setTo(Some(file)) }
 
   private val output =
     opt[File]("output").abbr("o")
@@ -35,7 +35,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  REQUIRED. Output directory.
         """.stripMargin)
-      .action{ case (file, cfg) => cfg.modify(_.inf.each.output).setTo(Some(file)) }
+      .action{ case (file, cfg) => cfg.modify(_.xgb.each.output).setTo(Some(file)) }
 
   private val regulators =
     opt[File]("regulators").abbr("tf")
@@ -46,7 +46,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  REQUIRED. Text file containing the regulators (transcription factors), one regulator per line.
         """.stripMargin)
-      .action{ case (file, cfg) => cfg.modify(_.inf.each.regulators).setTo(Some(file)) }
+      .action{ case (file, cfg) => cfg.modify(_.xgb.each.regulators).setTo(Some(file)) }
 
   private val skipHeaders =
     opt[Int]("skip-headers").abbr("skip")
@@ -56,7 +56,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  The number of input file header lines to skip. Default: 0.
         """.stripMargin)
-      .action{ case (nr, cfg) => cfg.modify(_.inf.each.skipHeaders).setTo(nr) }
+      .action{ case (nr, cfg) => cfg.modify(_.xgb.each.skipHeaders).setTo(nr) }
 
   private val delimiter =
     opt[String]("delimiter")
@@ -66,7 +66,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  The delimiter to use in input and output files. Default: TAB.
         """.stripMargin)
-      .action{ case (del, cfg) => cfg.modify(_.inf.each.delimiter).setTo(del) }
+      .action{ case (del, cfg) => cfg.modify(_.xgb.each.delimiter).setTo(del) }
 
 //  private val missing = // FIXME complete this
 //    opt[Double]("missing")
@@ -87,7 +87,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  Output format. Default: list.
         """.stripMargin)
-      .action{ case (format, cfg) => cfg.modify(_.inf.each.outputFormat).setTo(Format.apply(format)) }
+      .action{ case (format, cfg) => cfg.modify(_.xgb.each.outputFormat).setTo(Format.apply(format)) }
 
   private val sample =
     opt[Double]("sample").abbr("s")
@@ -98,7 +98,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  Use a sample of size <nr> of the observations to infer the GRN.
         """.stripMargin)
-      .action{ case (nr, cfg) => cfg.modify(_.inf.each.sample.each).setTo(nr.toInt) }
+      .action{ case (nr, cfg) => cfg.modify(_.xgb.each.sample.each).setTo(nr.toInt) }
 
   private val targets =
     opt[Seq[Gene]]("targets")
@@ -108,7 +108,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  List of genes for which to infer the putative regulators.
         """.stripMargin)
-      .action{ case (genes, cfg) => cfg.modify(_.inf.each.targets).setTo(genes.toSet) }
+      .action{ case (genes, cfg) => cfg.modify(_.xgb.each.targets).setTo(genes.toSet) }
 
   private val xgbParam =
     opt[(String, String)]("xgb-param").abbr("p")
@@ -119,7 +119,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
            |  Add or overwrite an XGBoost booster parameter. Default parameters are:
            |${DEFAULT_BOOSTER_PARAMS.toSeq.sortBy(_._1).map{ case (k, v) => s"  * $k\t->\t$v" }.mkString("\n")}
           """.stripMargin)
-      .action{ case ((key, value), cfg) => cfg.modify(_.inf.each.boosterParams).using(_.updated(key, value)) }
+      .action{ case ((key, value), cfg) => cfg.modify(_.xgb.each.boosterParams).using(_.updated(key, value)) }
 
   private val nrBoostingRounds =
     opt[Int]("nr-boosting-rounds").abbr("r")
@@ -129,7 +129,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  Set the number of boosting rounds. Default: heuristically determined nr of boosting rounds.
         """.stripMargin)
-      .action{ case (nr, cfg) => cfg.modify(_.inf.each.nrBoostingRounds).setTo(Some(nr)) }
+      .action{ case (nr, cfg) => cfg.modify(_.xgb.each.nrBoostingRounds).setTo(Some(nr)) }
 
   private val estimationGenes =
     opt[Seq[Gene]]("estimation-genes")
@@ -140,7 +140,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  List of genes to use for estimating the nr of boosting rounds.
         """.stripMargin)
-      .action{ case (genes, cfg)  => cfg.modify(_.inf.each.estimationSet).setTo(Right(genes.toSet))}
+      .action{ case (genes, cfg)  => cfg.modify(_.xgb.each.estimationSet).setTo(Right(genes.toSet))}
 
   private val nrEstimationGenes =
     opt[Int]("nr-estimation-genes")
@@ -151,7 +151,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         s"""
           |  Nr of randomly selected genes to use for estimating the nr of boosting rounds. Default: $DEFAULT_ESTIMATION_SET.
         """.stripMargin)
-      .action{ case (nr, cfg) => cfg.modify(_.inf.each.estimationSet).setTo(Left(nr)) }
+      .action{ case (nr, cfg) => cfg.modify(_.xgb.each.estimationSet).setTo(Left(nr)) }
 
   private val regularized =
     opt[Unit]("regularized")
@@ -163,7 +163,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
           |  When disabled, all regulations will be emitted.
           |  Use the 'include-flags' option to specify whether to output the include flags in the result list.
         """.stripMargin)
-      .action{ case (_, cfg) => cfg.modify(_.inf.each.regularized).setTo(true) }
+      .action{ case (_, cfg) => cfg.modify(_.xgb.each.regularized).setTo(true) }
 
   private val includeFlags =
     opt[Boolean]("include-flags")
@@ -173,7 +173,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  Flag whether to output the regularization include flags in the output. Default: false.
         """.stripMargin)
-      .action{ case (include, cfg) => cfg.modify(_.inf.each.includeFlags).setTo(include) }
+      .action{ case (include, cfg) => cfg.modify(_.xgb.each.includeFlags).setTo(include) }
 
   private val truncate =
     opt[Int]("truncate")
@@ -184,7 +184,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
           |  Only keep the specified number regulations with highest importance score. Default: unlimited.
           |  (Motivated by the 100.000 regulations limit for the DREAM challenges.)
         """.stripMargin)
-      .action{ case (nr, cfg) => cfg.modify(_.inf.each.truncated).setTo(Some(nr)) }
+      .action{ case (nr, cfg) => cfg.modify(_.xgb.each.truncated).setTo(Some(nr)) }
 
   private val nrPartitions =
     opt[Int]("nr-partitions").abbr("par")
@@ -194,7 +194,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  The number of Spark partitions used to infer the GRN. Default: nr of available processors.
         """.stripMargin)
-      .action{ case (nr, cfg) => cfg.modify(_.inf.each.nrPartitions).setTo(Some(nr)) }
+      .action{ case (nr, cfg) => cfg.modify(_.xgb.each.nrPartitions).setTo(Some(nr)) }
 
   private val dryRun =
     opt[Unit]("dry-run")
@@ -203,7 +203,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  Inference nor auto-config will launch if this flag is set. Use for parameters inspection.
         """.stripMargin)
-      .action{ case (_, cfg) => cfg.modify(_.inf.each.goal).setTo(DRY_RUN) }
+      .action{ case (_, cfg) => cfg.modify(_.xgb.each.goal).setTo(DRY_RUN) }
 
   private val configRun =
     opt[Unit]("cfg-run")
@@ -212,7 +212,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  Auto-config will launch, inference will not if this flag is set. Use for config testing.
         """.stripMargin)
-      .action{ case (_, cfg) => cfg.modify(_.inf.each.goal).setTo(CFG_RUN) }
+      .action{ case (_, cfg) => cfg.modify(_.xgb.each.goal).setTo(CFG_RUN) }
 
   private val report =
     opt[Boolean]("report")
@@ -222,7 +222,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  Set whether to write a report about the inference run to file. Default: true.
         """.stripMargin)
-      .action{ case (report, cfg) => cfg.modify(_.inf.each.report).setTo(report) }
+      .action{ case (report, cfg) => cfg.modify(_.xgb.each.report).setTo(report) }
 
   private val iterated =
     opt[Unit]("iterated")
@@ -232,7 +232,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  Indicates using the iterated DMatrix API instead of using cached DMatrix copies of the CSC matrix.
         """.stripMargin)
-      .action{ case (_, cfg) => cfg.modify(_.inf.each.iterated).setTo(true) }
+      .action{ case (_, cfg) => cfg.modify(_.xgb.each.iterated).setTo(true) }
 
   head("GRNBoost", "0.1")
 
@@ -249,7 +249,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       """.stripMargin)
 
   cmd("infer")
-    .action{ (_, cfg) => cfg.copy(inf = Some(InferenceConfig())) }
+    .action{ (_, cfg) => cfg.copy(xgb = Some(XGBoostConfig())) }
     .children(
       input, skipHeaders, output, regulators, delimiter, outputFormat, sample, targets,
       xgbParam, regularized, includeFlags, truncate, nrBoostingRounds, nrPartitions,
@@ -280,7 +280,7 @@ trait BaseConfig extends Product {
 
 }
 
-case class Config(inf: Option[InferenceConfig] = None) extends BaseConfig
+case class Config(xgb: Option[XGBoostConfig] = None) extends BaseConfig
 
 sealed trait Goal
 case object DRY_RUN extends Goal // only inspect configuration params
@@ -303,6 +303,8 @@ object Format {
 
 }
 
+case class ExtraTreesInferenceConfig() // TODO later
+
 /**
   * @param input Required. The input file.
   * @param regulators File containing regulator genes. Expects on gene per line.
@@ -324,23 +326,23 @@ object Format {
   * @param report Write a report to file.
   * @param iterated Hidden, experimental. Use iterated DMatrix initialization instead of copying.
   */
-case class InferenceConfig(input:             Option[File]            = None,
-                           regulators:        Option[File]            = None,
-                           output:            Option[File]            = None,
-                           skipHeaders:       Int                     = 0,
-                           delimiter:         String                  = "\t",
-                           outputFormat:      Format                  = LIST,
-                           sample:            Option[Int]             = None,
-                           nrPartitions:      Option[Int]             = None,
-                           truncated:         Option[Int]             = None,
-                           nrBoostingRounds:  Option[Int]             = None,
-                           estimationSet:     Either[Int, Set[Gene]]  = Left(DEFAULT_ESTIMATION_SET),
-                           nrFolds:           Int                     = DEFAULT_NR_FOLDS,
-                           regularized:       Boolean                 = false,
-                           includeFlags:      Boolean                 = false,
-                           targets:           Set[Gene]               = Set.empty,
-                           boosterParams:     BoosterParams           = DEFAULT_BOOSTER_PARAMS,
-                           goal:              Goal                    = INF_RUN,
-                           report:            Boolean                 = true,
-                           iterated:          Boolean                 = false,
-                           missing:           Set[Double]             = DEFAULT_MISSING) extends BaseConfig
+case class XGBoostConfig(input:             Option[File]            = None,
+                         regulators:        Option[File]            = None,
+                         output:            Option[File]            = None,
+                         skipHeaders:       Int                     = 0,
+                         delimiter:         String                  = "\t",
+                         outputFormat:      Format                  = LIST,
+                         sample:            Option[Int]             = None,
+                         nrPartitions:      Option[Int]             = None,
+                         truncated:         Option[Int]             = None,
+                         nrBoostingRounds:  Option[Int]             = None,
+                         estimationSet:     Either[Int, Set[Gene]]  = Left(DEFAULT_ESTIMATION_SET),
+                         nrFolds:           Int                     = DEFAULT_NR_FOLDS,
+                         regularized:       Boolean                 = false,
+                         includeFlags:      Boolean                 = false,
+                         targets:           Set[Gene]               = Set.empty,
+                         boosterParams:     BoosterParams           = DEFAULT_BOOSTER_PARAMS,
+                         goal:              Goal                    = INF_RUN,
+                         report:            Boolean                 = true,
+                         iterated:          Boolean                 = false,
+                         missing:           Set[Double]             = DEFAULT_MISSING) extends BaseConfig
