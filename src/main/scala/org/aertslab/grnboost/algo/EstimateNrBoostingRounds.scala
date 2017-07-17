@@ -5,7 +5,7 @@ import java.lang.Math.min
 import breeze.linalg.CSCMatrix
 import ml.dmlc.xgboost4j.java.{Booster => JBooster}
 import ml.dmlc.xgboost4j.scala.XGBoostConversions._
-import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoost}
+import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoostTMO}
 import org.aertslab.grnboost._
 import org.aertslab.grnboost.algo.EstimateNrBoostingRounds._
 import org.aertslab.grnboost.util.BreezeUtils._
@@ -96,7 +96,7 @@ object EstimateNrBoostingRounds {
     * @param incRounds The increment of boosting rounds for lazily finding the inflection point.
     * @return Returns a Seq of RoundsEstimation instances.
     */
-  def estimateRoundsPerFold(nrFolds: Int,
+  def estimateRoundsPerFoldOLD(nrFolds: Int,
                             targetGene: Gene,
                             params: XGBoostRegressionParams,
                             regulatorDMatrix: DMatrix,
@@ -141,7 +141,7 @@ object EstimateNrBoostingRounds {
 //            })
 
         val lossesByRoundCV =
-          XGBoost
+          XGBoostTMO
             .crossValidation(regulatorDMatrix, params.boosterParams, maxRounds, params.nrFolds)
             .map(eval => parseLossScores(eval, metric) )
             .zipWithIndex
@@ -174,6 +174,33 @@ object EstimateNrBoostingRounds {
 
   }
 
+  def estimateRoundsPerFold(nrFolds: Int,
+                            targetGene: Gene,
+                            params: XGBoostRegressionParams,
+                            regulatorDMatrix: DMatrix,
+                            indicesByFold: Map[FoldNr, List[CellIndex]],
+                            allCVSets: Boolean = false,
+                            maxRounds: Int = MAX_ROUNDS,
+                            incRounds: Int = INC_ROUNDS): Seq[RoundsEstimation] = {
+    import params._
+
+    val metric = boosterParams.getOrElse(XGB_METRIC, DEFAULT_EVAL_METRIC).toString
+
+    val unparsed = XGBoostTMO.crossValidation(regulatorDMatrix, params.boosterParams, maxRounds, params.nrFolds)
+
+    val parsed =
+      unparsed
+        .map(eval => parseLossScores(eval, metric) )
+        .zipWithIndex
+        .toList
+
+    val idx = inflectionPointIndex(parsed.map(_._1._2))
+
+    idx
+      .map(parsed(_))
+      .map{ case ((_, testLoss), round) => RoundsEstimation(-1, targetGene, testLoss, round) }
+      .toSeq
+  }
 
   /**
     * Function factored out for testing purposes.
