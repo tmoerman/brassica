@@ -81,7 +81,7 @@ object EstimateNrBoostingRounds {
 
   type FoldNr = Int
 
-  val MAX_ROUNDS  = 5000
+  val MAX_ROUNDS  = 1000
   val INC_ROUNDS  = 50
   val SKIP_ROUNDS = 5
 
@@ -104,22 +104,51 @@ object EstimateNrBoostingRounds {
                             indicesByFold: Map[FoldNr, List[CellIndex]],
                             allCVSets: Boolean = false,
                             maxRounds: Int = MAX_ROUNDS,
-                            incRounds: Int = INC_ROUNDS): Seq[RoundsEstimation] =
+                            incRounds: Int = INC_ROUNDS): Seq[RoundsEstimation] = {
 
     (if (allCVSets) 0 until nrFolds else 0 :: Nil)
       .flatMap(foldNr => {
+        import params._
+
         val (train, test) = cvSet(foldNr, indicesByFold, regulatorDMatrix)
 
         val booster = createBooster(params.boosterParams, train, test)
 
+        //        val estimation =
+        //          lossesByRoundReductions(targetGene, params.boosterParams, booster, train, test, maxRounds, incRounds)
+        //            .flatMap(lossesByRound =>
+        //              inflectionPointIndex(lossesByRound.map { case (_, (_, testLoss)) => testLoss })
+        //                .map(lossesByRound(_))
+        //                .toSeq)
+        //            .headOption
+        //            .map { case (round, (_, testLoss)) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
+
+        val mats = Array(train, test)
+        val names = Array("train", "test")
+
+        val metric = boosterParams.getOrElse(XGB_METRIC, DEFAULT_EVAL_METRIC).toString
+
+        val lossesByRound =
+          (0 to maxRounds)
+            .toList
+            .map(round => {
+
+              booster.update(train, round)
+
+              val evalSet = booster.evalSet(mats, names, round)
+              val lossScores = parseLossScores(evalSet, metric)
+
+              (round, lossScores)
+            })
+
+        val testLosses =
+          lossesByRound
+            .map { case (_, (_, testLoss)) => testLoss }
+
         val estimation =
-          lossesByRoundReductions(targetGene, params.boosterParams, booster, train, test, maxRounds, incRounds)
-            .flatMap(lossesByRound =>
-              inflectionPointIndex(lossesByRound.map { case (_, (_, testLoss)) => testLoss })
-                .map(lossesByRound(_))
-                .toSeq)
-            .headOption
-            .map { case (round, (_, testLoss)) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
+          inflectionPointIndex(testLosses)
+            .map(lossesByRound)
+            .map{ case (round, (_, testLoss)) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
 
         booster.dispose
         train.delete
@@ -127,6 +156,9 @@ object EstimateNrBoostingRounds {
 
         estimation
       })
+
+  }
+
 
   /**
     * Function factored out for testing purposes.
