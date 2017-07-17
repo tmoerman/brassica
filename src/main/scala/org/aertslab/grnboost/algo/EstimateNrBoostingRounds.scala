@@ -189,7 +189,7 @@ object EstimateNrBoostingRounds {
 
               System.err.print(msg)
               e.printStackTrace(System.err)
-              throw new Error(msg, e)
+              throw new Exception(msg, e)
           }
         })
 
