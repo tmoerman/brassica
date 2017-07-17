@@ -3,9 +3,9 @@ package org.aertslab.grnboost.algo
 import java.lang.Math.min
 
 import breeze.linalg.CSCMatrix
-import ml.dmlc.xgboost4j.java.{Booster => JBooster}
+import ml.dmlc.xgboost4j.java.{XGBoostUtils, Booster => JBooster, XGBoostTMO => JXGBoostTMO}
 import ml.dmlc.xgboost4j.scala.XGBoostConversions._
-import ml.dmlc.xgboost4j.scala.{DMatrix, XGBoostTMO}
+import ml.dmlc.xgboost4j.scala.DMatrix
 import org.aertslab.grnboost._
 import org.aertslab.grnboost.algo.EstimateNrBoostingRounds._
 import org.aertslab.grnboost.util.BreezeUtils._
@@ -80,7 +80,7 @@ object EstimateNrBoostingRounds {
 
   type FoldNr = Int
 
-  val MAX_ROUNDS  = 5000
+  val MAX_ROUNDS  = 1000
   val INC_ROUNDS  = 50
   val SKIP_ROUNDS = 5
 
@@ -96,18 +96,18 @@ object EstimateNrBoostingRounds {
     * @param incRounds The increment of boosting rounds for lazily finding the inflection point.
     * @return Returns a Seq of RoundsEstimation instances.
     */
-  def estimateRoundsPerFoldOLD(nrFolds: Int,
-                            targetGene: Gene,
-                            params: XGBoostRegressionParams,
-                            regulatorDMatrix: DMatrix,
-                            indicesByFold: Map[FoldNr, List[CellIndex]],
-                            allCVSets: Boolean = false,
-                            maxRounds: Int = MAX_ROUNDS,
-                            incRounds: Int = INC_ROUNDS): Seq[RoundsEstimation] = {
-
-    (if (allCVSets) 0 until nrFolds else 0 :: Nil)
-      .flatMap(foldNr => {
-        import params._
+//  def estimateRoundsPerFoldOLD(nrFolds: Int,
+//                            targetGene: Gene,
+//                            params: XGBoostRegressionParams,
+//                            regulatorDMatrix: DMatrix,
+//                            indicesByFold: Map[FoldNr, List[CellIndex]],
+//                            allCVSets: Boolean = false,
+//                            maxRounds: Int = MAX_ROUNDS,
+//                            incRounds: Int = INC_ROUNDS): Seq[RoundsEstimation] = {
+//
+//    (if (allCVSets) 0 until nrFolds else 0 :: Nil)
+//      .flatMap(foldNr => {
+//        import params._
 
 //        val (train, test) = cvSet(foldNr, indicesByFold, regulatorDMatrix)
 
@@ -125,7 +125,7 @@ object EstimateNrBoostingRounds {
 //        val mats = Array(train, test)
 //        val names = Array("train", "test")
 //
-        val metric = boosterParams.getOrElse(XGB_METRIC, DEFAULT_EVAL_METRIC).toString
+//        val metric = boosterParams.getOrElse(XGB_METRIC, DEFAULT_EVAL_METRIC).toString
 //
 //        val lossesByRound =
 //          (0 to maxRounds)
@@ -140,19 +140,19 @@ object EstimateNrBoostingRounds {
 //              (round, lossScores)
 //            })
 
-        val lossesByRoundCV =
-          XGBoostTMO
-            .crossValidation(regulatorDMatrix, params.boosterParams, maxRounds, params.nrFolds)
-            .map(eval => parseLossScores(eval, metric) )
-            .zipWithIndex
-            .toList
-
-        val idx = inflectionPointIndex(lossesByRoundCV.map(_._1._2))
-
-        val est =
-          idx
-            .map(lossesByRoundCV(_))
-            .map{ case ((_, testLoss), round) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
+//        val lossesByRoundCV =
+//          XGBoostTMO
+//            .crossValidation(regulatorDMatrix, params.boosterParams, maxRounds, params.nrFolds)
+//            .map(eval => parseLossScores(eval, metric) )
+//            .zipWithIndex
+//            .toList
+//
+//        val idx = inflectionPointIndex(lossesByRoundCV.map(_._1._2))
+//
+//        val est =
+//          idx
+//            .map(lossesByRoundCV(_))
+//            .map{ case ((_, testLoss), round) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
 
 //        val testLosses =
 //          lossesByRound
@@ -168,11 +168,11 @@ object EstimateNrBoostingRounds {
 //        test.delete
 //
 //        estimation
-
-        est
-      })
-
-  }
+//
+//        est
+//      })
+//
+//  }
 
   def estimateRoundsPerFold(nrFolds: Int,
                             targetGene: Gene,
@@ -186,7 +186,13 @@ object EstimateNrBoostingRounds {
 
     val metric = boosterParams.getOrElse(XGB_METRIC, DEFAULT_EVAL_METRIC).toString
 
-    val unparsed = XGBoostTMO.crossValidation(regulatorDMatrix, params.boosterParams, maxRounds, params.nrFolds)
+    val foldNr = 0
+    val (train, test) = cvSet(foldNr, indicesByFold, regulatorDMatrix)
+    val booster = XGBoostUtils.createBooster(params.boosterParams, train, test)
+
+    val cvPack = new JXGBoostTMO.CVPack(train, test, booster)
+
+    val unparsed = JXGBoostTMO.crossValidation(regulatorDMatrix, Array(cvPack), maxRounds, params.nrFolds)
 
     val parsed =
       unparsed
