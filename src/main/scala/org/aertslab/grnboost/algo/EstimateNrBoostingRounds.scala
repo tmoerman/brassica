@@ -181,7 +181,10 @@ object EstimateNrBoostingRounds {
               val evalSet = booster.evalSet(mats, names, round)
               val lossScores = parseLossScores(evalSet, metric)
 
+              val dummyLossScores = (0f, -round.toFloat)
+
               (round, lossScores)
+              (round, dummyLossScores)
             } catch {
               case e: Throwable =>
                 val msg = s"Error in booster.update(train, round: $round) for target $targetGene"
