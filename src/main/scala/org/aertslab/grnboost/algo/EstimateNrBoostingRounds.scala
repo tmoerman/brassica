@@ -192,18 +192,19 @@ object EstimateNrBoostingRounds {
 
     val cvPack = new JXGBoostTMO.CVPack(train, test, booster)
 
-    //val unparsed = JXGBoostTMO.crossValidation(regulatorDMatrix, Array(cvPack), maxRounds, params.nrFolds)
+    val unparsed = JXGBoostTMO.crossValidation(Array(cvPack), maxRounds)
 
-    val mats = Array(train, test)
-    val names = Array("train", "test")
+//  FIXME problematic... Why??? calling from Scala seems to cause the issue
+//    val mats = Array(train, test)
+//    val names = Array("train", "test")
+//    val unparsed =
+//      (0 until maxRounds)
+//        .map(round => {
+//          booster.update(train, round)
+//          booster.evalSet(mats, names, round)
+//        })
 
-    val unparsed =
-      (0 until maxRounds)
-        .toList
-        .map(round => {
-          booster.update(train, round)
-          booster.evalSet(mats, names, round)
-        })
+    cvPack.dispose()
 
     val parsed =
       unparsed

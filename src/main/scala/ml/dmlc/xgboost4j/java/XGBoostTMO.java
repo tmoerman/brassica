@@ -29,16 +29,11 @@ public class XGBoostTMO {
 
     private static final Log logger = LogFactory.getLog(XGBoost.class);
 
-    public static String[] crossValidation(
-            DMatrix data,
-            CVPack[] cvPacks,
-            int round,
-            int nfold) throws XGBoostError {
-
-        String[] evalHist = new String[round];
+    public static String[] crossValidation(CVPack[] cvPacks, int nrRounds) throws XGBoostError {
+        String[] evalHist = new String[nrRounds];
         String[] results = new String[cvPacks.length];
 
-        for (int i = 0; i < round; i++) {
+        for (int i = 0; i < nrRounds; i++) {
             for (CVPack cvPack : cvPacks) {
                 cvPack.update(i);
             }
@@ -64,7 +59,6 @@ public class XGBoostTMO {
         DMatrix[] dmats;
         String[] names;
         Booster booster;
-
 
         public CVPack(DMatrix dtrain, DMatrix dtest, Booster booster) throws XGBoostError {
             dmats = new DMatrix[]{dtrain, dtest};
@@ -94,6 +88,12 @@ public class XGBoostTMO {
          */
         public String eval(int iter) throws XGBoostError {
             return booster.evalSet(dmats, names, iter);
+        }
+
+        public void dispose() throws XGBoostError {
+            booster.dispose();
+            dtrain.dispose();
+            dtest.dispose();
         }
 
     }
