@@ -173,23 +173,24 @@ object EstimateNrBoostingRounds {
     def boostAndExtractLossesByRound(booster: JBooster, nextRounds: List[Round]): List[(Round, (Loss, Loss))] =
       nextRounds
         .map(round => {
+          synchronized {
+            try {
+              println(s"--> updating booster round $round for $targetGene")
 
-          try {
-            println(s"--> updating booster round $round for $targetGene")
+              booster.update(train, round)
 
-            booster.update(train, round)
+              val evalSet = booster.evalSet(mats, names, round)
+              val lossScores = parseLossScores(evalSet, metric)
 
-            val evalSet = booster.evalSet(mats, names, round)
-            val lossScores = parseLossScores(evalSet, metric)
+              (round, lossScores)
+            } catch {
+              case e: Throwable =>
+                val msg = s"Error in booster.update(train, round: $round) for target $targetGene"
 
-            (round, lossScores)
-          } catch {
-            case e: Throwable =>
-              val msg = s"Error in booster.update(train, round: $round) for target $targetGene"
-
-              System.err.print(msg)
-              e.printStackTrace(System.err)
-              throw new Exception(msg, e)
+                System.err.print(msg)
+                e.printStackTrace(System.err)
+                throw new Exception(msg, e)
+            }
           }
         })
 
