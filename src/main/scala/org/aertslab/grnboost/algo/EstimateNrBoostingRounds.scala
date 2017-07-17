@@ -80,7 +80,7 @@ object EstimateNrBoostingRounds {
 
   type FoldNr = Int
 
-  val MAX_ROUNDS  = 1000
+  val MAX_ROUNDS  = 5000
   val INC_ROUNDS  = 50
   val SKIP_ROUNDS = 5
 

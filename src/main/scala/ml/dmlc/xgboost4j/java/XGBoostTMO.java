@@ -181,7 +181,7 @@ public class XGBoostTMO {
             }
 
             evalHist[i] = aggCVResults(results);
-            logger.info("[" + i + "] " + evalHist[i]);
+            // logger.info("[" + i + "] " + evalHist[i]);
         }
         return evalHist;
     }
