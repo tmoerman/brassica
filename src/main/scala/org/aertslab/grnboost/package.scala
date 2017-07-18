@@ -263,20 +263,6 @@ package object grnboost {
 
   }
 
-  case class HyperParamsLoss(target: Gene,
-                             metric: String,
-                             rounds: Round,
-                             loss: Loss,
-                             max_depth: Int,
-                             min_child_weight: Double,
-                             subsample: Double,
-                             colsample_bytree: Double,
-                             eta: Double) {
-
-    def toBoosterParams: BoosterParams = ???
-
-  }
-
   sealed trait FeatureImportanceMetric
   case object GAIN  extends FeatureImportanceMetric
   case object COVER extends FeatureImportanceMetric

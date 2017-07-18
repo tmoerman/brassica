@@ -38,7 +38,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     val estimations =
       GRNBoost
-        .roundsEstimations(
+        .nrBoostingRoundsEstimations(
           expressionByGene,
           candidateRegulators = TFs,
           targets = Set("Gad1"),

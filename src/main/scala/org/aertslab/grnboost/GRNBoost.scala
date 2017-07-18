@@ -42,7 +42,7 @@ object GRNBoost {
     }
 
   /**
-    * Perform GRN inference in function of specified InferenceConfig.
+    * Perform GRN inference in function of specified XGBoostConfig.
     * @param xgbConfig
     */
   def run(xgbConfig: XGBoostConfig): (XGBoostConfig, XGBoostRegressionParams) = {
@@ -295,11 +295,11 @@ object GRNBoost {
     *
     * @return Returns a Dataset of RoundsEstimation instances.
     */
-  def roundsEstimations(expressionsByGene: Dataset[ExpressionByGene],
-                        candidateRegulators: Set[Gene],
-                        targets: Set[Gene] = Set.empty,
-                        params: XGBoostRegressionParams,
-                        nrPartitions: Option[Count] = None): Dataset[RoundsEstimation] = {
+  def nrBoostingRoundsEstimations(expressionsByGene: Dataset[ExpressionByGene],
+                                  candidateRegulators: Set[Gene],
+                                  targets: Set[Gene] = Set.empty,
+                                  params: XGBoostRegressionParams,
+                                  nrPartitions: Option[Count] = None): Dataset[RoundsEstimation] = {
 
     import expressionsByGene.sparkSession.implicits._
 
@@ -323,58 +323,11 @@ object GRNBoost {
                                params: XGBoostRegressionParams,
                                nrPartitions: Option[Count] = None): Try[Int] = Try {
 
-    roundsEstimations(expressionsByGene, candidateRegulators, targets, params, nrPartitions)
-      .select(max("rounds"))
+    nrBoostingRoundsEstimations(expressionsByGene, candidateRegulators, targets, params, nrPartitions)
+      .select(max("rounds")) // TODO max, mean ->
       .first
       .getInt(0)
 
-  }
-
-  /**
-    * @param expressionsByGene
-    * @param candidateRegulators
-    * @param targets
-    * @param params
-    * @param nrPartitions
-    *
-    * @return Returns a Dataset of LossByRound instances.
-    */
-  @deprecated def calculateLossByRound(expressionsByGene: Dataset[ExpressionByGene],
-                           candidateRegulators: Set[Gene],
-                           targets: Set[Gene] = Set.empty,
-                           params: XGBoostRegressionParams,
-                           nrPartitions: Option[Count] = None): Dataset[LossByRound] = {
-    
-    import expressionsByGene.sparkSession.implicits._
-
-    val partitionTaskFactory = CalculateLossByRound(params)(_, _, _)
-
-    computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskFactory)
-  }
-
-  /**
-    * @param expressionsByGene A Dataset of ExpressionByGene instances.
-    * @param candidateRegulators The Set of candidate regulators (TF).
-    *                            The term "candidate" is used to imply that not all these regulators are expected
-    *                            to be present in the specified List of all genes.
-    * @param targets A Set of target genes for which we wish to infer the important regulators.
-    *                If empty Set is specified, this is interpreted as: target genes = all genes.
-    * @param params The XGBoost hyperparameter optimization parameters.
-    * @param nrPartitions Optional technical parameter for defining the nr. of Spark partitions to use.
-    *
-    * @return Returns a Dataset of OptimizedHyperParams.
-    */
-  @deprecated def optimizeHyperParams(expressionsByGene: Dataset[ExpressionByGene],
-                          candidateRegulators: Set[Gene],
-                          targets: Set[Gene] = Set.empty,
-                          params: XGBoostOptimizationParams,
-                          nrPartitions: Option[Count] = None): Dataset[HyperParamsLoss] = {
-
-    import expressionsByGene.sparkSession.implicits._
-
-    val partitionTaskFactory = OptimizeXGBoostHyperParams(params)(_, _, _)
-
-    computePartitioned(expressionsByGene, candidateRegulators, targets, nrPartitions)(partitionTaskFactory)
   }
 
   /**
@@ -406,7 +359,7 @@ object GRNBoost {
 
     def isTarget(e: ExpressionByGene) = containedIn(targets)(e.gene)
 
-    val onlyTargets =
+    val onlyTargets = // FIXME better name please
       if (targets.isEmpty)
         expressionsByGene.rdd
       else
