@@ -1,10 +1,11 @@
 package org.aertslab.grnboost.algo
 
 import java.lang.Math.min
+import java.util
 
 import breeze.linalg.CSCMatrix
-import ml.dmlc.xgboost4j.java.XGBoostUtils.createBooster
-import ml.dmlc.xgboost4j.java.{Booster => JBooster}
+import ml.dmlc.xgboost4j.java.CVPack
+import ml.dmlc.xgboost4j.java.CVPack.Predicate
 import ml.dmlc.xgboost4j.scala.DMatrix
 import ml.dmlc.xgboost4j.scala.XGBoostConversions._
 import org.aertslab.grnboost._
@@ -42,13 +43,7 @@ case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
 
       cleanRegulatorDMatrix.setLabel(expressionByGene.response)
 
-      val result =
-        estimateRoundsPerFold(
-          nrFolds,
-          targetGene,
-          params,
-          cleanRegulatorDMatrix,
-          foldIndices)
+      val result = estimateRoundsPerFold(nrFolds, targetGene, params, cleanRegulatorDMatrix, foldIndices)
 
       cleanRegulatorDMatrix.delete()
 
@@ -56,13 +51,7 @@ case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
     } else {
       cachedRegulatorDMatrix.setLabel(expressionByGene.response)
 
-      val result =
-        estimateRoundsPerFold(
-          nrFolds,
-          targetGene,
-          params,
-          cachedRegulatorDMatrix,
-          foldIndices)
+      val result = estimateRoundsPerFold(nrFolds, targetGene, params, cachedRegulatorDMatrix, foldIndices)
 
       result
     }
@@ -104,29 +93,83 @@ object EstimateNrBoostingRounds {
                             indicesByFold: Map[FoldNr, List[CellIndex]],
                             allCVSets: Boolean = false,
                             maxRounds: Int = MAX_ROUNDS,
-                            incRounds: Int = INC_ROUNDS): Seq[RoundsEstimation] =
+                            incRounds: Int = INC_ROUNDS): Option[RoundsEstimation] = {
 
-    (if (allCVSets) 0 until nrFolds else 0 :: Nil)
-      .flatMap(foldNr => {
-        val (train, test) = cvSet(foldNr, indicesByFold, regulatorDMatrix)
+    import scala.collection.JavaConverters._
 
-        val booster = createBooster(params.boosterParams, train, test)
+    val (train, test) = cvSet(0, indicesByFold, regulatorDMatrix)
 
-        val estimation =
-          lossesByRoundReductions(params.boosterParams, booster, train, test, maxRounds, incRounds)
-            .flatMap(lossesByRound =>
-              inflectionPointIndex(lossesByRound.map { case (_, (_, testLoss)) => testLoss })
-                .map(lossesByRound(_))
-                .toSeq)
-            .headOption
-            .map { case (round, (_, testLoss)) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
+    val cvPack = new CVPack(train, test, params.boosterParams)
 
-        booster.dispose
-        train.delete
-        test.delete
+    val metric = params.boosterParams.getOrElse(XGB_METRIC, DEFAULT_EVAL_METRIC).toString
 
-        estimation
-      })
+    val predicate = new Predicate[Option[RoundsEstimation]] {
+
+      override def apply(evalHist: util.List[String]) = {
+        val rounds = (0 until evalHist.size)
+
+        val lossScores =
+          evalHist
+            .asScala
+            .toList
+            .map(parseLossScores(_, metric))
+
+        val lossesByRound = (rounds zip lossScores).toArray
+
+        val testLosses = lossScores.map(_._2)
+
+        val idx = inflectionPointIndex(testLosses)
+
+        idx
+          .map(lossesByRound(_))
+          .map{ case (round, (_, testLoss)) => RoundsEstimation(0, targetGene, testLoss, round) }
+      }
+
+      override def isDefined(opt: Option[RoundsEstimation]) = opt.isDefined
+
+    }
+
+    val estimation = CVPack.updateWhile(cvPack, maxRounds, incRounds, predicate)
+
+    cvPack.dispose
+
+    estimation
+  }
+
+//    (if (allCVSets) 0 until nrFolds else 0 :: Nil)
+//      .flatMap(foldNr => {
+//        import params._
+//
+//        val (train, test) = cvSet(foldNr, indicesByFold, regulatorDMatrix)
+//
+//        val cvPack = new CVPack(train, test, params.boosterParams)
+//
+//        val metric = params.boosterParams.getOrElse(XGB_METRIC, DEFAULT_EVAL_METRIC).toString
+//
+//        val pred = new Predicate {
+//          override def apply(evalHist: util.List[Path]) =
+//            evalHist
+//              .toArray
+//              .map(parseLossScores(_, ))
+//        }
+//
+//        CVPack.updateWhile(cvPack, maxRounds, incRounds, )
+//
+//        val estimation =
+//          lossesByRoundReductions(params.boosterParams, cvPack, maxRounds, incRounds)
+//            .flatMap(lossesByRound =>
+//              inflectionPointIndex(lossesByRound.map { case (_, (_, testLoss)) => testLoss })
+//                .map(lossesByRound(_))
+//                .toSeq)
+//            .headOption
+//            .map { case (round, (_, testLoss)) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
+//
+//
+//
+//        cvPack.dispose
+//
+//        estimation
+//      })
 
   /**
     * Function factored out for testing purposes.
@@ -143,50 +186,42 @@ object EstimateNrBoostingRounds {
     *     ...
     *
     * @param boosterParams Booster parameter map.
-    * @param booster The Booster instance.
-    * @param train The training DMatrix.
-    * @param test The test DMatrix
+    * @param cVPack The CV booster and matrices bundle.
     * @param maxRounds The maximum nr of boosting rounds to consider.
     * @param incRounds The "step" size, every consecutive list has incRounds more elements than the previous one.
     * @return Returns a Stream of Lists of Losses by boosting round. Every subsequent list contains the previous one
     *         as a sublist.
     */
-  def lossesByRoundReductions(boosterParams: BoosterParams,
-                              booster: JBooster,
-                              train: DMatrix,
-                              test: DMatrix,
-                              maxRounds: Int = MAX_ROUNDS,
-                              incRounds: Int = INC_ROUNDS): Stream[List[(Round, (Loss, Loss))]] = {
-
-    val mats   = Array(train, test)
-    val names  = Array("train", "test")
-
-    val metric = boosterParams.getOrElse(XGB_METRIC, DEFAULT_EVAL_METRIC).toString
-
-    val ZERO = List[(Round, (Loss, Loss))]()
-
-    /**
-      * @param nextRounds The number of boosting rounds to effect.
-      * @return Returns a List of losses by round.
-      */
-    def boostAndExtractLossesByRound(nextRounds: Iterable[Round]): List[(Round, (Loss, Loss))] =
-      nextRounds
-        .map(round => {
-          booster.update(train, round)
-
-          val evalSet = booster.evalSet(mats, names, round)
-          val lossScores = parseLossScores(evalSet, metric)
-
-          (round, lossScores)
-        })
-        .toList
-
-    Stream
-      .range(0, maxRounds)
-      .sliding(incRounds, incRounds)
-      .toStream // necessary to make next step lazy
-      .scanLeft(ZERO){ (acc, nextRounds) => acc ::: boostAndExtractLossesByRound(nextRounds) }
-  }
+//  def lossesByRoundReductions(boosterParams: BoosterParams,
+//                              cVPack: CVPack,
+//                              maxRounds: Int = MAX_ROUNDS,
+//                              incRounds: Int = INC_ROUNDS): Stream[List[(Round, (Loss, Loss))]] = {
+//
+//    val metric = boosterParams.getOrElse(XGB_METRIC, DEFAULT_EVAL_METRIC).toString
+//
+//    val ZERO = List[(Round, (Loss, Loss))]()
+//
+//    /**
+//      * @param nextRounds The number of boosting rounds to effect.
+//      * @return Returns a List of losses by round.
+//      */
+//    def boostAndExtractLossesByRound(nextRounds: Iterable[Round]): List[(Round, (Loss, Loss))] = {
+//      val rounds = nextRounds.toArray
+//
+//      val lossScores =
+//        CVPack
+//          .evalRounds(cVPack, rounds)
+//          .map(parseLossScores(_, metric))
+//
+//      (rounds zip lossScores).toList
+//    }
+//
+//    Stream
+//      .range(0, maxRounds)
+//      .sliding(incRounds, incRounds)
+//      .toStream // necessary to make next step lazy
+//      .scanLeft(ZERO){ (acc, nextRounds) => acc ::: boostAndExtractLossesByRound(nextRounds) }
+//  }
 
   /**
     * @param modelEvaluation A String containing the booster model evaluation.
