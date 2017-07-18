@@ -3,10 +3,10 @@ package org.aertslab.grnboost.algo
 import java.lang.Math.min
 
 import breeze.linalg.CSCMatrix
-import ml.dmlc.xgboost4j.java.XGBoostJavaGate.crossValidation
-import ml.dmlc.xgboost4j.java.{CVPack, XGBoostJavaGate, XGBoostUtils, Booster => JBooster}
-import ml.dmlc.xgboost4j.scala.XGBoostConversions._
+import ml.dmlc.xgboost4j.java.CVPack.crossValidation
+import ml.dmlc.xgboost4j.java.{CVPack, XGBoostUtils, Booster => JBooster}
 import ml.dmlc.xgboost4j.scala.DMatrix
+import ml.dmlc.xgboost4j.scala.XGBoostConversions._
 import org.aertslab.grnboost._
 import org.aertslab.grnboost.algo.EstimateNrBoostingRounds._
 import org.aertslab.grnboost.util.BreezeUtils._
