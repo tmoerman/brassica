@@ -5,7 +5,7 @@ import java.util
 
 import breeze.linalg.CSCMatrix
 import ml.dmlc.xgboost4j.java.CVPack
-import ml.dmlc.xgboost4j.java.CVPack.Predicate
+import ml.dmlc.xgboost4j.java.GRNBoostExtras._
 import ml.dmlc.xgboost4j.scala.DMatrix
 import ml.dmlc.xgboost4j.scala.XGBoostConversions._
 import org.aertslab.grnboost._
@@ -14,6 +14,15 @@ import org.aertslab.grnboost.util.BreezeUtils._
 import org.aertslab.grnboost.util.TriangleRegularization.inflectionPointIndex
 
 /**
+  * A Partition Task for estimating the number of boosting rounds in function of a chosen XGBoost learning rate (eta).
+  *
+  * The estimating strategy is to calculate cross-validation performance on a test subset of the data and to find a
+  * reasonable inflection point. The inflection point is the position where the test curve flattens out, meaning that
+  * additional boosting rounds do not add any more value.
+  *
+  * The inflection point is found in a lazy fashion, where increasing boosting rounds are evaluated on the presence of
+  * an inflection point.
+  *
   * @author Thomas Moerman
   */
 case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
@@ -43,7 +52,7 @@ case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
 
       cleanRegulatorDMatrix.setLabel(expressionByGene.response)
 
-      val result = estimateRoundsPerFold(nrFolds, targetGene, params, cleanRegulatorDMatrix, foldIndices)
+      val result = estimateBoostingRounds(nrFolds, targetGene, params, cleanRegulatorDMatrix, foldIndices)
 
       cleanRegulatorDMatrix.delete()
 
@@ -51,7 +60,7 @@ case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
     } else {
       cachedRegulatorDMatrix.setLabel(expressionByGene.response)
 
-      val result = estimateRoundsPerFold(nrFolds, targetGene, params, cachedRegulatorDMatrix, foldIndices)
+      val result = estimateBoostingRounds(nrFolds, targetGene, params, cachedRegulatorDMatrix, foldIndices)
 
       result
     }
@@ -68,11 +77,8 @@ case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
   */
 object EstimateNrBoostingRounds {
 
-  type FoldNr = Int
-
   val MAX_ROUNDS  = 5000
   val INC_ROUNDS  = 50
-  val SKIP_ROUNDS = 5
 
   /**
     * @param nrFolds The nr of CV folds.
@@ -86,14 +92,14 @@ object EstimateNrBoostingRounds {
     * @param incRounds The increment of boosting rounds for lazily finding the inflection point.
     * @return Returns a Seq of RoundsEstimation instances.
     */
-  def estimateRoundsPerFold(nrFolds: Int,
-                            targetGene: Gene,
-                            params: XGBoostRegressionParams,
-                            regulatorDMatrix: DMatrix,
-                            indicesByFold: Map[FoldNr, List[CellIndex]],
-                            allCVSets: Boolean = false,
-                            maxRounds: Int = MAX_ROUNDS,
-                            incRounds: Int = INC_ROUNDS): Option[RoundsEstimation] = {
+  def estimateBoostingRounds(nrFolds: Int,
+                             targetGene: Gene,
+                             params: XGBoostRegressionParams,
+                             regulatorDMatrix: DMatrix,
+                             indicesByFold: Map[FoldNr, List[CellIndex]],
+                             allCVSets: Boolean = false,
+                             maxRounds: Int = MAX_ROUNDS,
+                             incRounds: Int = INC_ROUNDS): Option[RoundsEstimation] = {
 
     import scala.collection.JavaConverters._
 
@@ -129,99 +135,12 @@ object EstimateNrBoostingRounds {
 
     }
 
-    val estimation = CVPack.updateWhile(cvPack, maxRounds, incRounds, predicate)
+    val estimation = updateWhile(cvPack, maxRounds, incRounds, predicate)
 
     cvPack.dispose
 
     estimation
   }
-
-//    (if (allCVSets) 0 until nrFolds else 0 :: Nil)
-//      .flatMap(foldNr => {
-//        import params._
-//
-//        val (train, test) = cvSet(foldNr, indicesByFold, regulatorDMatrix)
-//
-//        val cvPack = new CVPack(train, test, params.boosterParams)
-//
-//        val metric = params.boosterParams.getOrElse(XGB_METRIC, DEFAULT_EVAL_METRIC).toString
-//
-//        val pred = new Predicate {
-//          override def apply(evalHist: util.List[Path]) =
-//            evalHist
-//              .toArray
-//              .map(parseLossScores(_, ))
-//        }
-//
-//        CVPack.updateWhile(cvPack, maxRounds, incRounds, )
-//
-//        val estimation =
-//          lossesByRoundReductions(params.boosterParams, cvPack, maxRounds, incRounds)
-//            .flatMap(lossesByRound =>
-//              inflectionPointIndex(lossesByRound.map { case (_, (_, testLoss)) => testLoss })
-//                .map(lossesByRound(_))
-//                .toSeq)
-//            .headOption
-//            .map { case (round, (_, testLoss)) => RoundsEstimation(foldNr, targetGene, testLoss, round) }
-//
-//
-//
-//        cvPack.dispose
-//
-//        estimation
-//      })
-
-  /**
-    * Function factored out for testing purposes.
-    *
-    * NOTE: "Reductions" is an FP concept, see: https://clojuredocs.org/clojure.core/reductions.
-    * In Scala, it is implemented by the scanLeft function.
-    * We use it to reduce a Stream of values into a Stream of lists of values.
-    *
-    *   E.g.
-    *     ()
-    *     (1, 2, 3)
-    *     (1, 2, 3, 4, 5, 6)
-    *     (1, 2, 3, 4, 5, 6, 7, 8, 9)
-    *     ...
-    *
-    * @param boosterParams Booster parameter map.
-    * @param cVPack The CV booster and matrices bundle.
-    * @param maxRounds The maximum nr of boosting rounds to consider.
-    * @param incRounds The "step" size, every consecutive list has incRounds more elements than the previous one.
-    * @return Returns a Stream of Lists of Losses by boosting round. Every subsequent list contains the previous one
-    *         as a sublist.
-    */
-//  def lossesByRoundReductions(boosterParams: BoosterParams,
-//                              cVPack: CVPack,
-//                              maxRounds: Int = MAX_ROUNDS,
-//                              incRounds: Int = INC_ROUNDS): Stream[List[(Round, (Loss, Loss))]] = {
-//
-//    val metric = boosterParams.getOrElse(XGB_METRIC, DEFAULT_EVAL_METRIC).toString
-//
-//    val ZERO = List[(Round, (Loss, Loss))]()
-//
-//    /**
-//      * @param nextRounds The number of boosting rounds to effect.
-//      * @return Returns a List of losses by round.
-//      */
-//    def boostAndExtractLossesByRound(nextRounds: Iterable[Round]): List[(Round, (Loss, Loss))] = {
-//      val rounds = nextRounds.toArray
-//
-//      val lossScores =
-//        CVPack
-//          .evalRounds(cVPack, rounds)
-//          .map(parseLossScores(_, metric))
-//
-//      (rounds zip lossScores).toList
-//    }
-//
-//    Stream
-//      .range(0, maxRounds)
-//      .sliding(incRounds, incRounds)
-//      .toStream // necessary to make next step lazy
-//      .scanLeft(ZERO){ (acc, nextRounds) => acc ::: boostAndExtractLossesByRound(nextRounds) }
-//  }
 
   /**
     * @param modelEvaluation A String containing the booster model evaluation.

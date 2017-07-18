@@ -35,6 +35,7 @@ package object grnboost {
   type GeneCount = Int
   type Round     = Int
   type Seed      = Int
+  type FoldNr    = Int
 
   type Expression = Float
   type Importance = Float
@@ -174,12 +175,12 @@ package object grnboost {
   }
 
   /**
-    * @param fold
+    * @param foldNr
     * @param target
     * @param loss
     * @param rounds
     */
-  case class RoundsEstimation(fold: Int,
+  case class RoundsEstimation(@deprecated("unused for now") foldNr: FoldNr,
                               target: Gene,
                               loss: Loss,
                               rounds: Int)
