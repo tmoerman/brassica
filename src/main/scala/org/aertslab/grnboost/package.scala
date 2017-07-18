@@ -3,7 +3,7 @@ package org.aertslab
 import java.io.File
 
 import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
-import org.aertslab.grnboost.util.TriangleRegularization._
+import org.aertslab.grnboost.algo.TriangleRegularization._
 import org.apache.commons.io.FileUtils.{copyFile, deleteDirectory}
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}

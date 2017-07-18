@@ -1,4 +1,4 @@
-package org.aertslab.grnboost.util
+package org.aertslab.grnboost.algo
 
 import breeze.linalg.{DenseVector, _}
 import breeze.numerics._

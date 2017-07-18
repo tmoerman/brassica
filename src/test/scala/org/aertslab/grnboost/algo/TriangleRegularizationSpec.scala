@@ -1,10 +1,10 @@
-package org.aertslab.grnboost.util
+package org.aertslab.grnboost.algo
 
 import java.util.concurrent.atomic.AtomicInteger
 
 import breeze.linalg._
 import breeze.numerics.constants._
-import org.aertslab.grnboost.util.TriangleRegularization.{angle, inflectionPointIndex, labels}
+import org.aertslab.grnboost.algo.TriangleRegularization.{angle, inflectionPointIndex, labels}
 import org.scalatest.{FlatSpec, Matchers}
 
 /**

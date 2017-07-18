@@ -11,7 +11,7 @@ import ml.dmlc.xgboost4j.scala.XGBoostConversions._
 import org.aertslab.grnboost._
 import org.aertslab.grnboost.algo.EstimateNrBoostingRounds._
 import org.aertslab.grnboost.util.BreezeUtils._
-import org.aertslab.grnboost.util.TriangleRegularization.inflectionPointIndex
+import TriangleRegularization.inflectionPointIndex
 
 /**
   * A Partition Task for estimating the number of boosting rounds in function of a chosen XGBoost learning rate (eta).
