@@ -3,7 +3,8 @@ package org.aertslab.grnboost.algo
 import java.lang.Math.min
 
 import breeze.linalg.CSCMatrix
-import ml.dmlc.xgboost4j.java.{XGBoostUtils, Booster => JBooster, XGBoostTMO => JXGBoostTMO}
+import ml.dmlc.xgboost4j.java.XGBoostJavaGate.crossValidation
+import ml.dmlc.xgboost4j.java.{CVPack, XGBoostJavaGate, XGBoostUtils, Booster => JBooster}
 import ml.dmlc.xgboost4j.scala.XGBoostConversions._
 import ml.dmlc.xgboost4j.scala.DMatrix
 import org.aertslab.grnboost._
@@ -132,7 +133,7 @@ object EstimateNrBoostingRounds {
 //            .toList
 //            .map(round => {
 //
-//              booster.update(train, round)
+//              booster.updateAndEval(train, round)
 //
 //              val evalSet = booster.evalSet(mats, names, round)
 //              val lossScores = parseLossScores(evalSet, metric)
@@ -141,7 +142,7 @@ object EstimateNrBoostingRounds {
 //            })
 
 //        val lossesByRoundCV =
-//          XGBoostTMO
+//          XGBoostJavaGate
 //            .crossValidation(regulatorDMatrix, params.boosterParams, maxRounds, params.nrFolds)
 //            .map(eval => parseLossScores(eval, metric) )
 //            .zipWithIndex
@@ -190,9 +191,9 @@ object EstimateNrBoostingRounds {
     val (train, test) = cvSet(foldNr, indicesByFold, regulatorDMatrix)
     val booster = XGBoostUtils.createBooster(params.boosterParams, train, test)
 
-    val cvPack = new JXGBoostTMO.CVPack(train, test, booster)
+    val cvPack = new CVPack(train, test, booster)
 
-    val unparsed = JXGBoostTMO.crossValidation(Array(cvPack), maxRounds)
+    val unparsed = crossValidation(cvPack, maxRounds)
 
 //  FIXME problematic... Why??? calling from Scala seems to cause the issue
 //    val mats = Array(train, test)
@@ -200,7 +201,7 @@ object EstimateNrBoostingRounds {
 //    val unparsed =
 //      (0 until maxRounds)
 //        .map(round => {
-//          booster.update(train, round)
+//          booster.updateAndEval(train, round)
 //          booster.evalSet(mats, names, round)
 //        })
 
@@ -279,7 +280,7 @@ object EstimateNrBoostingRounds {
               (round, dummyLossScores)
             } catch {
               case e: Throwable =>
-                val msg = s"Error in booster.update(train, round: $round) for target $targetGene"
+                val msg = s"Error in booster.updateAndEval(train, round: $round) for target $targetGene"
 
                 System.err.print(msg)
                 e.printStackTrace(System.err)
