@@ -1,7 +1,7 @@
 package org.aertslab.grnboost.cases.megacell
 
 import org.apache.spark.sql.SparkSession
-import org.aertslab.grnboost.cases.DataReader.readTFs
+import org.aertslab.grnboost.DataReader.readRegulators
 import org.aertslab.grnboost.util.IOUtils.writeToFile
 import org.aertslab.grnboost.util.TimeUtils.{pretty, profile}
 import org.aertslab.grnboost.{ExpressionByGene, GRNBoost, GRN_BOOST, XGBoostRegressionParams}
@@ -61,7 +61,7 @@ object MegacellFullInference {
     val (phaseCount, duration) = profile {
 
       val ds = spark.read.parquet(parquet).as[ExpressionByGene].cache
-      val TFs = readTFs(mouseTFs).toSet
+      val TFs = readRegulators(mouseTFs).toSet
 
       val totalCellCount = ds.head.values.size
 

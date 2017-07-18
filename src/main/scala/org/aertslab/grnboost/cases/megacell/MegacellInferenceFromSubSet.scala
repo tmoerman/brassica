@@ -2,7 +2,7 @@ package org.aertslab.grnboost.cases.megacell
 
 import org.apache.spark.sql.SparkSession
 import org.joda.time.DateTime.now
-import org.aertslab.grnboost.cases.DataReader.readTFs
+import org.aertslab.grnboost.DataReader.readRegulators
 import org.aertslab.grnboost.util.IOUtils.writeToFile
 import org.aertslab.grnboost.util.TimeUtils.{pretty, profile}
 import org.aertslab.grnboost._
@@ -70,7 +70,7 @@ object MegacellInferenceFromSubSet {
     val (_, duration) = profile {
 
       val ds = spark.read.parquet(parquet).as[ExpressionByGene]
-      val TFs = readTFs(mouseTFs).toSet
+      val TFs = readRegulators(mouseTFs).toSet
 
       val cellIndicesSubSet: Seq[CellIndex] =
         Source.fromFile(cellSubSetFile).getLines.filterNot(_.isEmpty).map(_.trim.toInt).toSeq

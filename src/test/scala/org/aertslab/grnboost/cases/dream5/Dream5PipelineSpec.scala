@@ -1,7 +1,8 @@
 package org.aertslab.grnboost.cases.dream5
 
+import org.aertslab.grnboost.Specs.Server
 import org.scalatest.{FlatSpec, Matchers}
-import org.aertslab.grnboost.{XGBoostRegressionParams, GRNBoost, GRNBoostSuiteBase}
+import org.aertslab.grnboost.{GRNBoost, GRNBoostSuiteBase, XGBoostRegressionParams}
 
 /**
   * @author Thomas Moerman
@@ -24,11 +25,7 @@ class Dream5PipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   behavior of "ScenicPipeline on DREAM5"
 
-  it should "run on the in silico data set" in {
-    fail("fixme")
-  }
-
-  it should "run on the ecoli data set" in {
+  it should "run on the ecoli data set" taggedAs Server in {
     val (dataFile, tfFile) = network(3)
 
     val (expressionByGene, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
@@ -44,14 +41,6 @@ class Dream5PipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     println(params)
 
     result.show
-  }
-
-  it should "run on s. aureus" in {
-    fail("fixme")
-  }
-
-  it should "run on s. cerevisiae" in {
-    fail("fixme")
   }
 
 }

@@ -2,6 +2,7 @@ package org.aertslab.grnboost.cases.megacell
 
 import java.io.File
 
+import org.aertslab.grnboost.Specs.Server
 import org.scalatest.FlatSpec
 import org.aertslab.grnboost._
 import org.aertslab.grnboost.util.IOUtils._
@@ -14,7 +15,7 @@ import scala.util.Try
   */
 class MegacellSubSetMakerSpec extends FlatSpec {
 
-  "it" should "work for Megacell 100K - 100 boosting rounds" in {
+  "it" should "work for Megacell 100K - 100 boosting rounds" taggedAs Server in {
     val wd = "/media/tmo/data/work/datasets/megacell/out/cell.subsets/100k/nr.rounds.100/"
 
     doit(
@@ -24,7 +25,7 @@ class MegacellSubSetMakerSpec extends FlatSpec {
       outDir = wd)
   }
 
-  "it" should "work for Megacell 100K - 250 boosting rounds" in {
+  "it" should "work for Megacell 100K - 250 boosting rounds" taggedAs Server in {
     val wd = "/media/tmo/data/work/datasets/megacell/out/cell.subsets/100k/nr.rounds.250/"
 
     doit(

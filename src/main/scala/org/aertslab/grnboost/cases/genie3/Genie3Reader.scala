@@ -2,9 +2,7 @@ package org.aertslab.grnboost.cases.genie3
 
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.aertslab.grnboost.cases.DataReader
-
-import org.aertslab.grnboost._
+import org.aertslab.grnboost.{DataReader, _}
 
 /**
   * @author Thomas Moerman

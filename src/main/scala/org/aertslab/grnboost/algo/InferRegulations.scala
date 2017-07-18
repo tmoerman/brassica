@@ -4,7 +4,7 @@ import breeze.linalg.CSCMatrix
 import ml.dmlc.xgboost4j.scala.{Booster, DMatrix, XGBoost}
 import org.aertslab.grnboost._
 import org.aertslab.grnboost.util.BreezeUtils._
-import InferXGBoostRegulations._
+import InferRegulations._
 
 /**
   * @author Thomas Moerman
@@ -13,7 +13,7 @@ case class InferRegulationsIterated(params: XGBoostRegressionParams,
                                     regulators: List[Gene],
                                     regulatorCSC: CSCMatrix[Expression]) {
 
-  def apply(expressionByGene: ExpressionByGene): Iterable[RawRegulation] = {
+  def apply(expressionByGene: ExpressionByGene): Iterable[Regulation] = {
 
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
@@ -50,10 +50,10 @@ case class InferRegulationsIterated(params: XGBoostRegressionParams,
 
 }
 
-case class ComputeCVLoss(params: XGBoostRegressionParams)
-                        (regulators: List[Gene],
-                         regulatorCSC: CSCMatrix[Expression],
-                         partitionIndex: Int) extends PartitionTask[LossByRound] {
+case class InferRegulations(params: XGBoostRegressionParams)
+                           (regulators: List[Gene],
+                            regulatorCSC: CSCMatrix[Expression],
+                            partitionIndex: Int) extends PartitionTask[Regulation] {
 
   private[this] val cachedRegulatorDMatrix = regulatorCSC.copyToUnlabeledDMatrix
 
@@ -61,56 +61,7 @@ case class ComputeCVLoss(params: XGBoostRegressionParams)
     * @param expressionByGene The current target gene and its expression vector.
     * @return Returns the inferred Regulation instances for one ExpressionByGene instance.
     */
-  override def apply(expressionByGene: ExpressionByGene): Iterable[LossByRound] = {
-    val targetGene        = expressionByGene.gene
-    val targetIsRegulator = regulators.contains(targetGene)
-
-    println(s"-> target: $targetGene \t regulator: $targetIsRegulator \t partition: $partitionIndex")
-
-    // TODO extract template method
-
-    if (targetIsRegulator) {
-      // drop the target gene column from the regulator CSC matrix and create a new DMatrix
-      val targetColumnIndex = regulators.zipWithIndex.find(_._1 == targetGene).get._2
-      val cleanRegulatorDMatrix = regulatorCSC.dropColumn(targetColumnIndex).copyToUnlabeledDMatrix
-      val cleanRegulators = regulators.filterNot(_ == targetGene)
-
-      // set the response labels and train the model
-      cleanRegulatorDMatrix.setLabel(expressionByGene.response)
-
-      val result = computeCVLoss(params, targetGene, cleanRegulators, cleanRegulatorDMatrix)
-
-      cleanRegulatorDMatrix.delete()
-
-      result
-    } else {
-      // set the response labels and train the model
-      cachedRegulatorDMatrix.setLabel(expressionByGene.response)
-
-      val result = computeCVLoss(params, targetGene, regulators, cachedRegulatorDMatrix)
-
-      result
-    }
-  }
-
-  override def dispose(): Unit = {
-    cachedRegulatorDMatrix.delete()
-  }
-
-}
-
-case class InferXGBoostRegulations(params: XGBoostRegressionParams)
-                                  (regulators: List[Gene],
-                                   regulatorCSC: CSCMatrix[Expression],
-                                   partitionIndex: Int) extends PartitionTask[RawRegulation] {
-
-  private[this] val cachedRegulatorDMatrix = regulatorCSC.copyToUnlabeledDMatrix
-
-  /**
-    * @param expressionByGene The current target gene and its expression vector.
-    * @return Returns the inferred Regulation instances for one ExpressionByGene instance.
-    */
-  override def apply(expressionByGene: ExpressionByGene): Iterable[RawRegulation] = {
+  override def apply(expressionByGene: ExpressionByGene): Iterable[Regulation] = {
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
@@ -122,7 +73,6 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
       val cleanRegulatorDMatrix = regulatorCSC.dropColumn(targetColumnIndex).copyToUnlabeledDMatrix
       val cleanRegulators = regulators.filterNot(_ == targetGene)
 
-      // set the response labels and train the model
       cleanRegulatorDMatrix.setLabel(expressionByGene.response)
 
       val result = inferRegulations(params, targetGene, cleanRegulators, cleanRegulatorDMatrix)
@@ -131,7 +81,6 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
 
       result
     } else {
-      // set the response labels and train the model
       cachedRegulatorDMatrix.setLabel(expressionByGene.response)
 
       val result = inferRegulations(params, targetGene, regulators, cachedRegulatorDMatrix)
@@ -146,33 +95,17 @@ case class InferXGBoostRegulations(params: XGBoostRegressionParams)
 
 }
 
-object InferXGBoostRegulations {
-
-  type TreeDump  = String
-  type ModelDump = Seq[TreeDump]
-
-  def computeCVLoss(params: XGBoostRegressionParams,
-                    targetGene: Gene,
-                    regulators: List[Gene],
-                    regulatorDMatrix: DMatrix): Seq[LossByRound] = {
-    import params._
-
-    XGBoost
-      .crossValidation(regulatorDMatrix, boosterParams.withDefaults, nrRounds, nrFolds)
-      .map(_.split("\t").drop(1).map(_.split(":")(1).toFloat))
-      .zipWithIndex
-      .map{ case (Array(train, test), i) => LossByRound(targetGene, train, test, i) }
-  }
+object InferRegulations {
 
   def inferRegulations(params: XGBoostRegressionParams,
                        targetGene: Gene,
                        regulators: List[Gene],
-                       regulatorDMatrix: DMatrix): Seq[RawRegulation] = {
+                       regulatorDMatrix: DMatrix): Seq[Regulation] = {
     import params._
 
     val booster = XGBoost.train(regulatorDMatrix, boosterParams.withDefaults, nrRounds)
 
-    val regulations = toRawRegulations(targetGene, regulators, booster, params)
+    val regulations = toRegulations(targetGene, regulators, booster, params)
 
     booster.dispose
 
@@ -185,17 +118,19 @@ object InferXGBoostRegulations {
     * @param booster
     * @return Returns the raw scores for regulation.
     */
-  def toRawRegulations(targetGene: Gene,
-                       regulators: List[Gene],
-                       booster: Booster,
-                       params: XGBoostRegressionParams): Seq[RawRegulation] = {
+  def toRegulations(targetGene: Gene,
+                    regulators: List[Gene],
+                    booster: Booster,
+                    params: XGBoostRegressionParams): Seq[Regulation] = {
 
     val boosterModelDump = booster.getModelDump(withStats = true).toSeq
 
-    aggregateGainByGene(params)(boosterModelDump)
+    val scoresByGene = aggregateScoresByGene(params)(boosterModelDump)
+
+    scoresByGene
       .toSeq
-      .map{ case (geneIndex, normalizedGain) =>
-        RawRegulation(regulators(geneIndex), targetGene, normalizedGain)
+      .map{ case (geneIndex, scores) =>
+        Regulation(regulators(geneIndex), targetGene, scores.gain)
       }
   }
 
@@ -207,18 +142,18 @@ object InferXGBoostRegulations {
     * @return Returns the feature importance metrics parsed from all trees (amount == nr boosting rounds) in the
     *         specified trained booster model.
     */
-  def aggregateGainByGene(params: XGBoostRegressionParams)(modelDump: ModelDump): Map[GeneIndex, Gain] =
+  def aggregateScoresByGene(params: XGBoostRegressionParams)(modelDump: ModelDump): Map[GeneIndex, Scores] =
     modelDump
-      .flatMap(parseGainScores)
-      .foldLeft(Map[GeneIndex, Gain]() withDefaultValue 0f) { case (acc, (geneIndex, gain)) =>
-        acc.updated(geneIndex, acc(geneIndex) + gain)
+      .flatMap(parseImportanceScores)
+      .foldLeft(Map[GeneIndex, Scores]() withDefaultValue Scores.ZERO) { case (acc, (geneIndex, scores)) =>
+        acc.updated(geneIndex, acc(geneIndex) |+| scores)
       }
 
   /**
     * @param treeDump
     * @return Returns the feature importance metrics parsed from one tree.
     */
-  def parseGainScores(treeDump: TreeDump): Array[(GeneIndex, Gain)] =
+  def parseImportanceScores(treeDump: TreeDump): Array[(GeneIndex, Scores)] =
     treeDump
       .split("\n")
       .flatMap(_.split("\\[") match {
@@ -228,11 +163,35 @@ object InferXGBoostRegulations {
             case Array(left, right) =>
               val geneIndex = left.split("<")(0).substring(1).toInt
 
-              // TODO parse other scores
-              val gain     = right.split(",").find(_.startsWith("gain")).map(_.split("=")(1)).get.toFloat
+              val scores = Scores(
+                frequency = 1,
+                gain  = getValue("gain", right),
+                cover = getValue("cover", right)
+              )
 
-              (geneIndex, gain) :: Nil
+              (geneIndex, scores) :: Nil
           }
       })
+
+  private def getValue(key: String, string: String) =
+    string.split(",").find(_.startsWith(key)).map(_.split("=")(1)).get.toFloat
+
+}
+
+case class Scores(frequency: Frequency,
+                  gain: Gain,
+                  cover: Cover) {
+
+  def |+|(that: Scores) = Scores(
+    this.frequency + that.frequency,
+    this.gain      + that.gain,
+    this.cover     + that.cover
+  )
+
+}
+
+object Scores {
+
+  val ZERO = Scores(0, 0f, 0f)
 
 }

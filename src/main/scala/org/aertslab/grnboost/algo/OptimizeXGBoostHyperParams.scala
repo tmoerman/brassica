@@ -6,9 +6,9 @@ import java.lang.System.currentTimeMillis
 import breeze.linalg.CSCMatrix
 import com.eharmony.spotz.optimizer.hyperparam.RandomSampler
 import ml.dmlc.xgboost4j.java.Booster
-import ml.dmlc.xgboost4j.java.JXGBoostAccess.createBooster
+import ml.dmlc.xgboost4j.java.XGBoostUtils.createBooster
 import ml.dmlc.xgboost4j.scala.DMatrix
-import ml.dmlc.xgboost4j.scala.XGBoostAccess.inner
+import ml.dmlc.xgboost4j.scala.XGBoostConversions._
 import org.aertslab.grnboost._
 
 import scala.util.Random
@@ -84,6 +84,10 @@ object OptimizeXGBoostHyperParams {
 
   type CVSet  = (Array[CellIndex], Array[CellIndex])
 
+  type DisposeFn = () => Unit
+
+  type FoldNr = Int
+
   private[this] val NAMES = Array("train", "test")
 
   /**
@@ -94,7 +98,7 @@ object OptimizeXGBoostHyperParams {
   def makeNFoldDMatrices(expressionByGene: ExpressionByGene,
                          regulators: List[Gene],
                          regulatorCSC: CSCMatrix[Expression],
-                         cvSets: List[CVSet]): (List[(DMatrix, DMatrix)], () => Unit) = {
+                         cvSets: List[CVSet]): (List[(DMatrix, DMatrix)], DisposeFn) = {
 
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
@@ -164,13 +168,10 @@ object OptimizeXGBoostHyperParams {
           val roundResults =
             foldsAndBoosters
               .map{ case (train, test, booster) =>
-                val train4j = inner(train)
-                val test4j  = inner(test)
-                val mats    = Array(train4j, test4j)
-
+                val mats = Array(train, test)
                 val boostingRound = round - 1 // boosting rounds are 0 based, result is a count, i.e. 1 based
 
-                booster.update(train4j, boostingRound)
+                booster.update(train, boostingRound)
                 booster.evalSet(mats, NAMES, boostingRound)}
 
           val (_, testLoss) = parseLossScores(roundResults)
@@ -223,8 +224,8 @@ object OptimizeXGBoostHyperParams {
             .split("\t")
             .drop(1) // drop the index
             .map(_.split(":") match {
-            case Array(key, value) => (key, value.toFloat)
-          })})
+              case Array(key, value) => (key, value.toFloat)
+            })})
         .groupBy(_._1)
         .mapValues(x => x.map(_._2).sum / x.size)
 
@@ -273,8 +274,6 @@ object OptimizeXGBoostHyperParams {
 
         (train.values.flatten.toArray, test.values.flatten.toArray)})
   }
-
-  type FoldNr = Int
 
   /**
     * @param nrFolds The nr of folds.

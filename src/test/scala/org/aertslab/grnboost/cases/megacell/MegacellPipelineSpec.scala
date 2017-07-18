@@ -1,7 +1,8 @@
 package org.aertslab.grnboost.cases.megacell
 
 import org.scalatest.{FlatSpec, Matchers}
-import org.aertslab.grnboost.cases.DataReader.readTFs
+import org.aertslab.grnboost.DataReader.readRegulators
+import org.aertslab.grnboost.Specs.Server
 import org.aertslab.grnboost.util.PropsReader.props
 import org.aertslab.grnboost.{CellIndex, ExpressionByGene, GRNBoost, GRNBoostSuiteBase, XGBoostRegressionParams, randomSubset}
 
@@ -37,10 +38,10 @@ class MegacellPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers
 //  val megacellSubSet10k = props("megacellSubSet10k")
 //  val megacellSubSet100k = props("megacellSubSet100k")
 
-  it should "meh" in {
+  it should "meh" taggedAs Server in {
     import spark.implicits._
 
-    val TFs = readTFs(mouseTFs).toSet
+    val TFs = readRegulators(mouseTFs).toSet
 
     val cellIndicesSubSet: Seq[CellIndex] = randomSubset(3000, 0 until 1300000)
       // Source.fromFile(megacellSubSet3k).getLines.filterNot(_.isEmpty).map(_.trim.toInt).toSeq

@@ -1,13 +1,14 @@
 package org.aertslab.grnboost.lab
 
-import com.holdenkarau.spark.testing.DataFrameSuiteBase
+import org.aertslab.grnboost.Specs.Server
+import org.aertslab.grnboost._
+import org.apache.spark.sql.functions._
 import org.scalatest.{FlatSpec, Matchers}
-import org.aertslab.grnboost.Regulation
 
 /**
   * @author Thomas Moerman
   */
-class DatasetLab extends FlatSpec with DataFrameSuiteBase with Matchers {
+class DatasetLab extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   behavior of "Dataset"
 
@@ -16,17 +17,31 @@ class DatasetLab extends FlatSpec with DataFrameSuiteBase with Matchers {
 
     val ds = List(KV("a", 1), KV("b", 2), KV("c", 3)).toDS()
 
-    val pred = Set("c")
+    val filtered = ds.filter(kv => Set("c").contains(kv.key))
 
-    val filtererd = ds.filter(kv => pred.contains(kv.key))
-
-    filtererd.show()
+    filtered.show()
   }
 
-  it should "roll up a Dataset" in {
+  it should "calculate max" in {
     import spark.implicits._
 
+    val list: List[RoundsEstimation] = List(
+      RoundsEstimation(0, "Gad1", 0.5f, 25),
+      RoundsEstimation(0, "Gad1", 0.5f, 55),
+      RoundsEstimation(0, "Gad1", 0.5f, 34),
+      RoundsEstimation(0, "Gad1", 0.5f, 666),
+      RoundsEstimation(0, "Gad1", 0.5f, 320))
+
+    val ds = list.toDS
+
+    val bla = ds.select(max("rounds"))
+
+    println(bla.first.getInt(0))
+  }
+
+  it should "roll up a Dataset" taggedAs Server ignore {
     import org.apache.spark.sql.functions._
+    import spark.implicits._
 
     val dream1 =
       spark
@@ -34,15 +49,11 @@ class DatasetLab extends FlatSpec with DataFrameSuiteBase with Matchers {
         .textFile("/media/tmo/data/work/datasets/dream5/out/Network1/part-00000")
         .map(_.split("\t"))
         .map{ case Array(reg, tar, imp) => Regulation(reg, tar, imp.toFloat) }
-        .toDS()
+        .toDS
 
-    val sums = dream1.rollup("target").agg(stddev("importance"), sum("importance"), max("importance"))
+    val sums = dream1.rollup("target").agg(stddev("gain"), sum("gain"), max("gain"))
 
-    sums.show()
-
-    // sums.describe("sum(importance)").show
-
-
+    sums.show
   }
 
 }

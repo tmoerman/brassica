@@ -2,7 +2,7 @@ package org.aertslab.grnboost.cases.zeisel
 
 import org.apache.spark.sql.SparkSession
 import org.aertslab.grnboost._
-import org.aertslab.grnboost.cases.DataReader._
+import DataReader._
 import org.aertslab.grnboost.util.TimeUtils._
 
 /**
@@ -59,8 +59,8 @@ object ZeiselInference {
         val (_, duration) = profile {
 
           // reading input here to make timings honest
-          val ds  = readExpression(spark, in).cache
-          val TFs = readTFs(mouseTFs).toSet
+          val ds  = readExpressionsByGene(spark, in).cache
+          val TFs = readRegulators(mouseTFs).toSet
 
           val currentParams =
             params.copy(
@@ -76,8 +76,7 @@ object ZeiselInference {
                 nrPartitions = Some(nrPartitions))
               .cache
 
-          regulations
-            .addElbowGroups(params)
+          withRegularizationLabels(regulations, params)
             .sort($"regulator", $"target", $"gain".desc)
             .saveTxt(s"${out}stumps_${currentNrRounds}_rounds_eta_0.01")
         }

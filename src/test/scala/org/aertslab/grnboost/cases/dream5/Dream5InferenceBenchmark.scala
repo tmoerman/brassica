@@ -2,6 +2,7 @@ package org.aertslab.grnboost.cases.dream5
 
 import java.io.File
 
+import org.aertslab.grnboost.Specs.Server
 import org.aertslab.grnboost.util.PropsReader
 import org.aertslab.grnboost.util.TimeUtils.{pretty, profile}
 import org.aertslab.grnboost.{GRNBoostSuiteBase, XGBoostRegressionParams, _}
@@ -22,10 +23,10 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 100,
+      nrRounds = 670,
       boosterParams = boosterParams)
 
-  "Dream5 regulation inference" should "run" in {
+  "Dream5 regulation inference" should "run" taggedAs Server in {
     Seq(1, 3, 4)
       .map(n => computeNetwork(n, params))
       .foreach { case (nw, duration) => println(s"\n Dream5 nw$nw wall time: ${pretty(duration)}\n") }
@@ -54,8 +55,7 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
             nrPartitions = Some(spark.sparkContext.defaultParallelism))
           .cache
 
-      regulations
-        .addElbowGroups(params)
+      withRegularizationLabels(regulations, params)
         .sort($"regulator", $"target", $"gain".desc)
         .rdd
         .map(r => s"${r.regulator}\t${r.target}\t${r.gain}")

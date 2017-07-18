@@ -4,6 +4,7 @@ import java.io.File
 
 import ch.systemsx.cisd.hdf5.HDF5FactoryProvider
 import gov.llnl.spark.hdf.reader.{HDF5Reader, HDF5Schema}
+import org.aertslab.grnboost.Specs.Server
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
@@ -19,7 +20,7 @@ class ParseSpec extends FlatSpec with Matchers {
 
   behavior of "parsing a hdf5 file"
 
-  it should "work" ignore {
+  it should "work" taggedAs Server ignore {
     val reader = HDF5FactoryProvider.get().openForReading(bigsc)
 
     val members = reader.getGroupMembers("/mm10").asScala
@@ -29,7 +30,7 @@ class ParseSpec extends FlatSpec with Matchers {
     println(members)
   }
 
-  it should "print node info" ignore {
+  it should "print node info" taggedAs Server ignore {
     import HDF5Schema._
 
     val reader = new HDF5Reader(bigsc)
@@ -51,26 +52,5 @@ class ParseSpec extends FlatSpec with Matchers {
 
     println(node)
   }
-
-//  it should "print members overview" in {
-//
-//    val h5Reader = HDF5FactoryProvider.get().openForReading(bigsc)
-//    val members = h5Reader.getGroupMembers("/mm10").asScala
-//
-//    val dfReader = sqlContext.read.format("gov.llnl.spark.hdf")
-//
-//    val memberList = List("barcodes", "gene_names", "genes", "shape", "indices", "indptr") // , "indices", "data" "indptr"]
-//
-//    memberList.par
-//
-//    memberList.foreach(member => {
-//      val df = dfReader.option("dataset", s"/mm10/$member").load(path)
-//
-//      println(member)
-//      df.printSchema
-//      df.show(10)
-//    })
-//
-//  }
 
 }

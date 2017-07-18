@@ -10,5 +10,4 @@ activator*
 /src/test/resources/config/profile.props
 /src/test/resources/parquet/
 /.idea/
-.sbtopts
 derby.log

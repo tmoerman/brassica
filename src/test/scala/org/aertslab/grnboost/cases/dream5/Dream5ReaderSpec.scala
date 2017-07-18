@@ -2,6 +2,7 @@ package org.aertslab.grnboost.cases.dream5
 
 import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost.GRNBoostSuiteBase
+import org.scalatest.tagobjects.Slow
 
 /**
   * @author Thomas Moerman
@@ -10,7 +11,7 @@ class Dream5ReaderSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   behavior of "Dream5Reader reading the original data"
 
-  it should "parse the in silico data" in {
+  it should "parse the in silico data" taggedAs Slow in {
     val (dataFile, tfFile) = network(1)
 
     val (ds, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
@@ -20,7 +21,7 @@ class Dream5ReaderSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     ds.head.values.size shouldBe 805
   }
 
-  it should "parse the s. aureus data" in {
+  it should "parse the s. aureus data" taggedAs Slow in {
     val (dataFile, tfFile) = network(2)
 
     val (ds, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
@@ -30,7 +31,7 @@ class Dream5ReaderSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     ds.head.values.size shouldBe 160
   }
 
-  it should "parse the e. coli data" in {
+  it should "parse the e. coli data" taggedAs Slow in {
     val (dataFile, tfFile) = network(3)
 
     val (ds, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
@@ -42,7 +43,7 @@ class Dream5ReaderSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     ds.head.values.size shouldBe 805
   }
 
-  it should "parse the s. cerevisiae" in {
+  it should "parse the s. cerevisiae" taggedAs Slow in {
     val (dataFile, tfFile) = network(4)
 
     val (ds, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)

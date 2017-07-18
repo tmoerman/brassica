@@ -1,11 +1,12 @@
 package org.aertslab.grnboost.cases.megacell
 
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
-import org.apache.spark.sql.{SaveMode, Dataset, DataFrame}
-import org.apache.spark.sql.SaveMode.{Overwrite, Append}
+import org.apache.spark.sql.{DataFrame, Dataset, SaveMode}
+import org.apache.spark.sql.SaveMode.{Append, Overwrite}
 import org.scalatest.{FlatSpec, Matchers}
-import org.aertslab.grnboost.{ExpressionByGene, GeneIndex, CellCount, Gene}
+import org.aertslab.grnboost.{CellCount, ExpressionByGene, Gene, GeneIndex}
 import MegacellReader._
+import org.aertslab.grnboost.Specs.Server
 
 /**
   * Save to Parquet, just to try out the Spark pipeline.
@@ -16,7 +17,7 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
 
   behavior of "Megacell to Parquet"
 
-  it should "write the first 100 columns to column vector Parquet" ignore {
+  it should "write the first 100 columns to column vector Parquet" taggedAs Server ignore {
     val top = 100
 
     val csc = readCSCMatrix(megacell, onlyGeneIndices = Some(0 until top)).get
@@ -28,7 +29,7 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
     df.write.parquet(megacellColumnsParquet)
   }
 
-  it should "write the entire matrix to a Parquet Dataset of ExpressionByGene tuples" ignore {
+  it should "write the entire matrix to a Parquet Dataset of ExpressionByGene tuples" taggedAs Server ignore {
     val (_, nrGenes) = readDimensions(megacell).get
 
     val globalGeneIndex = readGeneNames(megacell).get.zipWithIndex
@@ -50,7 +51,7 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
       }
   }
 
-  it should "read the full parquet into a Dataset[ExpressionByGene]" in {
+  it should "read the full parquet into a Dataset[ExpressionByGene]" taggedAs Server in {
     import spark.implicits._
 
     val parquetFile = megacellColumnsParquet + "_full"
@@ -60,7 +61,7 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
     ds.show(5)
   }
 
-  it should "write the entire matrix to column vector Parquet" ignore {
+  it should "write the entire matrix to column vector Parquet" taggedAs Server ignore {
     val (_, nrGenes) = readDimensions(megacell).get
 
     val genes = readGeneNames(megacell).get
@@ -80,7 +81,7 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
       }
   }
 
-  it should "write a top 10K cells matrix to column vector Parquet" in {
+  it should "write a top 10K cells matrix to column vector Parquet" taggedAs Server in {
     val (_, nrGenes) = readDimensions(megacell).get
 
     val genes = readGeneNames(megacell).get
@@ -130,7 +131,7 @@ class MegacellParquetSpec extends FlatSpec with DataFrameSuiteBase with Matchers
     MegacellReader.toColumnDataFrame(spark, csc, genesInRange)
   }
 
-  it should "read the dataframe from column vector Parquet" in {
+  it should "read the dataframe from column vector Parquet" taggedAs Server in {
     val df = spark.read.parquet(megacellColumnsParquet + "_10k")
 
     df.show(20)

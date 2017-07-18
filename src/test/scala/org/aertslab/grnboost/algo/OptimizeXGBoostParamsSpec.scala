@@ -9,7 +9,7 @@ import org.aertslab.grnboost.algo.OptimizeXGBoostHyperParams._
 /**
   * @author Thomas Moerman
   */
-class OptimizeXGBoostParamsSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
+class OptimizeXGBoostParamsSpec extends FlatSpec with Matchers {
 
   behavior of "creating folds"
 

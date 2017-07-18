@@ -3,7 +3,7 @@ package org.aertslab.grnboost.cases.megacell
 import org.apache.spark.sql.SparkSession
 import org.joda.time.DateTime.now
 import org.aertslab.grnboost._
-import org.aertslab.grnboost.cases.DataReader._
+import DataReader._
 import org.aertslab.grnboost.util.IOUtils.writeToFile
 import org.aertslab.grnboost.util.TimeUtils._
 
@@ -69,7 +69,7 @@ object MegacellInference {
     val (_, duration) = profile {
 
       val ds = spark.read.parquet(parquet).as[ExpressionByGene].cache
-      val TFs = readTFs(mouseTFs).toSet
+      val TFs = readRegulators(mouseTFs).toSet
 
       val totalCellCount = ds.head.values.size
 

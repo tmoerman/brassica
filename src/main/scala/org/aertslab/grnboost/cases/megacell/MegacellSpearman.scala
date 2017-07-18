@@ -1,7 +1,7 @@
 package org.aertslab.grnboost.cases.megacell
 
 import org.apache.spark.sql.SparkSession
-import org.aertslab.grnboost.cases.DataReader.readTFs
+import org.aertslab.grnboost.DataReader.readRegulators
 import org.aertslab.grnboost.util.RankUtils.saveSpearmanCorrelationMatrix
 import org.aertslab.grnboost.util.TimeUtils._
 import org.aertslab.grnboost.{ExpressionByGene, GRN_BOOST}
@@ -33,7 +33,7 @@ object MegacellSpearman {
 
     val (_, duration) = profile {
       val ds = spark.read.parquet(parquet).as[ExpressionByGene].cache
-      val TFs = readTFs(mouseTFs).toSet
+      val TFs = readRegulators(mouseTFs).toSet
       val cellIndicesSubSet = Source.fromFile(cellSubSetFile).getLines.filterNot(_.isEmpty).map(_.trim.toInt).toSeq
 
       val slicedByCells = ds.slice(cellIndicesSubSet)

@@ -4,9 +4,10 @@ import java.lang.Runtime.getRuntime
 
 import org.apache.spark.sql.SaveMode.Overwrite
 import org.scalatest.{FlatSpec, Matchers}
-import org.aertslab.grnboost.{GRNBoost, XGBoostOptimizationParams, GRNBoostSuiteBase}
+import org.aertslab.grnboost.{GRNBoost, GRNBoostSuiteBase, XGBoostOptimizationParams}
 import org.aertslab.grnboost.util.PropsReader.props
-import org.aertslab.grnboost.cases.DataReader._
+import org.aertslab.grnboost.DataReader._
+import org.aertslab.grnboost.Specs.Server
 
 /**
   * @author Thomas Moerman
@@ -27,10 +28,10 @@ class ZeiselFilteredOptimizationBenchmark extends FlatSpec with GRNBoostSuiteBas
       // nrBatches = 88,
       onlyBestTrial = false)
 
-  "Zeisel filtered optimization" should "run" in {
-    val expressionsByGene = readExpression(spark, zeiselFiltered)
+  "Zeisel filtered optimization" should "run" taggedAs Server ignore {
+    val expressionsByGene = readExpressionsByGene(spark, zeiselFiltered)
 
-    val TFs = readTFs(mouseTFs).toSet
+    val TFs = readRegulators(mouseTFs).toSet
 
     val optimizedHyperParamsDS =
       GRNBoost

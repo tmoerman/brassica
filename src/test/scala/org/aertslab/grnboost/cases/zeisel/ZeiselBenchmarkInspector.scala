@@ -2,8 +2,9 @@ package org.aertslab.grnboost.cases.zeisel
 
 import java.util.concurrent.TimeUnit._
 
-import org.scalatest.{Matchers, FlatSpec}
+import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost.GRNBoostSuiteBase
+import org.aertslab.grnboost.Specs.Server
 import org.aertslab.grnboost.util.TimeUtils
 
 import scala.concurrent.duration.Duration
@@ -13,7 +14,7 @@ import scala.concurrent.duration.Duration
   */
 class ZeiselBenchmarkInspector extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
-  "convert durations to seconds" should "run" in {
+  "convert durations to seconds" should "run" taggedAs Server in {
 
     val durations =
     (1,     (0, 0, 19))  ::
@@ -38,18 +39,6 @@ class ZeiselBenchmarkInspector extends FlatSpec with GRNBoostSuiteBase with Matc
       .mkString("\n")
 
     println(s)
-  }
-
-  "inspection" should "run" in {
-    import spark.implicits._
-
-    val path = "src/test/resources/out/zeisel_t19972_r100"
-
-    val df = spark.read.parquet(path)
-
-    df.filter($"target_name" === "Gad1").orderBy($"importance".desc).show()
-
-    println(path)
   }
 
 }

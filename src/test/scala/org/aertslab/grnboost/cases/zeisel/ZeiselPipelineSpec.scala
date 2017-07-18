@@ -2,8 +2,9 @@ package org.aertslab.grnboost.cases.zeisel
 
 import org.scalatest.{FlatSpec, Matchers}
 import org.aertslab.grnboost._
-import org.aertslab.grnboost.cases.DataReader._
+import DataReader._
 import org.aertslab.grnboost.util.PropsReader.props
+import org.scalatest.tagobjects.Slow
 
 /**
   * @author Thomas Moerman
@@ -13,12 +14,10 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   behavior of "Scenic pipeline on Zeisel"
 
   val boosterParams = Map(
-    "seed" -> 777,
-    "eta"              -> 0.1,
-    "subsample"        -> 0.8,
-    "colsample_bytree" -> 0.25,
-    "max_depth"        -> 1,
-    "silent" -> 1
+    "seed"      -> 777,
+    "eta"       -> 0.1,
+    "max_depth" -> 3,
+    "silent"    -> 1
   )
 
   val params =
@@ -26,17 +25,33 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
       nrRounds = 250,
       boosterParams = boosterParams)
 
-  val zeiselMrna = props("zeisel")
+  val zeiselMrna     = props("zeisel")
   val zeiselFiltered = props("zeiselFiltered")
+  val mouseTFs       = props("mouseTFs")
 
-  val mouseTFs = props("mouseTFs")
-
-  it should "run the embarrassingly parallel pipeline from raw" in {
+  it should "run the embarrassingly parallel pipeline from raw" taggedAs Slow in {
     import spark.implicits._
 
-    val TFs = readTFs(mouseTFs).toSet
+    val TFs = readRegulators(mouseTFs).toSet
 
     val expressionByGene = ZeiselReader.apply(spark, zeiselMrna)
+
+    val estimations =
+      GRNBoost
+        .roundsEstimations(
+          expressionByGene,
+          candidateRegulators = TFs,
+          targets = Set("Gad1"),
+          params = params)
+        .cache
+
+    estimations.show
+
+    import org.apache.spark.sql.functions._
+
+    val estimatedNrRounds = estimations.select(max("rounds")).first.getInt(0)
+
+    println(s"estimated nr of rounds: $estimatedNrRounds")
 
     val result =
       GRNBoost
@@ -44,7 +59,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
           expressionByGene,
           candidateRegulators = TFs,
           targets = Set("Gad1"),
-          params = params)
+          params = params.copy(nrRounds = estimatedNrRounds))
 
     println(params)
 
@@ -53,8 +68,8 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
       .show(250)
   }
 
-  it should "run on a slice of the cells" in {
-    val TFs = readTFs(mouseTFs).toSet
+  it should "run on a slice of the cells" taggedAs Slow in {
+    val TFs = readRegulators(mouseTFs).toSet
 
     val expressionByGene = ZeiselReader.apply(spark, zeiselMrna).slice(0 until 1000)
 
@@ -71,10 +86,12 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     result.show
   }
 
-  it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" in {
-    val TFs = readTFs(mouseTFs).toSet
+  it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" taggedAs Slow in {
+    import spark.implicits._
 
-    val expressionByGene = readExpression(spark, zeiselFiltered)
+    val TFs = readRegulators(mouseTFs).toSet
+
+    val expressionByGene = readExpressionsByGene(spark, zeiselFiltered)
 
     val result =
       GRNBoost
@@ -86,7 +103,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     println(params)
 
-    result.show
+    result.sort($"gain".desc).show
   }
 
   val zeiselParquet = props("zeiselParquet")

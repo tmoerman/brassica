@@ -8,11 +8,35 @@ import org.aertslab.grnboost.util.RankUtils.{saveSpearmanCorrelationMatrix, toRa
 import org.apache.commons.io.FileUtils
 import org.apache.commons.math3.stat.correlation.{PearsonsCorrelation, SpearmansCorrelation}
 import org.scalatest._
+import org.scalatest.tagobjects.Slow
 
 /**
   * @author Thomas Moerman
   */
 class RankUtilsSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
+
+  "correlation calculation" should "equal Pearson on ranks" in {
+    val a = Array(2d, 10d, 3d, 7d)
+    val b = Array(8d,  1d, 5d, 9d)
+
+    val sp1 = new SpearmansCorrelation().correlation(a, b)
+
+    val sp2 = new PearsonsCorrelation().correlation(toRankings(a).toArray, toRankings(b).toArray)
+
+    sp1 shouldBe sp2
+  }
+
+  "saveCorrelationMatrix" should "pass the smoke test on Dream data" taggedAs Slow in {
+    val (dataFile, tfFile) = network(2)
+
+    val (ds, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
+
+    val out = "src/test/resources/out/spearman"
+
+    FileUtils.deleteDirectory(new File(out))
+
+    saveSpearmanCorrelationMatrix(ds, tfs.toSet, out)
+  }
 
   behavior of "toRankings"
 
@@ -38,33 +62,6 @@ class RankUtilsSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     val list = List(1, 1, 1, 1, 1)
 
     toRankings(list).toSet shouldBe (1 to 5).toSet
-  }
-
-  behavior of "correlation calculation"
-
-  it should "equal Pearson on ranks" in {
-    val a = Array(2d, 10d, 3d, 7d)
-    val b = Array(8d,  1d, 5d, 9d)
-
-    val sp1 = new SpearmansCorrelation().correlation(a, b)
-
-    val sp2 = new PearsonsCorrelation().correlation(toRankings(a).toArray, toRankings(b).toArray)
-
-    sp1 shouldBe sp2
-  }
-
-  behavior of "saveCorrelationMatrix"
-
-  it should "pass the smoke test on Dream data" in {
-    val (dataFile, tfFile) = network(2)
-
-    val (ds, tfs) = Dream5Reader.readTrainingData(spark, dataFile, tfFile)
-
-    val out = "src/test/resources/out/spearman"
-
-    FileUtils.deleteDirectory(new File(out))
-
-    saveSpearmanCorrelationMatrix(ds, tfs.toSet, out)
   }
 
 }

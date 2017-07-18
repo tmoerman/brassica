@@ -1,14 +1,13 @@
 package org.aertslab.grnboost.cases.megacell
 
 import com.eharmony.spotz.optimizer.hyperparam.UniformDouble
-import org.apache.spark.sql.SaveMode.Overwrite
-import org.scalatest.{FlatSpec, Matchers}
+import org.aertslab.grnboost.DataReader.readRegulators
+import org.aertslab.grnboost.Specs.Server
 import org.aertslab.grnboost._
 import org.aertslab.grnboost.algo.OptimizeXGBoostHyperParams.Constantly
-import org.aertslab.grnboost.cases.DataReader
-import org.aertslab.grnboost.cases.DataReader.readTFs
-import org.aertslab.grnboost.cases.zeisel.ZeiselFilteredReader
 import org.aertslab.grnboost.util.PropsReader.props
+import org.apache.spark.sql.SaveMode.Overwrite
+import org.scalatest.{FlatSpec, Matchers}
 
 /**
   * @author Thomas Moerman
@@ -38,19 +37,19 @@ class MegacellOptimizationBenchmark extends FlatSpec with GRNBoostSuiteBase with
       onlyBestTrial = false
     )
 
-  val full         = props("megacellFull")
-  val optimization = props("megacellOptimization")
-
   val targets = Set("Sox10", "Tgfbi", "Gm11266", "Akirin1", "Abcb7", "Clca3b", "Yipf3")
 
-  "Megacell min_child_depth and rounds optimization on many cells" should "work" in {
+  "Megacell min_child_depth and rounds optimization on many cells" should "work" taggedAs Server ignore {
     optimizeSub(100000)
   }
 
   private def optimizeSub(nrCells: CellCount) = {
     import spark.implicits._
 
-    val TFs = readTFs(mouseTFs).toSet
+    val full         = props("megacellFull")
+    val optimization = props("megacellOptimization")
+
+    val TFs = readRegulators(mouseTFs).toSet
 
     val expressionsByGene = spark.read.parquet(full).as[ExpressionByGene]
 

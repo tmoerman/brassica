@@ -3,6 +3,7 @@ package org.aertslab.grnboost.cases.megacell
 import org.apache.spark.ml.linalg.BreezeMLConversions._
 import org.scalatest.{FlatSpec, Matchers}
 import MegacellReader._
+import org.aertslab.grnboost.Specs.Server
 import org.aertslab.grnboost.util.TimeUtils.profile
 
 /**
@@ -14,7 +15,7 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
 
   behavior of "Megacell reader"
 
-  it should "read sparse vectors, limit 1k" in {
+  it should "read sparse vectors, limit 1k" taggedAs Server in {
     val limit = Some(10)
 
     val vectors = MegacellReader.readRows(megacell, DoubleSparseVector, cellTop = limit).get
@@ -24,7 +25,7 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
     col13.toArray shouldBe COL_13
   }
 
-  it should "read sparse vectors, limited and restricted" in {
+  it should "read sparse vectors, limited and restricted" taggedAs Server in {
     val limit = Some(10)
 
     val predicate = Some(Set(7, 37))
@@ -44,11 +45,11 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
     col37.toArray shouldBe Array(1, 0, 2, 2, 0, 0, 0, 0, 0, 0)
   }
 
-  it should "read the matrix dimensions" in {
+  it should "read the matrix dimensions" taggedAs Server in {
     MegacellReader.readDimensions(megacell).get shouldBe (MEGACELL_CELL_COUNT, MEGACELL_GENE_COUNT)
   }
 
-  it should "read CSC matrix, limit 10" in {
+  it should "read CSC matrix, limit 10" taggedAs Server in {
     val limit = Some(10)
 
     val (_, nrGenes) = MegacellReader.readDimensions(megacell).get
@@ -63,7 +64,7 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
     col13.toArray.take(10) shouldBe COL_13
   }
 
-  it should "read CSC matrix, limit 1k" in {
+  it should "read CSC matrix, limit 1k" taggedAs Server in {
     val limit = Some(1000)
 
     val (_, nrGenes) = MegacellReader.readDimensions(megacell).get
@@ -82,7 +83,7 @@ class MegacellReaderSpec extends FlatSpec with Matchers {
     col13.toArray.take(10) shouldBe COL_13
   }
 
-  it should "parse the gene list correctly" in {
+  it should "parse the gene list correctly" taggedAs Server in {
     val genes = MegacellReader.readGeneNames(megacell).get
 
     genes.take(5) shouldBe List("Xkr4", "Gm1992", "Gm37381", "Rp1", "Rp1")

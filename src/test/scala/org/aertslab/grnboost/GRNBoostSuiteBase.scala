@@ -18,7 +18,7 @@ trait GRNBoostSuiteBase extends DataFrameSuiteBase { self: Suite =>
       .asInstanceOf[ch.qos.logback.classic.Logger]
       .setLevel(ch.qos.logback.classic.Level.INFO)
   } catch {
-    case e: Throwable => Unit // nom nom nom
+    case _: Throwable => Unit // nom nom nom
   }
 
   override def conf: SparkConf =
