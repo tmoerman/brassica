@@ -17,5 +17,8 @@ $SPARK_HOME/bin/spark-submit \
   infer \
   -i  /media/tmo/data/work/datasets/dream5/training\ data/Network\ 3\ -\ E.\ coli/net3_expression_data.transposed.tsv \
   -tf /media/tmo/data/work/datasets/dream5/training\ data/Network\ 3\ -\ E.\ coli/net3_transcription_factors.tsv \
-  -o  /media/tmo/data/work/datasets/dream5/grnboost/net3/net3_grnboost.tsv \
+  -o  /media/tmo/data/work/datasets/dream5/grnboost/net3/net3_grnboost_depth3.tsv \
+  -p eta=0.01 \
+  -p max_depth=3 \
+  -p colsample_bytree=0.055 \
   --truncate 100000
