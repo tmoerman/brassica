@@ -78,8 +78,8 @@ package object grnboost {
   val DEFAULT_BOOSTER_PARAMS: BoosterParams = Map(
     XGB_SILENT    -> 1,
     XGB_THREADS   -> 1,
-    XGB_ETA       -> 0.1,
-    XGB_MAX_DEPTH -> 3
+    XGB_ETA       -> 0.01,
+    XGB_MAX_DEPTH -> 1
   )
 
   implicit class BoosterParamsFunctions(boosterParams: BoosterParams) {
