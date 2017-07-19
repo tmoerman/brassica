@@ -113,9 +113,9 @@ object GRNBoost {
       truncated
         .map(nr => maybeNormalized.sort($"gain".desc).limit(nr))
         .getOrElse(maybeNormalized)
-
+    
     maybeTruncated
-      .sort($"regulator", $"gain".desc)
+      .sort($"gain".desc)
       .saveTxt(output.get.getAbsolutePath, includeFlags, delimiter)
 
     if (report) writeReport(started, output.get, sampleIndices, updatedInferenceConfig)
