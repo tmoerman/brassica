@@ -15,9 +15,9 @@ $SPARK_HOME/bin/spark-submit \
   --conf spark.eventLog.enabled=true \
   ./target/scala-2.11/GRNBoost.jar \
   infer \
-  -i  /media/tmo/data/work/datasets/dream5/training\ data/Network\ 1\ -\ in\ silico/net1_expression_data.transposed.tsv \
-  -tf /media/tmo/data/work/datasets/dream5/training\ data/Network\ 1\ -\ in\ silico/net1_transcription_factors.tsv \
-  -o  /media/tmo/data/work/datasets/dream5/grnboost/net1/net1_grnboost_legacy.tsv \
+  -i  /media/tmo/data/work/datasets/dream5/training\ data/Network\ 3\ -\ E.\ coli/net3_expression_data.transposed.tsv \
+  -tf /media/tmo/data/work/datasets/dream5/training\ data/Network\ 3\ -\ E.\ coli/net3_transcription_factors.tsv \
+  -o  /media/tmo/data/work/datasets/dream5/grnboost/net3/net3_grnboost_legacy.tsv \
   -p eta=0.15 \
   -p max_depth=6 \
   -p min_child_weight=6 \
