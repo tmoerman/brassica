@@ -49,7 +49,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
     updatedCfg.estimationSet.right.get.size shouldBe 2
   }
 
-  "run" should "pass smoke for 1 target" taggedAs Slow in {
+  "run" should "pass smoke test for 1 target" taggedAs Slow in {
     val outPath = "src/test/resources/zeisel/out.regularized.txt"
     val out  = new File(outPath)
 
@@ -61,7 +61,8 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
       "-tf", "src/test/resources/TF/mm9_TFs.txt",
       "-o", outPath,
       "--nr-estimation-genes", "2",
-      "--regularized",
+      "--regularized", "true",
+      "--normalized", "true",
       "--targets", "Gad1")
 
     val inferenceCfg = CLI.parse(args).get.xgb.get

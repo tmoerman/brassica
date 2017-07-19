@@ -95,16 +95,24 @@ object GRNBoost {
       else
         inferRegulations(maybeSampled, candidateRegulators, targets, updatedParams, parallelism)
 
+    // TODO re-write in monadic style.
+
     val maybeRegularized =
       if (regularized)
         withRegularizationLabels(regulations, updatedParams).filter($"include" === 1)
       else
         withRegularizationLabels(regulations, updatedParams)
 
+    val maybeNormalized =
+      if (normalized)
+        normalize(maybeRegularized)
+      else
+        maybeRegularized
+
     val maybeTruncated =
       truncated
-        .map(nr => maybeRegularized.sort($"gain".desc).limit(nr))
-        .getOrElse(maybeRegularized)
+        .map(nr => maybeNormalized.sort($"gain".desc).limit(nr))
+        .getOrElse(maybeNormalized)
 
     maybeTruncated
       .sort($"regulator", $"gain".desc)

@@ -154,7 +154,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .action{ case (nr, cfg) => cfg.modify(_.xgb.each.estimationSet).setTo(Left(nr)) }
 
   private val regularized =
-    opt[Unit]("regularized")
+    opt[Boolean]("regularized")
       .optional
       .text(
         """
@@ -163,7 +163,17 @@ object CLI extends OptionParser[Config]("GRNBoost") {
           |  When disabled, all regulations will be emitted.
           |  Use the 'include-flags' option to specify whether to output the include flags in the result list.
         """.stripMargin)
-      .action{ case (_, cfg) => cfg.modify(_.xgb.each.regularized).setTo(true) }
+      .action{ case (reg, cfg) => cfg.modify(_.xgb.each.regularized).setTo(reg) }
+
+  private val normalized =
+    opt[Boolean]("normalized")
+      .optional
+      .text(
+        """
+          |  Enable normalization by dividing the gain scores of the regulations per target over the sum of gain scores.
+          |  Default = false.
+        """.stripMargin)
+      .action{ case (norm, cfg) => cfg.modify(_.xgb.each.normalized).setTo(norm) }
 
   private val includeFlags =
     opt[Boolean]("include-flags")
@@ -319,6 +329,7 @@ case class ExtraTreesInferenceConfig() // TODO later
   * @param estimationSet A nr or set of genes to estimate the nr of boosting rounds, if no nr is specified.
   * @param nrFolds The nr of folds to use to estimate the nr of boosting rounds with cross validation.
   * @param regularized Use triangle cutoff to prune the inferred regulatory connections.
+  * @param normalized Divide the gains of the regulations per target by the sum of all regulations for that target.
   * @param includeFlags When true, the regularization include flags are also emitted in the output list.
   * @param targets A Set of target genes to infer the regulators for. Defaults to all.
   * @param boosterParams Booster parameters.
@@ -339,6 +350,7 @@ case class XGBoostConfig(input:             Option[File]            = None,
                          estimationSet:     Either[Int, Set[Gene]]  = Left(DEFAULT_ESTIMATION_SET),
                          nrFolds:           Int                     = DEFAULT_NR_FOLDS,
                          regularized:       Boolean                 = false,
+                         normalized:        Boolean                 = false,
                          includeFlags:      Boolean                 = false,
                          targets:           Set[Gene]               = Set.empty,
                          boosterParams:     BoosterParams           = DEFAULT_BOOSTER_PARAMS,

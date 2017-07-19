@@ -7,7 +7,9 @@ import org.aertslab.grnboost.algo.TriangleRegularization._
 import org.apache.commons.io.FileUtils.{copyFile, deleteDirectory}
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.types.FloatType
+import org.apache.spark.sql.{Column, Dataset}
+import org.apache.spark.sql.functions._
 
 import scala.util.Random
 
@@ -227,6 +229,29 @@ package object grnboost {
           .toDS
       )
       .getOrElse(ds)
+  }
+
+  /**
+    * @param agg Spark SQL aggregation function
+    * @return Returns the dataset, with gain scores normalized by an aggragation of the gain scores per target.
+    */
+  def normalize(ds: Dataset[Regulation], agg: Column => Column = sum): Dataset[Regulation] = {
+    import ds.sparkSession.implicits._
+
+    val aggImportanceByTarget =
+      ds
+        .groupBy($"target")
+        .agg(agg($"gain").as("aggregation"))
+
+    ds
+      .join(aggImportanceByTarget, ds("target") === aggImportanceByTarget("target"), "inner")
+      .withColumn("normalized", $"gain" / $"aggregation")
+      .select(
+        ds("regulator"),
+        ds("target"),
+        ds("include"),
+        $"normalized".as("gain").cast(FloatType))
+      .as[Regulation]
   }
 
   /**
