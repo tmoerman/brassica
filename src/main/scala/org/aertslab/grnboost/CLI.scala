@@ -262,7 +262,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
     .action{ (_, cfg) => cfg.copy(xgb = Some(XGBoostConfig())) }
     .children(
       input, skipHeaders, output, regulators, delimiter, outputFormat, sample, targets,
-      xgbParam, regularized, includeFlags, truncate, nrBoostingRounds, nrPartitions,
+      xgbParam, regularized, normalized, includeFlags, truncate, nrBoostingRounds, nrPartitions,
       estimationGenes, nrEstimationGenes, iterated, dryRun, configRun, report)
 
   cmd("about")
