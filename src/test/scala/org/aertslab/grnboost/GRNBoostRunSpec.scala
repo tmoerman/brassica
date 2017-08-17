@@ -72,7 +72,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     updatedCfg.estimationSet.right.get.size shouldBe 2
 
-    Source.fromFile(outPath).getLines.size shouldBe 14
+    Source.fromFile(outPath).getLines.size shouldBe 13
   }
 
 }
