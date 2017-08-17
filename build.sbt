@@ -22,15 +22,14 @@ libraryDependencies ++= Seq(
 
   "ml.dmlc" % "xgboost4j" % "[0.7,)" % "provided" exclude("com.esotericsoftware.kryo", "kryo"),
 
-  "com.jsuereth"  %% "scala-arm"  % "2.0",
-  "com.eharmony"   % "spotz-core" % "1.0.0",
-
+  "com.jsuereth"               %% "scala-arm" % "2.0",
   "com.softwaremill.quicklens" %% "quicklens" % "1.4.8",
   "com.github.scopt"           %% "scopt"     % "3.6.0",
 
   "org.scalactic" %% "scalactic"  % "3.0.1",
   "LLNL"           % "spark-hdf5" % "0.0.4"  % "provided",
 
+  "ch.qos.logback"  %  "logback-classic"    % "1.2.3"       % "test",
   "com.holdenkarau" %% "spark-testing-base" % "2.1.1_0.7.1" % "test"
 
 )
