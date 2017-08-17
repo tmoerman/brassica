@@ -2,7 +2,6 @@ package org.aertslab
 
 import java.io.File
 
-import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
 import org.aertslab.grnboost.algo.TriangleRegularization._
 import org.apache.commons.io.FileUtils.{copyFile, deleteDirectory}
 import org.apache.spark.ml.feature.VectorSlicer
@@ -26,8 +25,7 @@ package object grnboost {
   type Index = Long
   type Gene  = String
 
-  type BoosterParams     = Map[String, Any]
-  type BoosterParamSpace = Map[String, RandomSampler[_]]
+  type BoosterParams = Map[String, Any]
 
   type CellIndex = Int
   type CellCount = Int
@@ -93,19 +91,6 @@ package object grnboost {
       boosterParams.updated("seed", seed)
 
   }
-
-  val DEFAULT_BOOSTER_PARAM_SPACE: BoosterParamSpace = Map(
-    // model complexity
-    "max_depth"        -> UniformInt(3, 10),
-    "min_child_weight" -> UniformDouble(1, 15),
-
-    // robustness to noise
-    "subsample"        -> UniformDouble(0.5, 1.0),
-    "colsample_bytree" -> UniformDouble(0.5, 1.0),
-
-    // learning rate
-    "eta"              -> UniformDouble(0.01, 0.2)
-  )
 
   /**
     * @param gene The gene name.
@@ -294,35 +279,6 @@ package object grnboost {
     * @param lossDelta The loss delta over the window.
     */
   case class EarlyStopParams(size: Int = 10, lossDelta: Float = 0.01f)
-
-  /**
-    * Data structure holding parameters for XGBoost regression optimization.
-    *
-    * @param boosterParamSpace The space of booster parameters to search through for an optimal set.
-    * @param evalMetric The n-fold evaluation metric, default "rmse".
-    * @param nrTrials The number of random search trials per batch. Typically one batch per target is used,
-    *                         and batches are parallelized in different partitions.
-    * @param nrFolds The nr of cross validation folds in which to splice the training data.
-    * @param maxNrRounds The maximum number of boosting rounds.
-    * @param earlyStopParams Optional early stopping parameters.
-    * @param seed The seed for computing the random n folds.
-    * @param onlyBestTrial Specifies whether to return only the best trial or all trials for a target gene.
-    */
-  case class XGBoostOptimizationParams(boosterParamSpace: BoosterParamSpace = DEFAULT_BOOSTER_PARAM_SPACE,
-                                       extraBoosterParams: BoosterParams = Map.empty,
-                                       evalMetric: String = DEFAULT_EVAL_METRIC,
-                                       nrTrials: Int = 1000,
-                                       nrFolds: Int = DEFAULT_NR_FOLDS,
-
-                                       maxNrRounds: Int = DEFAULT_MAX_BOOSTING_ROUNDS,
-                                       earlyStopParams: Option[EarlyStopParams] = Some(EarlyStopParams()),
-
-                                       seed: Seed = DEFAULT_SEED,
-                                       onlyBestTrial: Boolean = true) {
-
-    assert(nrFolds > 0, s"nr folds must be greater than 0 (specified: $nrFolds) ")
-
-  }
 
   /**
     * @param seed The random seed.
