@@ -20,7 +20,7 @@ resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/mave
 
 libraryDependencies ++= Seq(
 
-  "ml.dmlc"        % "xgboost4j"  % "0.7"   exclude("com.esotericsoftware.kryo", "kryo"),
+  "ml.dmlc" % "xgboost4j" % "[0.7,)" % "provided" exclude("com.esotericsoftware.kryo", "kryo"),
 
   "com.jsuereth"  %% "scala-arm"  % "2.0",
   "com.eharmony"   % "spotz-core" % "1.0.0",
@@ -31,7 +31,6 @@ libraryDependencies ++= Seq(
   "org.scalactic" %% "scalactic"  % "3.0.1",
   "LLNL"           % "spark-hdf5" % "0.0.4"  % "provided",
 
-  //"com.holdenkarau" %% "spark-testing-base" % "2.0.0_0.6.0" % "test"
   "com.holdenkarau" %% "spark-testing-base" % "2.1.1_0.7.1" % "test"
 
 )
