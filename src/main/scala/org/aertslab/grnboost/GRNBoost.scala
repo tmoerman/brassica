@@ -14,6 +14,7 @@ import org.joda.time.DateTime
 import org.joda.time.DateTime.now
 import org.joda.time.format.DateTimeFormat
 
+import scala.Console.{err, out}
 import scala.reflect.ClassTag
 import scala.util.{Random, Try}
 
@@ -37,8 +38,8 @@ object GRNBoost {
   def main(args: Array[String]): Unit =
     CLI(args: _*) match {
       case Some(Config(Some(xgbConfig))) => run(xgbConfig)
-      case Some(Config(None))            => println(ABOUT)
-      case _                             => println("Input validation failure occurred, see error message above.")
+      case Some(Config(None))            => out.print(ABOUT) // TODO log4j or console out for CLI messages?
+      case _                             => err.print("Input validation failure occurred, see error message above.")
     }
 
   /**

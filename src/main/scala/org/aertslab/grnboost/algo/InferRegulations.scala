@@ -18,7 +18,7 @@ case class InferRegulationsIterated(params: XGBoostRegressionParams,
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
-    println(s"-> target: $targetGene \t regulator: $targetIsRegulator")
+    log.debug(s"-> target: $targetGene \t regulator: $targetIsRegulator")
 
     val (matrix, result) = if (targetIsRegulator) {
       val targetColumnIndex = regulators.zipWithIndex.find(_._1 == targetGene).get._2
@@ -65,7 +65,7 @@ case class InferRegulations(params: XGBoostRegressionParams)
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
-    println(s"-> target: $targetGene \t regulator: $targetIsRegulator \t partition: $partitionIndex")
+    log.debug(s"-> target: $targetGene \t regulator: $targetIsRegulator \t partition: $partitionIndex")
 
     if (targetIsRegulator) {
       // drop the target gene column from the regulator CSC matrix and create a new DMatrix
