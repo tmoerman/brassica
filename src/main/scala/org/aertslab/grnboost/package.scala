@@ -4,6 +4,8 @@ import java.io.File
 
 import org.aertslab.grnboost.algo.TriangleRegularization._
 import org.apache.commons.io.FileUtils.{copyFile, deleteDirectory}
+import org.apache.log4j.Logger
+import org.apache.log4j.Logger.getLogger
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.sql.Dataset
@@ -72,6 +74,8 @@ package object grnboost {
   val XGB_SEED      = "seed"
   val XGB_METRIC    = "eval_metric"
   val XGB_MAX_DEPTH = "max_depth"
+
+  @transient val log: Logger = getLogger(GRN_BOOST)
 
   val DEFAULT_BOOSTER_PARAMS: BoosterParams = Map(
     XGB_SILENT    -> 1,

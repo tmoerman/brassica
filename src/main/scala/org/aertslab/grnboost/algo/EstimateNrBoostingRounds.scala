@@ -41,7 +41,7 @@ case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
-    println(s"estimating nr boosting rounds -> target: $targetGene \t regulator: $targetIsRegulator \t partition: $partitionIndex")
+    log.debug(s"estimating nr boosting rounds -> target: $targetGene \t regulator: $targetIsRegulator \t partition: $partitionIndex")
 
     val foldIndices = indicesByFold(nrFolds, regulatorCSC.rows, seed)
 
