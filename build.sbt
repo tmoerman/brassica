@@ -4,6 +4,8 @@ organization := "org.aertslab"
 name         := "GRNBoost"
 description  := "A scalable gene regulatory network inference library"
 
+scalacOptions += "-target:jvm-1.7"
+
 scalaVersion := "2.11.11"
 sparkVersion := "2.1.0"
 sparkComponents ++= Seq("core", "mllib", "sql", "hive")
