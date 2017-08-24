@@ -37,5 +37,5 @@ libraryDependencies ++= Seq(
 )
 
 // assembly config
-assemblyJarName := "GRNBoost.jar"
+assemblyJarName := "GRNBoost-jvm-1.7.jar"
 test in assembly := {}
