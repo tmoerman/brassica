@@ -127,7 +127,7 @@ object GRNBoost {
 
     val ds = readExpressionsByGene(spark, input.get, skipHeaders, delimiter, missing).cache
 
-    val candidateRegulators = regulators.map(readRegulators).getOrElse(ds.genes).toSet
+    val candidateRegulators = readRegulators(spark, regulators.get)
 
     val (sampleIndices, maybeSampled) =
       sample
