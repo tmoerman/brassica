@@ -81,7 +81,7 @@ object MegacellReader {
                   rowFn: RowFn[R],
                   cellTop: Option[CellCount] = None,
                   genePredicate: Option[GeneIndex => Boolean] = None): Try[List[R]] =
-    managed(HDF5FactoryProvider.get.openForReading(hdf5))
+    managed(HDF5FactoryProvider.get.openForReading(hdf5.file))
       .map{ reader => readRows(reader, rowFn, cellTop, genePredicate) }
       .tried
 
@@ -143,7 +143,7 @@ object MegacellReader {
   def readCSCMatrix(hdf5: Path,
                     cellTop: Option[CellCount] = None,
                     onlyGeneIndices: Option[Seq[GeneIndex]] = None): Try[CSCMatrix[Expression]] =
-    managed(HDF5FactoryProvider.get.openForReading(hdf5))
+    managed(HDF5FactoryProvider.get.openForReading(hdf5.file))
       .map{ reader => readCSCMatrix(reader, cellTop, onlyGeneIndices) }
       .tried
 
@@ -190,7 +190,7 @@ object MegacellReader {
     * @return Returns tuple (cell count, gene count).
     */
   def readDimensions(hdf5: Path): Try[(CellCount, GeneCount)] =
-    managed(HDF5FactoryProvider.get.openForReading(hdf5))
+    managed(HDF5FactoryProvider.get.openForReading(hdf5.file))
       .map(readDimensions)
       .tried
 
@@ -204,7 +204,7 @@ object MegacellReader {
   }
 
   def readGeneNames(hdf5: Path): Try[List[Gene]] =
-    managed(HDF5FactoryProvider.get.openForReading(hdf5))
+    managed(HDF5FactoryProvider.get.openForReading(hdf5.file))
       .map(readGeneNames)
       .tried
 

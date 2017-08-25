@@ -109,7 +109,7 @@ object GRNBoost {
 
     maybeTruncated
       .sort($"gain".desc)
-      .saveTxt(output.get.getAbsolutePath, includeFlags, delimiter)
+      .saveTxt(output.get, includeFlags, delimiter)
     
     if (report) writeReport(started, output.get, sampleIndices, updatedInferenceConfig)
 
@@ -125,9 +125,9 @@ object GRNBoost {
   private def prepRun(spark: SparkSession, xgbConfig: XGBoostConfig, protoParams: XGBoostRegressionParams) = {
     import xgbConfig._
 
-    val ds = readExpressionsByGene(spark, input.get.getAbsolutePath, skipHeaders, delimiter, missing).cache
+    val ds = readExpressionsByGene(spark, input.get, skipHeaders, delimiter, missing).cache
 
-    val candidateRegulators = regulators.map(file => readRegulators(file.getAbsolutePath)).getOrElse(ds.genes).toSet
+    val candidateRegulators = regulators.map(readRegulators).getOrElse(ds.genes).toSet
 
     val (sampleIndices, maybeSampled) =
       sample
@@ -178,7 +178,7 @@ object GRNBoost {
   }
 
   private def writeReport(started: DateTime,
-                          output: File,
+                          output: Path,
                           sampleIndices: Option[Seq[CellIndex]],
                           inferenceConfig: XGBoostConfig): Unit = {
 

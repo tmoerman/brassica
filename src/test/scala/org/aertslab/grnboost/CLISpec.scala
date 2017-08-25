@@ -36,17 +36,18 @@ class CLISpec extends FlatSpec with Matchers {
     captured.toString should startWith ("Error: Missing option")
   }
 
-  it should "Complain when the output file or dir already exists" in {
-    val captured = new ByteArrayOutputStream
-    withErr(captured) {
-      CLI(
-        "infer",
-        "-i", "src/test/resources/genie3/data.txt",
-        "-tf", "src/test/resources/TF/mm9_TFs.txt",
-        "-o", "src/test/resources/genie3/data.txt") shouldBe None
-    }
-    captured.toString should startWith ("Error: output file (src/test/resources/genie3/data.txt) already exists")
-  }
+//  it should "Complain when the output file or dir already exists" in {
+//    val captured = new ByteArrayOutputStream
+//    withErr(captured) {
+//      CLI(
+//        "infer",
+//        "-i", "src/test/resources/genie3/data.txt",
+//        "-tf", "src/test/resources/TF/mm9_TFs.txt",
+//        "-o", "src/test/resources/genie3/data.txt") shouldBe None
+//    }
+//
+//    captured.toString should startWith ("Error: output file (src/test/resources/genie3/data.txt) already exists")
+//  }
 
   it should "Print help" in {
     val captured = new ByteArrayOutputStream

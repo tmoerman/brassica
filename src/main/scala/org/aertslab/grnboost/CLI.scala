@@ -1,10 +1,8 @@
 package org.aertslab.grnboost
 
-import java.io.File
-
-import scopt.OptionParser
 import com.softwaremill.quicklens._
 import org.aertslab.grnboost.DataReader.DEFAULT_MISSING
+import scopt.OptionParser
 import scopt.RenderingMode.OneColumn
 
 import scala.util.Try
@@ -16,10 +14,9 @@ import scala.util.Try
 object CLI extends OptionParser[Config]("GRNBoost") {
 
   private val input =
-    opt[File]("input").abbr("i")
+    opt[Path]("input").abbr("i")
       .required
       .valueName("<file>")
-      .validate(file => if (file.exists) success else failure(s"Input file ($file) does not exist."))
       .text(
         """
           |  REQUIRED. Input file or directory.
@@ -27,10 +24,9 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .action{ case (file, cfg) => cfg.modify(_.xgb.each.input).setTo(Some(file)) }
 
   private val output =
-    opt[File]("output").abbr("o")
+    opt[Path]("output").abbr("o")
       .required
       .valueName("<file>")
-      .validate(file => if (file.exists) failure(s"output file ($file) already exists") else success)
       .text(
         """
           |  REQUIRED. Output directory.
@@ -38,10 +34,9 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .action{ case (file, cfg) => cfg.modify(_.xgb.each.output).setTo(Some(file)) }
 
   private val regulators =
-    opt[File]("regulators").abbr("tf")
+    opt[Path]("regulators").abbr("tf")
       .required
       .valueName("<file>")
-      .validate(file => if (file.exists) success else failure(s"Regulators file ($file) does not exist."))
       .text(
         """
           |  REQUIRED. Text file containing the regulators (transcription factors), one regulator per line.
@@ -326,9 +321,9 @@ case class ExtraTreesInferenceConfig() // TODO later
   * @param report Write a report to file.
   * @param iterated Hidden, experimental. Use iterated DMatrix initialization instead of copying.
   */
-case class XGBoostConfig(input:             Option[File]            = None,
-                         regulators:        Option[File]            = None,
-                         output:            Option[File]            = None,
+case class XGBoostConfig(input:             Option[Path]            = None,
+                         regulators:        Option[Path]            = None,
+                         output:            Option[Path]            = None,
                          skipHeaders:       Int                     = 0,
                          delimiter:         String                  = "\t",
                          outputFormat:      Format                  = LIST,

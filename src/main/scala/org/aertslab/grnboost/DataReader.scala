@@ -77,7 +77,11 @@ object DataReader {
     * @param path The file path as a String.
     * @return Returns java.io.File(path)
     */
-  implicit def pimpPath(path: String): File = new File(path)
+  implicit class PimpedPath(path: Path) {
+
+    def file = new File(path)
+
+  }
 
   /**
     * @param file
