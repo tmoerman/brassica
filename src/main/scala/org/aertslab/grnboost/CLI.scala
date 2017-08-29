@@ -63,16 +63,10 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """.stripMargin)
       .action{ case (del, cfg) => cfg.modify(_.xgb.each.delimiter).setTo(del) }
 
-//  private val missing = // FIXME complete this
-//    opt[Double]("missing")
-//      .optional
-//      .valueName("<value>")
-//      .text()
-
   private val outputFormat =
     opt[String]("output-format")
       .optional
-      .hidden // FIXME implement this functionality
+      .hidden // TODO implement this functionality
       .valueName("<list|matrix|parquet>")
       .validate(string =>
         Try(Format(string))
@@ -88,12 +82,12 @@ object CLI extends OptionParser[Config]("GRNBoost") {
     opt[Double]("sample").abbr("s")
       .optional
       .valueName("<nr>")
-      .validate(pct => if (pct <= 0f || pct > 1f) failure("sample-pct must be > 0.0 && <= 1.0.") else success)
+      .validate(nr => if (nr <= 0) failure("sample must be > 0") else success)
       .text(
         """
           |  Use a sample of size <nr> of the observations to infer the GRN.
         """.stripMargin)
-      .action{ case (nr, cfg) => cfg.modify(_.xgb.each.sample.each).setTo(nr.toInt) }
+      .action{ case (nr, cfg) => cfg.modify(_.xgb.each.sampleSize.each).setTo(nr.toInt) }
 
   private val targets =
     opt[Seq[Gene]]("targets")
