@@ -22,7 +22,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 250,
+      nrRounds = Some(250),
       boosterParams = boosterParams)
 
   val zeiselMrna     = props("zeisel")
@@ -41,7 +41,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
         .nrBoostingRoundsEstimations(
           expressionByGene,
           candidateRegulators = TFs,
-          targets = Set("Gad1"),
+          targetGenes = Set("Gad1"),
           params = params)
         .cache
 
@@ -58,8 +58,8 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
         .inferRegulations(
           expressionByGene,
           candidateRegulators = TFs,
-          targets = Set("Gad1"),
-          params = params.copy(nrRounds = estimatedNrRounds))
+          targetGenes = Set("Gad1"),
+          params = params.copy(nrRounds = Some(estimatedNrRounds)))
 
     println(params)
 
@@ -78,7 +78,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
         .inferRegulations(
           expressionByGene,
           candidateRegulators = TFs,
-          targets = Set("Gad1"),
+          targetGenes = Set("Gad1"),
           params = params)
 
     println(params)
@@ -98,7 +98,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
         .inferRegulations(
           expressionByGene,
           candidateRegulators = TFs,
-          targets = Set("Gad1"),
+          targetGenes = Set("Gad1"),
           params = params)
 
     println(params)

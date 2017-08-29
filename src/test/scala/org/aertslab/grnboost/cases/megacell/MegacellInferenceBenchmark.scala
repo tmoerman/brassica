@@ -23,7 +23,7 @@ class MegacellInferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Ma
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 12,
+      nrRounds = Some(12),
       boosterParams = boosterParamsBio)
 
   "Megacell Gene Network Inference" should "work on a lot of cells" taggedAs Server in {

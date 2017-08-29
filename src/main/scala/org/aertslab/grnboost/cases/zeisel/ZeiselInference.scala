@@ -21,7 +21,7 @@ object ZeiselInference {
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 1000,
+      nrRounds = Some(1000),
       boosterParams = boosterParams)
 
   def main(args: Array[String]): Unit = {
@@ -64,7 +64,7 @@ object ZeiselInference {
 
           val currentParams =
             params.copy(
-              nrRounds = currentNrRounds,
+              nrRounds = Some(currentNrRounds),
               boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads))
 
           val regulations =

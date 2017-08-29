@@ -28,7 +28,7 @@ class ZeiselFilteredInferenceBenchmark extends FlatSpec with GRNBoostSuiteBase w
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 50,
+      nrRounds = Some(50),
       boosterParams = boosterParams)
 
   val zeiselFiltered = props("zeiselFiltered")
@@ -64,7 +64,7 @@ class ZeiselFilteredInferenceBenchmark extends FlatSpec with GRNBoostSuiteBase w
               .inferRegulations(
                 expressionByGene,
                 candidateRegulators = TFs,
-                targets = targets.toSet,
+                targetGenes = targets.toSet,
                 params = params,
                 nrPartitions = Some(spark.sparkContext.defaultParallelism))
               .repartition(1)

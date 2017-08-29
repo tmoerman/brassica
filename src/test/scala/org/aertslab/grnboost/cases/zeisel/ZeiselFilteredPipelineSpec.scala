@@ -29,7 +29,7 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Ma
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 7,
+      nrRounds = Some(7),
       boosterParams = boosterParams)
 
   it should "run the emb.par pipeline on filtered (cfr. Sara) zeisel data" taggedAs Server in {
@@ -44,7 +44,7 @@ class ZeiselFilteredPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Ma
         .inferRegulations(
           expressionByGene,
           candidateRegulators = TFs,
-          targets = Set("Sox10"),
+          targetGenes = Set("Sox10"),
           params = params)
         .cache
 

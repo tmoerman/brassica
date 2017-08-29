@@ -25,7 +25,7 @@ object MegacellInference {
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = nrRounds,
+      nrRounds = Some(nrRounds),
       boosterParams = boosterParams)
 
   def main(args: Array[String]): Unit = {
@@ -93,7 +93,7 @@ object MegacellInference {
             candidateRegulators = TFs,
             params = params.copy(
               boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads)),
-            targets = targetSet,
+            targetGenes = targetSet,
             nrPartitions = Some(nrPartitions))
           .cache
       
