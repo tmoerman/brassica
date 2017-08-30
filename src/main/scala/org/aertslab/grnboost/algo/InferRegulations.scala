@@ -3,8 +3,8 @@ package org.aertslab.grnboost.algo
 import breeze.linalg.CSCMatrix
 import ml.dmlc.xgboost4j.scala.{Booster, DMatrix, XGBoost}
 import org.aertslab.grnboost._
+import org.aertslab.grnboost.algo.InferRegulations._
 import org.aertslab.grnboost.util.BreezeUtils._
-import InferRegulations._
 import org.apache.spark.annotation.Experimental
 
 /**
@@ -16,9 +16,9 @@ import org.apache.spark.annotation.Experimental
   * @param regulatorCSC The CSC expression matrix from which to distill
   */
 @Experimental
-case class InferRegulationsIterated(params: XGBoostRegressionParams,
-                                    regulators: List[Gene],
-                                    regulatorCSC: CSCMatrix[Expression]) {
+case class InferRegulationsIterated(params: XGBoostRegressionParams)
+                                   (regulators: List[Gene],
+                                    regulatorCSC: CSCMatrix[Expression]) extends Task[Regulation] {
 
   def apply(expressionByGene: ExpressionByGene): Iterable[Regulation] = {
 

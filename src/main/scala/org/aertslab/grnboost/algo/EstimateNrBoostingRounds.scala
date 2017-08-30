@@ -23,9 +23,9 @@ import org.apache.spark.annotation.Experimental
   * @param regulatorCSC The CSC expression matrix from which to distill
   */
 @Experimental
-case class EstimateNrBoostingRoundsIterated(params: XGBoostRegressionParams,
-                                            regulators: List[Gene],
-                                            regulatorCSC: CSCMatrix[Expression]) {
+case class EstimateNrBoostingRoundsIterated(params: XGBoostRegressionParams)
+                                           (regulators: List[Gene],
+                                            regulatorCSC: CSCMatrix[Expression]) extends Task[RoundsEstimation] {
   import params._
 
   def apply(expressionByGene: ExpressionByGene): Iterable[RoundsEstimation] = {
