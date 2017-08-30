@@ -26,7 +26,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     val (_, params) = GRNBoost.run(inferenceCfg)
 
-    inferenceCfg.goal shouldBe DRY_RUN
+    inferenceCfg.runMode shouldBe DRY_RUN
 
     println(params)
   }
@@ -60,6 +60,33 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
       "-i", zeiselFiltered, "--skip-headers", "1",
       "-tf", "src/test/resources/TF/mm9_TFs.txt",
       "-o", outPath,
+      "--nr-estimation-genes", "2",
+      "--regularized",
+      "--targets", "Gad1")
+
+    val inferenceCfg = CLI.parse(args).get.xgb.get
+
+    inferenceCfg.regularized shouldBe true
+
+    val (updatedCfg, _) = GRNBoost.run(inferenceCfg)
+
+    updatedCfg.estimationSet.right.get.size shouldBe 2
+
+    Source.fromFile(outPath).getLines.size shouldBe 13
+  }
+
+  "run" should "pass smoke for 1 target, iterated" taggedAs Slow in {
+    val outPath = "src/test/resources/zeisel/out.regularized.txt"
+    val out  = new File(outPath)
+
+    deleteQuietly(out)
+
+    val args = Array(
+      "infer",
+      "-i", zeiselFiltered, "--skip-headers", "1",
+      "-tf", "src/test/resources/TF/mm9_TFs.txt",
+      "-o", outPath,
+      "--iterated",
       "--nr-estimation-genes", "2",
       "--regularized",
       "--targets", "Gad1")

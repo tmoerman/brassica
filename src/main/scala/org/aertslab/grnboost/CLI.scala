@@ -1,10 +1,8 @@
 package org.aertslab.grnboost
 
-import java.io.File
-
-import scopt.OptionParser
 import com.softwaremill.quicklens._
 import org.aertslab.grnboost.DataReader.DEFAULT_MISSING
+import scopt.OptionParser
 import scopt.RenderingMode.OneColumn
 
 import scala.util.Try
@@ -16,10 +14,9 @@ import scala.util.Try
 object CLI extends OptionParser[Config]("GRNBoost") {
 
   private val input =
-    opt[File]("input").abbr("i")
+    opt[Path]("input").abbr("i")
       .required
       .valueName("<file>")
-      .validate(file => if (file.exists) success else failure(s"Input file ($file) does not exist."))
       .text(
         """
           |  REQUIRED. Input file or directory.
@@ -27,10 +24,9 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .action{ case (file, cfg) => cfg.modify(_.xgb.each.input).setTo(Some(file)) }
 
   private val output =
-    opt[File]("output").abbr("o")
+    opt[Path]("output").abbr("o")
       .required
       .valueName("<file>")
-      .validate(file => if (file.exists) failure(s"output file ($file) already exists") else success)
       .text(
         """
           |  REQUIRED. Output directory.
@@ -38,10 +34,9 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .action{ case (file, cfg) => cfg.modify(_.xgb.each.output).setTo(Some(file)) }
 
   private val regulators =
-    opt[File]("regulators").abbr("tf")
+    opt[Path]("regulators").abbr("tf")
       .required
       .valueName("<file>")
-      .validate(file => if (file.exists) success else failure(s"Regulators file ($file) does not exist."))
       .text(
         """
           |  REQUIRED. Text file containing the regulators (transcription factors), one regulator per line.
@@ -68,16 +63,10 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """.stripMargin)
       .action{ case (del, cfg) => cfg.modify(_.xgb.each.delimiter).setTo(del) }
 
-//  private val missing = // FIXME complete this
-//    opt[Double]("missing")
-//      .optional
-//      .valueName("<value>")
-//      .text()
-
   private val outputFormat =
     opt[String]("output-format")
       .optional
-      .hidden // FIXME implement this functionality
+      .hidden // TODO implement this functionality
       .valueName("<list|matrix|parquet>")
       .validate(string =>
         Try(Format(string))
@@ -93,12 +82,12 @@ object CLI extends OptionParser[Config]("GRNBoost") {
     opt[Double]("sample").abbr("s")
       .optional
       .valueName("<nr>")
-      .validate(pct => if (pct <= 0f || pct > 1f) failure("sample-pct must be > 0.0 && <= 1.0.") else success)
+      .validate(nr => if (nr <= 0) failure("sample must be > 0") else success)
       .text(
         """
           |  Use a sample of size <nr> of the observations to infer the GRN.
         """.stripMargin)
-      .action{ case (nr, cfg) => cfg.modify(_.xgb.each.sample.each).setTo(nr.toInt) }
+      .action{ case (nr, cfg) => cfg.modify(_.xgb.each.sampleSize.each).setTo(nr.toInt) }
 
   private val targets =
     opt[Seq[Gene]]("targets")
@@ -154,7 +143,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .action{ case (nr, cfg) => cfg.modify(_.xgb.each.estimationSet).setTo(Left(nr)) }
 
   private val regularized =
-    opt[Unit]("regularized")
+    opt[Unit]("regularized") //TODO make boolean instead of side effecting
       .optional
       .text(
         """
@@ -203,7 +192,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  Inference nor auto-config will launch if this flag is set. Use for parameters inspection.
         """.stripMargin)
-      .action{ case (_, cfg) => cfg.modify(_.xgb.each.goal).setTo(DRY_RUN) }
+      .action{ case (_, cfg) => cfg.modify(_.xgb.each.runMode).setTo(DRY_RUN) }
 
   private val configRun =
     opt[Unit]("cfg-run")
@@ -212,7 +201,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  Auto-config will launch, inference will not if this flag is set. Use for config testing.
         """.stripMargin)
-      .action{ case (_, cfg) => cfg.modify(_.xgb.each.goal).setTo(CFG_RUN) }
+      .action{ case (_, cfg) => cfg.modify(_.xgb.each.runMode).setTo(CFG_RUN) }
 
   private val report =
     opt[Boolean]("report")
@@ -268,12 +257,6 @@ object CLI extends OptionParser[Config]("GRNBoost") {
 
 }
 
-/*
-TODO
-- importance score: SUM_GAIN, AVG_GAIN,
-- outCols: gain, freq
-*/
-
 trait BaseConfig extends Product {
 
   override def toString = this.toMap.mkString("\n")
@@ -282,10 +265,26 @@ trait BaseConfig extends Product {
 
 case class Config(xgb: Option[XGBoostConfig] = None) extends BaseConfig
 
-sealed trait Goal
-case object DRY_RUN extends Goal // only inspect configuration params
-case object CFG_RUN extends Goal // add estimation of boosting rounds to params
-case object INF_RUN extends Goal // perform the inference
+/**
+  * Trait representing the GRNBoost run mode.
+  */
+sealed trait RunMode
+
+/**
+  * Only inspect the configuration parameters. No boosting rounds estimation nor inference is performed.
+  */
+case object DRY_RUN extends RunMode
+
+/**
+  * Perform estimation of the number of boosting rounds if necessary. Do not perform actual inference.
+  */
+case object CFG_RUN extends RunMode
+
+/**
+  * Perform estimation of the number of boosting rounds if necessary. Update the inference parameters with estimated
+  * number of boosting rounds value and perform the gene regulatory network inference.
+  */
+case object INF_RUN extends RunMode
 
 sealed trait Format
 case object LIST    extends Format
@@ -303,8 +302,6 @@ object Format {
 
 }
 
-case class ExtraTreesInferenceConfig() // TODO later
-
 /**
   * @param input Required. The input file.
   * @param regulators File containing regulator genes. Expects on gene per line.
@@ -312,7 +309,7 @@ case class ExtraTreesInferenceConfig() // TODO later
   * @param skipHeaders The number of header lines to ignore in the input file.
   * @param delimiter The delimiter used to parse the input file. Default: TAB.
   * @param outputFormat The output format: list, matrix or parquet.
-  * @param sample The nr of randomly sampled observations to take into account in the inference.
+  * @param sampleSize The nr of randomly sampled cells to take into account in the inference.
   * @param nrPartitions The nr of Spark partitions to use for inference.
   * @param truncated The max nr of regulatory connections to return.
   * @param nrBoostingRounds The nr of boosting rounds.
@@ -322,17 +319,17 @@ case class ExtraTreesInferenceConfig() // TODO later
   * @param includeFlags When true, the regularization include flags are also emitted in the output list.
   * @param targets A Set of target genes to infer the regulators for. Defaults to all.
   * @param boosterParams Booster parameters.
-  * @param goal The goal: dry-run, configuration or inference.
+  * @param runMode The goal: dry-run, configuration or inference.
   * @param report Write a report to file.
   * @param iterated Hidden, experimental. Use iterated DMatrix initialization instead of copying.
   */
-case class XGBoostConfig(input:             Option[File]            = None,
-                         regulators:        Option[File]            = None,
-                         output:            Option[File]            = None,
+case class XGBoostConfig(input:             Option[Path]            = None,
+                         regulators:        Option[Path]            = None,
+                         output:            Option[Path]            = None,
                          skipHeaders:       Int                     = 0,
                          delimiter:         String                  = "\t",
                          outputFormat:      Format                  = LIST,
-                         sample:            Option[Int]             = None,
+                         sampleSize:        Option[Int]             = None,
                          nrPartitions:      Option[Int]             = None,
                          truncated:         Option[Int]             = None,
                          nrBoostingRounds:  Option[Int]             = None,
@@ -342,7 +339,7 @@ case class XGBoostConfig(input:             Option[File]            = None,
                          includeFlags:      Boolean                 = false,
                          targets:           Set[Gene]               = Set.empty,
                          boosterParams:     BoosterParams           = DEFAULT_BOOSTER_PARAMS,
-                         goal:              Goal                    = INF_RUN,
+                         runMode:           RunMode                 = INF_RUN,
                          report:            Boolean                 = true,
                          iterated:          Boolean                 = false,
                          missing:           Set[Double]             = DEFAULT_MISSING) extends BaseConfig

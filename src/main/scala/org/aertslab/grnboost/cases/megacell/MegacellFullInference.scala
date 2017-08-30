@@ -87,7 +87,7 @@ object MegacellFullInference {
 
           val params =
             new XGBoostRegressionParams(
-              nrRounds = nrBoostingRounds,
+              nrRounds = Some(nrBoostingRounds),
               boosterParams = boosterParams)
 
           val outDir = s"$out/full.stumps.$nrBoostingRounds.rounds.phase.${phaseIndex + nrSkipPhases}"

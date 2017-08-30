@@ -23,7 +23,7 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 670,
+      nrRounds = Some(670),
       boosterParams = boosterParams)
 
   "Dream5 regulation inference" should "run" taggedAs Server in {

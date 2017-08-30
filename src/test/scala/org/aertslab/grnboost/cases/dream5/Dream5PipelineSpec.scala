@@ -20,7 +20,7 @@ class Dream5PipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 25,
+      nrRounds = Some(25),
       boosterParams = boosterParams)
 
   behavior of "ScenicPipeline on DREAM5"
@@ -35,7 +35,7 @@ class Dream5PipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
         .inferRegulations(
           expressionByGene,
           candidateRegulators = tfs.toSet,
-          targets = Set("G666"),
+          targetGenes = Set("G666"),
           params = params)
 
     println(params)

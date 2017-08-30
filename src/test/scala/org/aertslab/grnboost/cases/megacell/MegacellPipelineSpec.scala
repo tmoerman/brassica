@@ -27,7 +27,7 @@ class MegacellPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 5000,
+      nrRounds = Some(5000),
       boosterParams = boosterParams)
 
   val parquet = "src/test/resources/parquet/megacell"
@@ -55,7 +55,7 @@ class MegacellPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers
         .inferRegulations(
           ds,
           candidateRegulators = TFs,
-          targets = Set("Lamp3"),
+          targetGenes = Set("Lamp3"),
           params = params)
 
     println(params)

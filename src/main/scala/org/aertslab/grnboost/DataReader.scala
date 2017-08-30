@@ -55,6 +55,20 @@ object DataReader {
   }
 
   /**
+    * @param spark
+    * @param path
+    * @return Returns the Set of candidate regulators read from specified path.
+    */
+  def readRegulators(spark: SparkSession, path: Path): Set[Path] =
+    spark
+      .sparkContext
+      .textFile(path)
+      .map(_.trim)
+      .filter(! _.isEmpty)
+      .collect
+      .toSet
+
+  /**
     * @param spark The SparkSession.
     * @param ds The Dataset of ExpressionByGene instances.
     * @return Returns the List of genes.
@@ -77,7 +91,11 @@ object DataReader {
     * @param path The file path as a String.
     * @return Returns java.io.File(path)
     */
-  implicit def pimpPath(path: String): File = new File(path)
+  implicit class PimpedPath(path: Path) {
+
+    def file = new File(path)
+
+  }
 
   /**
     * @param file

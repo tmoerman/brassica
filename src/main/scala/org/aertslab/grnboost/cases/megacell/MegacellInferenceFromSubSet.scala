@@ -56,7 +56,7 @@ object MegacellInferenceFromSubSet {
 
     val params =
       XGBoostRegressionParams(
-        nrRounds = nrRounds,
+        nrRounds = Some(nrRounds),
         boosterParams = boosterParams + (XGB_THREADS -> nrThreads))
 
     val spark =

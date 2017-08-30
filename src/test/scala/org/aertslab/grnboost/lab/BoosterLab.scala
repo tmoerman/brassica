@@ -53,7 +53,7 @@ class BoosterLab extends FlatSpec with GRNBoostSuiteBase with Matchers { self: S
 
     val params =
       XGBoostRegressionParams(
-        nrRounds = 100,
+        nrRounds = Some(100),
         boosterParams = boosterParams)
 
     val dMatrix = regulatorCSC.copyToUnlabeledDMatrix

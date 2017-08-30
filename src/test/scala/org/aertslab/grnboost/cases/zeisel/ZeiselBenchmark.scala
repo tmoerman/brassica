@@ -27,7 +27,7 @@ class ZeiselBenchmark extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 25,
+      nrRounds = Some(25),
       boosterParams = boosterParams)
 
   val zeiselMrna = props("zeisel")
@@ -61,7 +61,7 @@ class ZeiselBenchmark extends FlatSpec with GRNBoostSuiteBase with Matchers {
             .inferRegulations(
               expressionByGene,
               candidateRegulators = TFs,
-              targets = targets.toSet,
+              targetGenes = targets.toSet,
               params = params,
               nrPartitions = Some(spark.sparkContext.defaultParallelism))
 

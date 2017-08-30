@@ -21,7 +21,7 @@ object MacoskoInference {
 
   val params =
     XGBoostRegressionParams(
-      nrRounds = 250,
+      nrRounds = Some(250),
       boosterParams = boosterParams)
 
   def main(args: Array[String]): Unit = {
@@ -64,7 +64,7 @@ object MacoskoInference {
 
           val currentParams =
             params.copy(
-              nrRounds = currentNrRounds,
+              nrRounds = Some(currentNrRounds),
               boosterParams = params.boosterParams + (XGB_THREADS -> nrThreads))
 
           val regulations =

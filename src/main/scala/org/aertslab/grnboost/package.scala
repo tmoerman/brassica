@@ -20,6 +20,7 @@ import scala.util.Random
 package object grnboost {
 
   val GRN_BOOST = "GRNBoost"
+  val URL       = "https://github.com/aertslab/GRNBoost/"
 
   type Path = String
 
@@ -36,6 +37,7 @@ package object grnboost {
   type Round     = Int
   type Seed      = Int
   type FoldNr    = Int
+  type Partition = Int
 
   type Expression = Float
   type Importance = Float
@@ -84,6 +86,10 @@ package object grnboost {
     XGB_MAX_DEPTH -> 1
   )
 
+  /**
+    * Pimp-my-class addon functions.
+    * @param boosterParams The implicit instance to wrap.
+    */
   implicit class BoosterParamsFunctions(boosterParams: BoosterParams) {
 
     def withDefaults: BoosterParams =
@@ -100,7 +106,7 @@ package object grnboost {
     * @param gene The gene name.
     * @param values The sparse expression vector.
     */
-  case class ExpressionByGene(gene: Gene, values: MLVector) { // TODO rename values -> "expression"
+  case class ExpressionByGene(gene: Gene, values: MLVector) {
     def response: Array[Expression] = values.toArray.map(_.toFloat)
   }
 
@@ -130,17 +136,20 @@ package object grnboost {
         .as[ExpressionByGene]
 
     /**
-      * @param sampleSize
-      * @return Returns the sample indices and the sampled Dataset.
+      * Create a new Dataset, with only the expression values per gene for a subset of cells, of specified size.
+      * The expression vectors in the new Dataset will have length equal to the sample size.
+      *
+      * @param nrCells The nr of cells to take into account in the sub-sampled Dataset.
+      * @return Returns the cell indices of the sub-sample and the resulting Dataset.
       */
-    def subSample(sampleSize: Int): (Option[Seq[CellIndex]], Dataset[ExpressionByGene]) = {
+    def subSample(nrCells: Int): (Seq[CellIndex], Dataset[ExpressionByGene]) = {
       val count = ds.head.values.size
 
-      if (sampleSize >= count) (None, ds)
+      if (nrCells >= count) (Nil, ds)
       else {
-        val subset = randomSubset(sampleSize, 0 until count)
+        val subset = randomSubset(nrCells, 0 until count)
 
-        (Some(subset), ds.slice(subset).cache)
+        (subset, ds.slice(subset).cache)
       }
     }
 
@@ -266,7 +275,7 @@ package object grnboost {
     * @param regularize Whether to use the L-curve cutoff strategy if Some. Contains threshold parameter.
     */
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
-                                     nrRounds: Int,
+                                     nrRounds: Option[Int] = None,
                                      nrFolds: Int = DEFAULT_NR_FOLDS,
                                      regularize: Option[Double] = Some(DEFAULT_PRECISION)) {
 
