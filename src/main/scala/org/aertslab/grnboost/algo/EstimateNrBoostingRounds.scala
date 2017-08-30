@@ -12,6 +12,51 @@ import org.aertslab.grnboost._
 import org.aertslab.grnboost.algo.EstimateNrBoostingRounds._
 import org.aertslab.grnboost.util.BreezeUtils._
 import TriangleRegularization.inflectionPointIndex
+import org.apache.spark.annotation.Experimental
+
+/**
+  * Experimental Implementation where the XGBoost DMatrix is constructed with a batch iterator instead of copying the
+  * CSC arrays. This approach is slower but has better memory usage characteristics.
+  *
+  * @param params The regression parameters.
+  * @param regulators The list of regulator genes (transcription factors).
+  * @param regulatorCSC The CSC expression matrix from which to distill
+  */
+@Experimental
+case class EstimateNrBoostingRoundsIterated(params: XGBoostRegressionParams,
+                                            regulators: List[Gene],
+                                            regulatorCSC: CSCMatrix[Expression]) {
+  import params._
+
+  def apply(expressionByGene: ExpressionByGene): Iterable[RoundsEstimation] = {
+
+    val targetGene        = expressionByGene.gene
+    val targetIsRegulator = regulators.contains(targetGene)
+
+    log.debug(s"estimating nr boosting rounds -> target: $targetGene \t regulator: $targetIsRegulator")
+
+    Some(regulatorCSC)
+      .map(csc =>
+        if (targetIsRegulator) {
+          val targetColumnIndex = regulators.zipWithIndex.find(_._1 == targetGene).get._2
+          csc.dropColumn(targetColumnIndex)
+        } else {
+          csc
+        })
+      .map(_.iterateToLabeledDMatrix(expressionByGene.response))
+      .map(labeledMatrix => {
+        val foldIndices = indicesByFold(nrFolds, regulatorCSC.rows, seed)
+
+        val result = estimateBoostingRounds(nrFolds, targetGene, params, labeledMatrix, foldIndices)
+
+        labeledMatrix.delete()
+
+        result.toIterable
+      })
+      .get
+  }
+
+}
 
 /**
   * A Partition Task for estimating the number of boosting rounds in function of a chosen XGBoost learning rate (eta).
@@ -23,34 +68,32 @@ import TriangleRegularization.inflectionPointIndex
   * The inflection point is found in a lazy fashion, where increasing boosting rounds are evaluated on the presence of
   * an inflection point.
   *
-  * @author Thomas Moerman
+  * @param params The regression parameters.
+  * @param regulators The list of regulator genes (transcription factors).
+  * @param regulatorCSC The CSC expression matrix from which to distill
+  * @param partition The index of the Spark partition.
   */
 case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
                                    (regulators: List[Gene],
                                     regulatorCSC: CSCMatrix[Expression],
-                                    partitionIndex: Int) extends PartitionTask[RoundsEstimation] {
+                                    partition: Partition) extends PartitionTask[RoundsEstimation] {
   import params._
 
   private[this] val cachedRegulatorDMatrix = regulatorCSC.copyToUnlabeledDMatrix
 
-  /**
-    * @param expressionByGene The current target gene and its expression vector.
-    * @return Returns the inferred Regulation instances for one ExpressionByGene instance.
-    */
   override def apply(expressionByGene: ExpressionByGene): Iterable[RoundsEstimation] = {
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
-    log.debug(s"estimating nr boosting rounds -> target: $targetGene \t regulator: $targetIsRegulator \t partition: $partitionIndex")
+    log.debug(s"estimating nr boosting rounds -> target: $targetGene \t regulator: $targetIsRegulator \t partition: $partition")
 
     val foldIndices = indicesByFold(nrFolds, regulatorCSC.rows, seed)
 
     if (targetIsRegulator) {
-      // drop the target gene column from the regulator CSC matrix and create a new DMatrix
       val targetColumnIndex = regulators.zipWithIndex.find(_._1 == targetGene).get._2
       val cleanRegulatorDMatrix = regulatorCSC.dropColumn(targetColumnIndex).copyToUnlabeledDMatrix
 
-      cleanRegulatorDMatrix.setLabel(expressionByGene.response)
+      cleanRegulatorDMatrix.setLabel(expressionByGene.response) // !! Side effect !!
 
       val result = estimateBoostingRounds(nrFolds, targetGene, params, cleanRegulatorDMatrix, foldIndices)
 
@@ -58,7 +101,7 @@ case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
 
       result
     } else {
-      cachedRegulatorDMatrix.setLabel(expressionByGene.response)
+      cachedRegulatorDMatrix.setLabel(expressionByGene.response) // !! Side effect !!
 
       val result = estimateBoostingRounds(nrFolds, targetGene, params, cachedRegulatorDMatrix, foldIndices)
 
@@ -74,6 +117,8 @@ case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
 
 /**
   * Pure functions factored out for testing and elegant composition purposes.
+  *
+  * @author Thomas Moerman
   */
 object EstimateNrBoostingRounds {
 
@@ -90,6 +135,7 @@ object EstimateNrBoostingRounds {
     *                  function of the fold slices.
     * @param maxRounds The maximum nr of boosting rounds to try.
     * @param incRounds The increment of boosting rounds for lazily finding the inflection point.
+    *
     * @return Returns a Seq of RoundsEstimation instances.
     */
   def estimateBoostingRounds(nrFolds: Int,
