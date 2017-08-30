@@ -72,7 +72,11 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     updatedCfg.estimationSet.right.get.size shouldBe 2
 
-    Source.fromFile(outPath).getLines.size shouldBe 13
+    val lines = Source.fromFile(outPath).getLines.toList
+
+    lines.size shouldBe 13
+
+    println(lines.mkString("\n"))
   }
 
   "run" should "pass smoke for 1 target, iterated" taggedAs Slow in {
@@ -99,7 +103,11 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     updatedCfg.estimationSet.right.get.size shouldBe 2
 
-    Source.fromFile(outPath).getLines.size shouldBe 13
+    val lines = Source.fromFile(outPath).getLines.toList
+
+    lines.size shouldBe 13
+
+    println(lines.mkString("\n"))
   }
 
 }
