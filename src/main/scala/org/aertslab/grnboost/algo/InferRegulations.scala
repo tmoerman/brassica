@@ -5,10 +5,17 @@ import ml.dmlc.xgboost4j.scala.{Booster, DMatrix, XGBoost}
 import org.aertslab.grnboost._
 import org.aertslab.grnboost.util.BreezeUtils._
 import InferRegulations._
+import org.apache.spark.annotation.Experimental
 
 /**
-  * @author Thomas Moerman
+  * Experimental Implementation where the XGBoost DMatrix is constructred with a batch iterator instead of copying the
+  * CSC arrays. This approach is slower but has better memory usage characteristics.
+  *
+  * @param params The regression parameters.
+  * @param regulators The list of regulator genes (transcription factors).
+  * @param regulatorCSC The CSC expression matrix from which to distill
   */
+@Experimental
 case class InferRegulationsIterated(params: XGBoostRegressionParams,
                                     regulators: List[Gene],
                                     regulatorCSC: CSCMatrix[Expression]) {
@@ -18,62 +25,67 @@ case class InferRegulationsIterated(params: XGBoostRegressionParams,
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
-    log.debug(s"-> target: $targetGene \t regulator: $targetIsRegulator")
+    log.debug(s"inferring regulations -> target: $targetGene \t regulator: $targetIsRegulator")
 
-    val (matrix, result) = if (targetIsRegulator) {
-      val targetColumnIndex = regulators.zipWithIndex.find(_._1 == targetGene).get._2
+    val cleanRegulators = Some(regulators)
+      .map(regs =>
+        if (targetIsRegulator) {
+          regs.filterNot(_ == targetGene)
+        } else {
+          regs
+        })
 
-      val labeledMatrix =
-        regulatorCSC
-          .dropColumn(targetColumnIndex)
-          .iterateToLabeledDMatrix(expressionByGene.response)
+    val cleanRegulatorDMatrix = Some(regulatorCSC)
+      .map(csc =>
+        if (targetIsRegulator) {
+          val targetColumnIndex = regulators.zipWithIndex.find(_._1 == targetGene).get._2
+          csc.dropColumn(targetColumnIndex)
+        } else {
+          csc
+        })
+      .map(_.iterateToLabeledDMatrix(expressionByGene.response))
 
-      val cleanRegulators = regulators.filterNot(_ == targetGene)
+    (cleanRegulators zip cleanRegulatorDMatrix)
+      .headOption
+      .map{ case (regs, matrix) => {
+        val result = inferRegulations(params, targetGene, regs, matrix)
 
-      val result = inferRegulations(params, targetGene, cleanRegulators, labeledMatrix)
+        matrix.delete()
 
-      (labeledMatrix, result)
-    } else {
-      val labeledMatrix =
-        regulatorCSC
-          .iterateToLabeledDMatrix(expressionByGene.response)
-
-      val result = inferRegulations(params, targetGene, regulators, labeledMatrix)
-
-      (labeledMatrix, result)
-    }
-
-    matrix.delete()
-
-    result
+        result
+      }}
+      .get
   }
 
 }
 
+/**
+  * A Partition Task for inferring the regulations.
+  *
+  * @param params The regression parameters.
+  * @param regulators The list of regulator genes (transcription factors).
+  * @param regulatorCSC The CSC expression matrix from which to distill
+  * @param partition The index of the Spark partition.
+  */
 case class InferRegulations(params: XGBoostRegressionParams)
                            (regulators: List[Gene],
                             regulatorCSC: CSCMatrix[Expression],
-                            partitionIndex: Int) extends PartitionTask[Regulation] {
+                            partition: Partition) extends PartitionTask[Regulation] {
 
   private[this] val cachedRegulatorDMatrix = regulatorCSC.copyToUnlabeledDMatrix
 
-  /**
-    * @param expressionByGene The current target gene and its expression vector.
-    * @return Returns the inferred Regulation instances for one ExpressionByGene instance.
-    */
   override def apply(expressionByGene: ExpressionByGene): Iterable[Regulation] = {
     val targetGene        = expressionByGene.gene
     val targetIsRegulator = regulators.contains(targetGene)
 
-    log.debug(s"-> target: $targetGene \t regulator: $targetIsRegulator \t partition: $partitionIndex")
+    log.debug(s"inferring regulations -> target: $targetGene \t regulator: $targetIsRegulator \t partition: $partition")
 
     if (targetIsRegulator) {
-      // drop the target gene column from the regulator CSC matrix and create a new DMatrix
       val targetColumnIndex = regulators.zipWithIndex.find(_._1 == targetGene).get._2
       val cleanRegulatorDMatrix = regulatorCSC.dropColumn(targetColumnIndex).copyToUnlabeledDMatrix
       val cleanRegulators = regulators.filterNot(_ == targetGene)
 
-      cleanRegulatorDMatrix.setLabel(expressionByGene.response)
+      cleanRegulatorDMatrix.setLabel(expressionByGene.response) // !! Side effect !!
 
       val result = inferRegulations(params, targetGene, cleanRegulators, cleanRegulatorDMatrix)
 
@@ -81,7 +93,7 @@ case class InferRegulations(params: XGBoostRegressionParams)
 
       result
     } else {
-      cachedRegulatorDMatrix.setLabel(expressionByGene.response)
+      cachedRegulatorDMatrix.setLabel(expressionByGene.response) // !! Side effect !!
 
       val result = inferRegulations(params, targetGene, regulators, cachedRegulatorDMatrix)
 
@@ -95,15 +107,30 @@ case class InferRegulations(params: XGBoostRegressionParams)
 
 }
 
+/**
+  * Pure functions factored out for testing and elegant composition purposes.
+  *
+  * @author Thomas Moerman
+  */
 object InferRegulations {
 
+  /**
+    * Train the XGBoost regression model and extract the importance scores as regulations from the trained booster model.
+    *
+    * @param params The regression parameters.
+    * @param targetGene The target gene.
+    * @param regulators The List of regulator genes (transcription factors).
+    * @param regulatorDMatrix The DMatrix of regulator expression values.
+    *
+    * @return returns a Seq of Regulation instances.
+    */
   def inferRegulations(params: XGBoostRegressionParams,
                        targetGene: Gene,
                        regulators: List[Gene],
                        regulatorDMatrix: DMatrix): Seq[Regulation] = {
     import params._
 
-    val booster = XGBoost.train(regulatorDMatrix, boosterParams.withDefaults, nrRounds)
+    val booster = XGBoost.train(regulatorDMatrix, boosterParams.withDefaults, nrRounds.get)
 
     val regulations = toRegulations(targetGene, regulators, booster, params)
 
@@ -113,9 +140,12 @@ object InferRegulations {
   }
 
   /**
-    * @param targetGene
-    * @param regulators
-    * @param booster
+    * Extract the importance scores from the trained booster model and compose a sequence of Regulations.
+    *
+    * @param targetGene The target gene.
+    * @param regulators The List of regulator genes.
+    * @param booster The booster instance from which to extract the scores.
+    *
     * @return Returns the raw scores for regulation.
     */
   def toRegulations(targetGene: Gene,
@@ -125,7 +155,7 @@ object InferRegulations {
 
     val boosterModelDump = booster.getModelDump(withStats = true).toSeq
 
-    val scoresByGene = aggregateScoresByGene(params)(boosterModelDump)
+    val scoresByGene = aggregateImportanceScoresByGene(params)(boosterModelDump)
 
     scoresByGene
       .toSeq
@@ -142,7 +172,7 @@ object InferRegulations {
     * @return Returns the feature importance metrics parsed from all trees (amount == nr boosting rounds) in the
     *         specified trained booster model.
     */
-  def aggregateScoresByGene(params: XGBoostRegressionParams)(modelDump: ModelDump): Map[GeneIndex, Scores] =
+  def aggregateImportanceScoresByGene(params: XGBoostRegressionParams)(modelDump: ModelDump): Map[GeneIndex, Scores] =
     modelDump
       .flatMap(parseImportanceScores)
       .foldLeft(Map[GeneIndex, Scores]() withDefaultValue Scores.ZERO) { case (acc, (geneIndex, scores)) =>
@@ -178,11 +208,18 @@ object InferRegulations {
 
 }
 
+/**
+  * A "smart" tuple with plus-like operator.
+  *
+  * @param frequency
+  * @param gain
+  * @param cover
+  */
 case class Scores(frequency: Frequency,
                   gain: Gain,
                   cover: Cover) {
 
-  def |+|(that: Scores) = Scores(
+  def |+| (that: Scores) = Scores(
     this.frequency + that.frequency,
     this.gain      + that.gain,
     this.cover     + that.cover
