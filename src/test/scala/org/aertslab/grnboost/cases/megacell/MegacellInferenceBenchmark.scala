@@ -56,7 +56,7 @@ class MegacellInferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Ma
           sliced,
           candidateRegulators = TFs,
           params = params.copy(boosterParams = params.boosterParams + (XGB_THREADS -> nrThreadsPerRegression)),
-          targets = sliced.take(nrTargets).map(_.gene).toSet,
+          targetGenes = sliced.take(nrTargets).map(_.gene).toSet,
           nrPartitions = Some(nrCores / nrThreadsPerRegression))
         .cache()
 

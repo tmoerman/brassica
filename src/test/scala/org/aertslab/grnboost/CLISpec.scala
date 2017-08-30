@@ -67,7 +67,7 @@ class CLISpec extends FlatSpec with Matchers {
 
     val parsed = CLI.parse(args).get.xgb.get
 
-    parsed.goal            shouldBe DRY_RUN
+    parsed.runMode            shouldBe DRY_RUN
   }
 
   it should "capture target genes" in {

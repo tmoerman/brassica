@@ -26,7 +26,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     val (_, params) = GRNBoost.run(inferenceCfg)
 
-    inferenceCfg.goal shouldBe DRY_RUN
+    inferenceCfg.runMode shouldBe DRY_RUN
 
     println(params)
   }
