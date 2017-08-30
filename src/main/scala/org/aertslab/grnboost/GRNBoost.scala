@@ -19,6 +19,8 @@ import scala.reflect.ClassTag
 import scala.util.{Random, Try}
 
 /**
+  * The top-level GRNBoost functions.
+  *
   * @author Thomas Moerman
   */
 object GRNBoost {
@@ -314,6 +316,7 @@ object GRNBoost {
 
   /**
     * Alternative template function that works with batch-iterated XGBoost matrices instead of copied anc cached ones.
+    * A factory function creates the task executed in each flatMap step.
     *
     * @return Returns a Dataset of generic type equal to the generic type of the mapTaskFactory.
     */
@@ -358,6 +361,7 @@ object GRNBoost {
           task.apply(expressionByGene)
         })
 
+    // monadic pipeline pattern
     Some(expressionsByGene)
       .map(targetsOnly)
       .map(_.rdd)
@@ -426,6 +430,7 @@ object GRNBoost {
             Nil.iterator.asInstanceOf[Iterator[T]]
         }}
 
+    // monadic pipeline pattern
     Some(expressionsByGene)
       .map(targetsOnly)
       .map(_.rdd)
