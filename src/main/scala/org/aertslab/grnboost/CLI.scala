@@ -143,7 +143,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .action{ case (nr, cfg) => cfg.modify(_.xgb.each.estimationSet).setTo(Left(nr)) }
 
   private val regularized =
-    opt[Unit]("regularized")
+    opt[Unit]("regularized") //TODO make boolean instead of side effecting
       .optional
       .text(
         """
