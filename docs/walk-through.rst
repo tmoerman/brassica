@@ -1,2 +1,0 @@
-Walk-through example
-====================
