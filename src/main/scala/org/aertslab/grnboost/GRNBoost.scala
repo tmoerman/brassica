@@ -273,6 +273,8 @@ object GRNBoost {
                        params: XGBoostRegressionParams,
                        nrPartitions: Option[Count] = None): Dataset[Regulation] = {
 
+    import expressionsByGene.sparkSession.implicits._
+
     val partitionTaskFactory = InferRegulations(params)(_, _, _)
 
     computePartitioned(expressionsByGene, candidateRegulators, targetGenes, nrPartitions)(partitionTaskFactory)
@@ -298,6 +300,8 @@ object GRNBoost {
                                   targetGenes: Set[Gene] = Set.empty,
                                   params: XGBoostRegressionParams,
                                   nrPartitions: Option[Count] = None): Dataset[RoundsEstimation] = {
+
+    import expressionsByGene.sparkSession.implicits._
 
     val partitionTaskFactory = EstimateNrBoostingRounds(params)(_, _, _)
 
