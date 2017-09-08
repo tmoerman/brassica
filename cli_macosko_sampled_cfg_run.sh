@@ -18,6 +18,7 @@ $SPARK_HOME/bin/spark-submit \
   -i  /media/tmo/data/work/datasets/macosko/in/sampledEsetMR.tsv \
   -tf /home/tmo/work/batiskav/projects/brassica/src/test/resources/TF/mm9_TFs.txt \
   -o  /media/tmo/data/work/datasets/macosko/out/8ab4224/sampled \
+  -skip 1 \
   --regularized \
   --truncate 100000 \
   --cfg-run
