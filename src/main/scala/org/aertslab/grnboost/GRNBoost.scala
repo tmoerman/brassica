@@ -263,6 +263,8 @@ object GRNBoost {
                                params: XGBoostRegressionParams,
                                nrPartitions: Option[Count] = None): Dataset[Regulation] = {
 
+    import expressionsByGene.sparkSession.implicits._
+
     val taskFactory = InferRegulationsIterated(params)(_, _)
 
     computeMapped(expressionsByGene, candidateRegulators, targetGenes, nrPartitions)(taskFactory)
