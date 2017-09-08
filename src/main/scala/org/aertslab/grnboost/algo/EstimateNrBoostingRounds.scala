@@ -267,7 +267,9 @@ Stack trace returned 3 entries:
             matrix: DMatrix): (DMatrix, DMatrix) = {
 
     // val (trainSlices, testSlice) = indicesByFold.partition(_._1 != foldNr)
-    val (trainSlices, testSlice) = indicesByFold.partition(_._2.max != matrix.rowNum)
+    
+    val maxIndex = matrix.rowNum - 1
+    val (trainSlices, testSlice) = indicesByFold.partition(_._2.max != maxIndex)
 
     val trainIndices = trainSlices.values.flatten.toArray
     val testIndices  = testSlice.values.flatten.toArray
