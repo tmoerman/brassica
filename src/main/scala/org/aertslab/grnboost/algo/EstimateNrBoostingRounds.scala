@@ -265,14 +265,14 @@ Stack trace returned 3 entries:
   def cvSet(foldNr: FoldNr,
             indicesByFold: Map[FoldNr, List[CellIndex]],
             matrix: DMatrix): (DMatrix, DMatrix) = {
-
-    // val (trainSlices, testSlice) = indicesByFold.partition(_._1 != foldNr)
     
-    val maxIndex = matrix.rowNum - 1
-    val (trainSlices, testSlice) = indicesByFold.partition(_._2.max != maxIndex)
+    val folds = indicesByFold.values.toSeq.sortBy(-_.max)
+    val trainIndices = folds.slice(0, folds.size - 1).flatten.toArray
+    val testIndices  = folds.last.toArray
 
-    val trainIndices = trainSlices.values.flatten.toArray
-    val testIndices  = testSlice.values.flatten.toArray
+//    val (trainSlices, testSlice) = indicesByFold.partition(_._1 != foldNr)
+//    val trainIndices = trainSlices.values.flatten.toArray
+//    val testIndices  = testSlice.values.flatten.toArray
 
     (matrix.slice(trainIndices), matrix.slice(testIndices))
   }
