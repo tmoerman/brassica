@@ -89,9 +89,15 @@ case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
 
     val foldIndices = indicesByFold(nrFolds, regulatorCSC.rows, seed)
 
+    println(s"1. regulatorCSC.rows == ${regulatorCSC.rows}")
+
     if (targetIsRegulator) {
       val targetColumnIndex = regulators.zipWithIndex.find(_._1 == targetGene).get._2
       val cleanRegulatorDMatrix = regulatorCSC.dropColumn(targetColumnIndex).copyToUnlabeledDMatrix
+
+      println(s"2. cleanRegulatorDMatrix.rowNum == ${cleanRegulatorDMatrix.rowNum}")
+
+      println(s"3. foldIndices.max == {${foldIndices.values.map(_.max).mkString(", ")}}")
 
       cleanRegulatorDMatrix.setLabel(expressionByGene.response) // !! Side effect !!
 
@@ -102,6 +108,8 @@ case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
       result
     } else {
       cachedRegulatorDMatrix.setLabel(expressionByGene.response) // !! Side effect !!
+      
+      println(s"4. foldIndices.max == {${foldIndices.values.map(_.max).mkString(", ")}}")
 
       val result = estimateBoostingRounds(nrFolds, targetGene, params, cachedRegulatorDMatrix, foldIndices)
 
@@ -206,7 +214,40 @@ object EstimateNrBoostingRounds {
   }
 
   /*
-  
+
+Stack trace returned 3 entries:
+[bt] (0) /tmp/libxgboost4j3613404655505637268.so(XGDMatrixSliceDMatrix+0x11e2) [0x7f1d445977a2]
+[bt] (1) /tmp/libxgboost4j3613404655505637268.so(Java_ml_dmlc_xgboost4j_java_XGBoostJNI_XGDMatrixSliceDMatrix+0x59) [0x7f1d44588e09]
+[bt] (2) [0x7f39c05bca14]
+
+	at ml.dmlc.xgboost4j.java.XGBoostJNI.checkCall(XGBoostJNI.java:48)
+	at ml.dmlc.xgboost4j.java.DMatrix.slice(DMatrix.java:254)
+	at ml.dmlc.xgboost4j.scala.DMatrix.slice(DMatrix.scala:190)
+	at org.aertslab.grnboost.algo.EstimateNrBoostingRounds$.cvSet(EstimateNrBoostingRounds.scala:230)
+	at org.aertslab.grnboost.algo.EstimateNrBoostingRounds$.estimateBoostingRounds(EstimateNrBoostingRounds.scala:152)
+	at org.aertslab.grnboost.algo.EstimateNrBoostingRounds.apply(EstimateNrBoostingRounds.scala:106)
+	at org.aertslab.grnboost.GRNBoost$$anonf$$$$c9a52eb9e751ddafa65a765528d3f09b$$$$anonfun$apply$2.apply(GRNBoost.scala:437)
+	at org.aertslab.grnboost.GRNBoost$$anonf$$$$c9a52eb9e751ddafa65a765528d3f09b$$$$anonfun$apply$2.apply(GRNBoost.scala:436)
+	at scala.collection.Iterator$$anon$12.nextCur(Iterator.scala:434)
+	at scala.collection.Iterator$$anon$12.hasNext(Iterator.scala:440)
+	at scala.collection.Iterator$$anon$11.hasNext(Iterator.scala:408)
+	at org.apache.spark.sql.catalyst.expressions.GeneratedClass$GeneratedIterator.agg_doAggregateWithoutKey$(Unknown Source)
+	at org.apache.spark.sql.catalyst.expressions.GeneratedClass$GeneratedIterator.processNext(Unknown Source)
+	at org.apache.spark.sql.execution.BufferedRowIterator.hasNext(BufferedRowIterator.java:43)
+	at org.apache.spark.sql.execution.WholeStageCodegenExec$$anonfun$8$$anon$1.hasNext(WholeStageCodegenExec.scala:377)
+	at scala.collection.Iterator$$anon$11.hasNext(Iterator.scala:408)
+	at org.apache.spark.shuffle.sort.BypassMergeSortShuffleWriter.write(BypassMergeSortShuffleWriter.java:126)
+	at org.apache.spark.scheduler.ShuffleMapTask.runTask(ShuffleMapTask.scala:96)
+	at org.apache.spark.scheduler.ShuffleMapTask.runTask(ShuffleMapTask.scala:53)
+	at org.apache.spark.scheduler.Task.run(Task.scala:99)
+	at org.apache.spark.executor.Executor$TaskRunner.run(Executor.scala:282)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:748)
+  17/09/08 15:33:54 INFO TaskSetManager: Lost task 30.0 in stage 9.0 (TID 138) on localhost,
+  executor driver: ml.dmlc.xgboost4j.java.XGBoostError ([15:33:54] /home/tmo/work/batiskav/clones/xgboost/src/c_api/c_api.cc:402:
+
+  Check failed: static_cast<xgboost::bst_ulong>(ridx) < batch.size (11018 vs. 11016)
 
    */
 
