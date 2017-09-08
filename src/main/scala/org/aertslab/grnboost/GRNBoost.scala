@@ -10,6 +10,7 @@ import org.apache.spark.annotation.Experimental
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Column, Dataset, Encoder, SparkSession}
+import org.apache.spark.util.SizeEstimator
 import org.joda.time.DateTime
 import org.joda.time.DateTime.now
 import org.joda.time.format.DateTimeFormat
@@ -494,7 +495,7 @@ object GRNBoost {
         }
         .treeReduce(_ + _) // https://issues.apache.org/jira/browse/SPARK-2174
 
-    // println(s"Estimated size of regulator matrix broadcast variable: ${SizeEstimator.estimate(regulatorCSC)} bytes")
+    println(s"Estimated size of regulator matrix broadcast variable: ${SizeEstimator.estimate(regulatorCSC)} bytes")
 
     regulatorCSC
   }
