@@ -123,11 +123,7 @@ object GRNBoost {
           estimationTargetSet
       }
 
-      val roundsEstimations =
-        if (iterated)
-          nrBoostingRoundsEstimationsIterated(ds, candidateRegulators, estimationTargets, protoParams, parallelism)
-        else
-          nrBoostingRoundsEstimations(ds, candidateRegulators, estimationTargets, protoParams, parallelism)
+      val roundsEstimations = nrBoostingRoundsEstimationsIterated(ds, candidateRegulators, estimationTargets, protoParams, parallelism)
 
       val estimatedNrRounds = aggregateEstimate(roundsEstimations)
 
@@ -277,14 +273,12 @@ object GRNBoost {
                        params: XGBoostRegressionParams,
                        nrPartitions: Option[Count] = None): Dataset[Regulation] = {
 
-    import expressionsByGene.sparkSession.implicits._
-
     val partitionTaskFactory = InferRegulations(params)(_, _, _)
 
     computePartitioned(expressionsByGene, candidateRegulators, targetGenes, nrPartitions)(partitionTaskFactory)
   }
 
-  @Experimental
+
   def nrBoostingRoundsEstimationsIterated(expressionsByGene: Dataset[ExpressionByGene],
                                           candidateRegulators: Set[Gene],
                                           targetGenes: Set[Gene] = Set.empty,
@@ -298,13 +292,12 @@ object GRNBoost {
     computeMapped(expressionsByGene, candidateRegulators, targetGenes, nrPartitions)(taskFactory)
   }
 
+  @deprecated
   def nrBoostingRoundsEstimations(expressionsByGene: Dataset[ExpressionByGene],
                                   candidateRegulators: Set[Gene],
                                   targetGenes: Set[Gene] = Set.empty,
                                   params: XGBoostRegressionParams,
                                   nrPartitions: Option[Count] = None): Dataset[RoundsEstimation] = {
-
-    import expressionsByGene.sparkSession.implicits._
 
     val partitionTaskFactory = EstimateNrBoostingRounds(params)(_, _, _)
 

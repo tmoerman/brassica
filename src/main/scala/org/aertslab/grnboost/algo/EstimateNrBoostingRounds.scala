@@ -10,9 +10,8 @@ import ml.dmlc.xgboost4j.scala.DMatrix
 import ml.dmlc.xgboost4j.scala.XGBoostConversions._
 import org.aertslab.grnboost._
 import org.aertslab.grnboost.algo.EstimateNrBoostingRounds._
+import org.aertslab.grnboost.algo.TriangleRegularization.inflectionPointIndex
 import org.aertslab.grnboost.util.BreezeUtils._
-import TriangleRegularization.inflectionPointIndex
-import org.apache.spark.annotation.Experimental
 
 /**
   * Experimental Implementation where the XGBoost DMatrix is constructed with a batch iterator instead of copying the
@@ -22,7 +21,6 @@ import org.apache.spark.annotation.Experimental
   * @param regulators The list of regulator genes (transcription factors).
   * @param regulatorCSC The CSC expression matrix from which to distill
   */
-@Experimental
 case class EstimateNrBoostingRoundsIterated(params: XGBoostRegressionParams)
                                            (regulators: List[Gene],
                                             regulatorCSC: CSCMatrix[Expression]) extends Task[RoundsEstimation] {
@@ -68,11 +66,16 @@ case class EstimateNrBoostingRoundsIterated(params: XGBoostRegressionParams)
   * The inflection point is found in a lazy fashion, where increasing boosting rounds are evaluated on the presence of
   * an inflection point.
   *
+  * Deprecated because of a problem with dmatrix.slice:
+  *
+  *
+  *
   * @param params The regression parameters.
   * @param regulators The list of regulator genes (transcription factors).
   * @param regulatorCSC The CSC expression matrix from which to distill
   * @param partition The index of the Spark partition.
   */
+@deprecated
 case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
                                    (regulators: List[Gene],
                                     regulatorCSC: CSCMatrix[Expression],
