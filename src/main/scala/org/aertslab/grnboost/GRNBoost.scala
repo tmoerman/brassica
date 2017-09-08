@@ -9,7 +9,7 @@ import org.aertslab.grnboost.util.TimeUtils._
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
+import org.apache.spark.sql.{Column, Dataset, Encoder, SparkSession}
 import org.joda.time.DateTime
 import org.joda.time.DateTime.now
 import org.joda.time.format.DateTimeFormat
@@ -147,6 +147,7 @@ object GRNBoost {
       import spark.implicits._
 
       // narrowly-scoped functions closing over xgbConfig values, stitched together with a monad.
+
       def infer(ds: Dataset[ExpressionByGene]) =
         if (iterated)
           inferRegulationsIterated(ds, candidateRegulators, targets, updatedParams, parallelism)
@@ -159,6 +160,12 @@ object GRNBoost {
         else
           withRegularizationLabels(ds, updatedParams)
 
+      def normalize(ds: Dataset[Regulation]) =
+        if (normalized)
+          normalizedByAggregate(ds)
+        else
+          ds
+
       def truncate(ds: Dataset[Regulation]) =
         truncated
           .map(nr => ds.sort($"gain".desc).limit(nr))
@@ -169,9 +176,11 @@ object GRNBoost {
       def write(ds: Dataset[Regulation]) = ds.saveTxt(output.get, includeFlags, delimiter)
 
       // monadic pipeline pattern
+
       Some(maybeSampled)
         .map(infer)
         .map(regularize)
+        .map(normalize)
         .map(truncate)
         .map(sort)
         .foreach(write)
@@ -254,8 +263,6 @@ object GRNBoost {
                                params: XGBoostRegressionParams,
                                nrPartitions: Option[Count] = None): Dataset[Regulation] = {
 
-    import expressionsByGene.sparkSession.implicits._
-
     val taskFactory = InferRegulationsIterated(params)(_, _)
 
     computeMapped(expressionsByGene, candidateRegulators, targetGenes, nrPartitions)(taskFactory)
@@ -303,16 +310,21 @@ object GRNBoost {
 
   /**
     * @param estimations The Dataset of RoundsEstimation instances
-    *
+    * @param agg The aggregation function. Default = max.
     * @return Returns the final estimate of the nr of boosting rounds as a Try Option.
     */
-  def aggregateEstimate(estimations: Dataset[RoundsEstimation]) =
+  def aggregateEstimate(estimations: Dataset[RoundsEstimation],
+                        agg: Column => Column = max) = {
+
+    import estimations.sparkSession.implicits._
+
     Try {
       estimations
-        .select(max("rounds"))
+        .select(agg($"rounds"))
         .first
         .getInt(0)
     }.toOption
+  }
 
   /**
     * Alternative template function that works with batch-iterated XGBoost matrices instead of copied anc cached ones.
@@ -332,10 +344,10 @@ object GRNBoost {
     import spark.implicits._
 
     val regulators = expressionsByGene.genes.filter(candidateRegulators.contains)
-
     assert(regulators.nonEmpty, s"no regulators w.r.t. specified candidate regulators ${candidateRegulators.take(3).mkString(",")}...")
 
     val regulatorCSC = reduceToRegulatorCSCMatrix(expressionsByGene, regulators)
+
     val regulatorsBroadcast   = sc.broadcast(regulators)
     val regulatorCSCBroadcast = sc.broadcast(regulatorCSC)
 
@@ -387,11 +399,12 @@ object GRNBoost {
     val sc = spark.sparkContext
     import spark.implicits._
 
+    // FIXME extract these so that the regulatorCSC size can be included in the report
     val regulators = expressionsByGene.genes.filter(candidateRegulators.contains)
-
     assert(regulators.nonEmpty, s"no regulators w.r.t. specified candidate regulators ${candidateRegulators.take(3).mkString(",")}...")
 
     val regulatorCSC = reduceToRegulatorCSCMatrix(expressionsByGene, regulators)
+
     val regulatorsBroadcast   = sc.broadcast(regulators)
     val regulatorCSCBroadcast = sc.broadcast(regulatorCSC)
 
@@ -458,25 +471,30 @@ object GRNBoost {
     def isPredictor(gene: Gene) = regulatorIndexMap.contains(gene)
     def cscIndex(gene: Gene)    = regulatorIndexMap.apply(gene)
 
-    expressionsByGene
-      .rdd
-      .filter(e => isPredictor(e.gene))
-      .mapPartitions{ it =>
-        val matrixBuilder = new CSCMatrix.Builder[Expression](rows = nrCells, cols = nrGenes)
+    val regulatorCSC =
+      expressionsByGene
+        .rdd
+        .filter(e => isPredictor(e.gene))
+        .mapPartitions{ it =>
+          val matrixBuilder = new CSCMatrix.Builder[Expression](rows = nrCells, cols = nrGenes)
 
-        it.foreach { case ExpressionByGene(gene, expression) =>
+          it.foreach { case ExpressionByGene(gene, expression) =>
 
-          val geneIdx = cscIndex(gene)
+            val geneIdx = cscIndex(gene)
 
-          expression
-            .foreachActive{ (cellIdx, value) =>
-              matrixBuilder.add(cellIdx, geneIdx, value.toFloat)
-            }
+            expression
+              .foreachActive{ (cellIdx, value) =>
+                matrixBuilder.add(cellIdx, geneIdx, value.toFloat)
+              }
+          }
+
+          Iterator(matrixBuilder.result)
         }
+        .treeReduce(_ + _) // https://issues.apache.org/jira/browse/SPARK-2174
 
-        Iterator(matrixBuilder.result)
-      }
-      .treeReduce(_ + _) // https://issues.apache.org/jira/browse/SPARK-2174
+    // println(s"Estimated size of regulator matrix broadcast variable: ${SizeEstimator.estimate(regulatorCSC)} bytes")
+
+    regulatorCSC
   }
 
 }

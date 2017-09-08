@@ -143,7 +143,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
       .action{ case (nr, cfg) => cfg.modify(_.xgb.each.estimationSet).setTo(Left(nr)) }
 
   private val regularized =
-    opt[Unit]("regularized") //TODO make boolean instead of side effecting
+    opt[Unit]("regularized")
       .optional
       .text(
         """
@@ -153,6 +153,16 @@ object CLI extends OptionParser[Config]("GRNBoost") {
           |  Use the 'include-flags' option to specify whether to output the include flags in the result list.
         """.stripMargin)
       .action{ case (_, cfg) => cfg.modify(_.xgb.each.regularized).setTo(true) }
+
+  private val normalized =
+    opt[Unit]("normalized")
+      .optional
+      .text(
+        """
+          | Enable normalization by dividing the gain scores of the regulations per target over the sum of gain scores.
+          | Default = disabled.
+        """.stripMargin)
+      .action{ case (_, cfg) => cfg.modify(_.xgb.each.normalized).setTo(true) }
 
   private val includeFlags =
     opt[Boolean]("include-flags")
@@ -241,7 +251,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
     .action{ (_, cfg) => cfg.copy(xgb = Some(XGBoostConfig())) }
     .children(
       input, skipHeaders, output, regulators, delimiter, outputFormat, sample, targets,
-      xgbParam, regularized, includeFlags, truncate, nrBoostingRounds, nrPartitions,
+      xgbParam, regularized, normalized, includeFlags, truncate, nrBoostingRounds, nrPartitions,
       estimationGenes, nrEstimationGenes, iterated, dryRun, configRun, report)
 
   cmd("about")
@@ -316,6 +326,7 @@ object Format {
   * @param estimationSet A nr or set of genes to estimate the nr of boosting rounds, if no nr is specified.
   * @param nrFolds The nr of folds to use to estimate the nr of boosting rounds with cross validation.
   * @param regularized Use triangle cutoff to prune the inferred regulatory connections.
+  * @param normalized Divide gain scores by the sum of the gain scores.
   * @param includeFlags When true, the regularization include flags are also emitted in the output list.
   * @param targets A Set of target genes to infer the regulators for. Defaults to all.
   * @param boosterParams Booster parameters.
@@ -336,6 +347,7 @@ case class XGBoostConfig(input:             Option[Path]            = None,
                          estimationSet:     Either[Int, Set[Gene]]  = Left(DEFAULT_ESTIMATION_SET),
                          nrFolds:           Int                     = DEFAULT_NR_FOLDS,
                          regularized:       Boolean                 = false,
+                         normalized:        Boolean                 = false,
                          includeFlags:      Boolean                 = false,
                          targets:           Set[Gene]               = Set.empty,
                          boosterParams:     BoosterParams           = DEFAULT_BOOSTER_PARAMS,

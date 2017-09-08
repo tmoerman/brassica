@@ -8,7 +8,9 @@ import org.apache.log4j.Logger
 import org.apache.log4j.Logger.getLogger
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.FloatType
+import org.apache.spark.sql.{Column, Dataset}
 
 import scala.util.Random
 
@@ -226,6 +228,31 @@ package object grnboost {
       )
       .getOrElse(ds)
   }
+
+  /**
+    * @param ds The Dataset of Regulation entries.
+    * @param agg Spark SQL aggregation function, default: sum.
+    * @return Returns the Dataset, with gain scores normalized by an aggregation of the gain scores per target.
+    */
+  def normalizedByAggregate(ds: Dataset[Regulation], agg: Column => Column = sum): Dataset[Regulation] = {
+    import ds.sparkSession.implicits._
+
+    val aggImportanceByTarget =
+      ds
+        .groupBy($"target")
+        .agg(agg($"gain").as("aggregation"))
+
+    ds
+      .join(aggImportanceByTarget, ds("target") === aggImportanceByTarget("target"), "inner")
+      .withColumn("normalized", $"gain" / $"aggregation")
+      .select(
+        ds("regulator"),
+        ds("target"),
+        ds("include"),
+        $"normalized".as("gain").cast(FloatType))
+      .as[Regulation]
+  }
+
 
   /**
     * Implicit pimp class.

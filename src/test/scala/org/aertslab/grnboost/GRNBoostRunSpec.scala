@@ -62,6 +62,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
       "-o", outPath,
       "--nr-estimation-genes", "2",
       "--regularized",
+      "--normalized",
       "--targets", "Gad1")
 
     val inferenceCfg = CLI.parse(args).get.xgb.get
@@ -93,6 +94,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
       "--iterated",
       "--nr-estimation-genes", "2",
       "--regularized",
+      "--normalized",
       "--targets", "Gad1")
 
     val inferenceCfg = CLI.parse(args).get.xgb.get
