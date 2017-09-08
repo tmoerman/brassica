@@ -12,3 +12,4 @@ activator*
 /src/test/resources/parquet/
 /.idea/
 derby.log
+/docs/_build/
