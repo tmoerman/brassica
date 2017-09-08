@@ -108,8 +108,11 @@ case class EstimateNrBoostingRounds(params: XGBoostRegressionParams)
       result
     } else {
       cachedRegulatorDMatrix.setLabel(expressionByGene.response) // !! Side effect !!
-      
-      println(s"4. foldIndices.max == {${foldIndices.values.map(_.max).mkString(", ")}}")
+
+      println(s"4. cachedRegulatorDMatrix.rowNum == ${cachedRegulatorDMatrix.rowNum}")
+
+      println(s"5. foldIndices.max == {${foldIndices.values.map(_.max).mkString(", ")}}")
+      println(s"5. foldIndices.size == {${foldIndices.values.map(_.size).mkString(", ")}}")
 
       val result = estimateBoostingRounds(nrFolds, targetGene, params, cachedRegulatorDMatrix, foldIndices)
 
