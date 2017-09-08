@@ -274,6 +274,9 @@ Stack trace returned 3 entries:
 //    val trainIndices = trainSlices.values.flatten.toArray
 //    val testIndices  = testSlice.values.flatten.toArray
 
+    val intersection = trainIndices.toSet.intersect(testIndices.toSet)
+    assert(intersection.size == 0, "intersection is not empty")
+
     (matrix.slice(trainIndices), matrix.slice(testIndices))
   }
 
