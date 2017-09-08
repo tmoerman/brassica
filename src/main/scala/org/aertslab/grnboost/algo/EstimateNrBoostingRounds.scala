@@ -205,6 +205,11 @@ object EstimateNrBoostingRounds {
     (losses(s"train-$evalMetric"), losses(s"test-$evalMetric"))
   }
 
+  /*
+  
+
+   */
+
   /**
     * @param foldNr The current fold nr.
     * @param indicesByFold The cell indices for each fold, by fold nr.
@@ -221,8 +226,6 @@ object EstimateNrBoostingRounds {
 
     val trainIndices = trainSlices.values.flatten.toArray
     val testIndices  = testSlice.values.flatten.toArray
-
-    assert(trainIndices.size == testIndices.size, s"train and test slices have different sizes: ${trainIndices.size} != ${testIndices.size}")
 
     (matrix.slice(trainIndices), matrix.slice(testIndices))
   }
