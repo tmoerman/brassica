@@ -55,11 +55,11 @@ object DataReader {
   }
 
   /**
-    * @param spark
-    * @param path
+    * @param spark The SparkSession
+    * @param path The text file from which to read the list of regulators.
     * @return Returns the Set of candidate regulators read from specified path.
     */
-  def readRegulators(spark: SparkSession, path: Path): Set[Path] =
+  def readRegulators(spark: SparkSession, path: Path): Set[Gene] =
     spark
       .sparkContext
       .textFile(path)
