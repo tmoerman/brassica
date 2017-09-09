@@ -21,7 +21,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  REQUIRED. Input file or directory.
         """.stripMargin)
-      .action{ case (file, cfg) => cfg.modify(_.xgb.each.input).setTo(Some(file)) }
+      .action{ case (file, cfg) => cfg.modify(_.xgb.each.inputPath).setTo(Some(file)) }
 
   private val output =
     opt[Path]("output").abbr("o")
@@ -31,7 +31,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  REQUIRED. Output directory.
         """.stripMargin)
-      .action{ case (file, cfg) => cfg.modify(_.xgb.each.output).setTo(Some(file)) }
+      .action{ case (file, cfg) => cfg.modify(_.xgb.each.outputPath).setTo(Some(file)) }
 
   private val regulators =
     opt[Path]("regulators").abbr("tf")
@@ -41,7 +41,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  REQUIRED. Text file containing the regulators (transcription factors), one regulator per line.
         """.stripMargin)
-      .action{ case (file, cfg) => cfg.modify(_.xgb.each.regulators).setTo(Some(file)) }
+      .action{ case (file, cfg) => cfg.modify(_.xgb.each.regulatorsPath).setTo(Some(file)) }
 
   private val skipHeaders =
     opt[Int]("skip-headers").abbr("skip")
@@ -313,9 +313,9 @@ object Format {
 }
 
 /**
-  * @param input Required. The input file.
-  * @param regulators File containing regulator genes. Expects on gene per line.
-  * @param output Required. The output file.
+  * @param inputPath Required. The input file.
+  * @param regulatorsPath File containing regulator genes. Expects on gene per line.
+  * @param outputPath Required. The output file.
   * @param skipHeaders The number of header lines to ignore in the input file.
   * @param delimiter The delimiter used to parse the input file. Default: TAB.
   * @param outputFormat The output format: list, matrix or parquet.
@@ -334,9 +334,9 @@ object Format {
   * @param report Write a report to file.
   * @param iterated Hidden, experimental. Use iterated DMatrix initialization instead of copying.
   */
-case class XGBoostConfig(input:             Option[Path]            = None,
-                         regulators:        Option[Path]            = None,
-                         output:            Option[Path]            = None,
+case class XGBoostConfig(inputPath:         Option[Path]            = None,
+                         regulatorsPath:    Option[Path]            = None,
+                         outputPath:        Option[Path]            = None,
                          skipHeaders:       Int                     = 0,
                          delimiter:         String                  = "\t",
                          outputFormat:      Format                  = LIST,
