@@ -221,7 +221,7 @@ object CLI extends OptionParser[Config]("GRNBoost") {
         """
           |  Set whether to write a report about the inference run to file. Default: true.
         """.stripMargin)
-      .action{ case (report, cfg) => cfg.modify(_.xgb.each.report).setTo(report) }
+      .action{ case (bool, cfg) => cfg.modify(_.xgb.each.report).setTo(bool) }
 
   private val iterated =
     opt[Unit]("iterated")
@@ -263,17 +263,17 @@ object CLI extends OptionParser[Config]("GRNBoost") {
 
   def apply(args: String*): Option[Config] = parse(args, Config())
 
-  def parse(args: Array[String]) = apply(args: _*)
+  def parse(args: Array[String]): Option[Config] = apply(args: _*)
 
 }
 
-trait BaseConfig extends Product {
+trait ConfigLike extends Product {
 
-  override def toString = this.toMap.mkString("\n")
+  override def toString: String = this.toMap.mkString("\n")
 
 }
 
-case class Config(xgb: Option[XGBoostConfig] = None) extends BaseConfig
+case class Config(xgb: Option[XGBoostConfig] = None) extends ConfigLike
 
 /**
   * Trait representing the GRNBoost run mode.
@@ -354,4 +354,4 @@ case class XGBoostConfig(inputPath:         Option[Path]            = None,
                          runMode:           RunMode                 = INF_RUN,
                          report:            Boolean                 = true,
                          iterated:          Boolean                 = false,
-                         missing:           Set[Double]             = DEFAULT_MISSING) extends BaseConfig
+                         missing:           Set[Double]             = DEFAULT_MISSING) extends ConfigLike

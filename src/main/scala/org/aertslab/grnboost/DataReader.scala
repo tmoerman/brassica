@@ -98,9 +98,9 @@ object DataReader {
   }
 
   /**
-    * @param file
+    * @param file The file path to read from.
     * @return Returns the list of transcription factors.
     */
-  def readRegulators(file: String) = Source.fromFile(file).getLines.map(_.trim).filterNot(_.isEmpty).toList
+  def readRegulators(file: Path): List[Gene] = Source.fromFile(file).getLines.map(_.trim).filterNot(_.isEmpty).toList
 
 }

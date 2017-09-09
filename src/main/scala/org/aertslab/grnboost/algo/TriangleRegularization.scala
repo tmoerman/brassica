@@ -19,7 +19,7 @@ object TriangleRegularization {
   /**
     * @param values The list of values in which to find the inflection point.
     * @param precision The precision of the radian angle.
-    * @param xScale
+    * @param xScale a multiplication factor to make the right-most point "further away".
     * @param streak Length of a "streak", a.k.a. a list of consecutive Pi values.
     *
     *               Specifies how many times we want to have a PI angle in a row. Makes the algorithm more robust to

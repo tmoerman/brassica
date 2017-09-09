@@ -48,11 +48,12 @@ class Dream5InferenceBenchmark extends FlatSpec with GRNBoostSuiteBase with Matc
 
       val regulations =
         GRNBoost
-          .inferRegulationsIterated(
+          .inferRegulations(
             expressionByGene,
             candidateRegulators = tfs.toSet,
             params = regressionParams,
-            nrPartitions = Some(spark.sparkContext.defaultParallelism))
+            nrPartitions = Some(spark.sparkContext.defaultParallelism),
+            iterated = true)
           .cache
 
       withRegularizationLabels(regulations, params)

@@ -151,7 +151,7 @@ package object grnboost {
       else {
         val subset = randomSubset(nrCells, 0 until count)
 
-        (subset, ds.slice(subset).cache)
+        (subset, ds.slice(subset))
       }
     }
 
@@ -170,15 +170,15 @@ package object grnboost {
                         gain: Gain,
                         include: Int = 1) {
 
-    def mkString(d: String = "\t") = productIterator.mkString(d)
+    def mkString(d: String = "\t"): String = productIterator.mkString(d)
 
   }
 
   /**
     * @param foldNr
-    * @param target
-    * @param loss
-    * @param rounds
+    * @param target The target gene.
+    * @param loss The loss value.
+    * @param rounds The number of rounds.
     */
   case class RoundsEstimation(@deprecated("unused for now") foldNr: FoldNr,
                               target: Gene,
@@ -195,14 +195,14 @@ package object grnboost {
     */
   case class LossByRound(target: Gene, train: Loss, test: Loss, round: Int) {
 
-    def mkString(d: String = "\t") = productIterator.mkString(d)
+    def mkString(d: String = "\t"): String = productIterator.mkString(d)
 
   }
 
   /**
     * Not part of the implicit pimp class because of Scala TypeChecker StackOverflow issues.
     *
-    * @param params
+    * @param params The regression parameters.
     * @return Returns the Dataset with regularization labels calculated with the Triangle method.
     */
   def withRegularizationLabels(ds: Dataset[Regulation], params: XGBoostRegressionParams): Dataset[Regulation] = {
@@ -256,7 +256,7 @@ package object grnboost {
 
   /**
     * Implicit pimp class.
-    * @param ds
+    * @param ds The Dataset of Regulation instances.
     */
   implicit class RegulationDatasetFunctions(val ds: Dataset[Regulation]) {
 
@@ -304,9 +304,9 @@ package object grnboost {
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
                                      nrRounds: Option[Int] = None,
                                      nrFolds: Int = DEFAULT_NR_FOLDS,
-                                     regularize: Option[Double] = Some(DEFAULT_PRECISION)) {
+                                     regularize: Option[Double] = Some(DEFAULT_PRECISION)) extends ConfigLike {
 
-    def seed = boosterParams.get("seed").map(_.toString.toInt).getOrElse(DEFAULT_SEED)
+    def seed: Seed = boosterParams.get("seed").map(_.toString.toInt).getOrElse(DEFAULT_SEED)
 
   }
 
@@ -347,7 +347,7 @@ package object grnboost {
 
   implicit class ProductFunctions(p: Product) {
 
-    def toMap =
+    def toMap: Map[String, Any] =
       p
         .getClass.getDeclaredFields.map(_.getName)
         .zip(p.productIterator.to)

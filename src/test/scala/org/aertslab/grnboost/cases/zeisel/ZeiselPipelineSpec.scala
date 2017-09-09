@@ -28,6 +28,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   val zeiselMrna     = props("zeisel")
   val zeiselFiltered = props("zeiselFiltered")
   val mouseTFs       = props("mouseTFs")
+  val targets        = Set("Gad1")
 
   it should "run the embarrassingly parallel pipeline from raw" taggedAs Slow in {
     import spark.implicits._
@@ -36,30 +37,23 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     val expressionByGene = ZeiselReader.apply(spark, zeiselMrna)
 
-    val estimations =
+    val (_, updatedParams) =
       GRNBoost
-        .nrBoostingRoundsEstimations(
+        .updateConfigsWithEstimation(
           expressionByGene,
           candidateRegulators = TFs,
-          targetGenes = Set("Gad1"),
+          targetGenes = targets,
           params = params)
-        .cache
 
-    estimations.show
-
-    import org.apache.spark.sql.functions._
-
-    val estimatedNrRounds = estimations.select(max("rounds")).first.getInt(0)
-
-    println(s"estimated nr of rounds: $estimatedNrRounds")
+    println(s"estimated nr of rounds: ${updatedParams.nrRounds}")
 
     val result =
       GRNBoost
         .inferRegulations(
           expressionByGene,
           candidateRegulators = TFs,
-          targetGenes = Set("Gad1"),
-          params = params.copy(nrRounds = Some(estimatedNrRounds)))
+          targetGenes = targets,
+          params = updatedParams)
 
     println(params)
 
@@ -78,7 +72,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
         .inferRegulations(
           expressionByGene,
           candidateRegulators = TFs,
-          targetGenes = Set("Gad1"),
+          targetGenes = targets,
           params = params)
 
     println(params)
@@ -98,7 +92,7 @@ class ZeiselPipelineSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
         .inferRegulations(
           expressionByGene,
           candidateRegulators = TFs,
-          targetGenes = Set("Gad1"),
+          targetGenes = targets,
           params = params)
 
     println(params)

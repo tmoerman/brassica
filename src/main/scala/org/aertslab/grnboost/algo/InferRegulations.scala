@@ -8,14 +8,13 @@ import org.aertslab.grnboost.util.BreezeUtils._
 import org.apache.spark.annotation.Experimental
 
 /**
-  * Experimental Implementation where the XGBoost DMatrix is constructred with a batch iterator instead of copying the
+  * Implementation where the XGBoost DMatrix is constructed with a batch iterator instead of copying the
   * CSC arrays. This approach is slower but has better memory usage characteristics.
   *
   * @param params The regression parameters.
   * @param regulators The list of regulator genes (transcription factors).
   * @param regulatorCSC The CSC expression matrix from which to distill
   */
-@Experimental
 case class InferRegulationsIterated(params: XGBoostRegressionParams)
                                    (regulators: List[Gene],
                                     regulatorCSC: CSCMatrix[Expression]) extends Task[Regulation] {
@@ -180,7 +179,7 @@ object InferRegulations {
       }
 
   /**
-    * @param treeDump
+    * @param treeDump The dump of the boosted trees to parse.
     * @return Returns the feature importance metrics parsed from one tree.
     */
   def parseImportanceScores(treeDump: TreeDump): Array[(GeneIndex, Scores)] =
@@ -210,10 +209,6 @@ object InferRegulations {
 
 /**
   * A "smart" tuple with plus-like operator.
-  *
-  * @param frequency
-  * @param gain
-  * @param cover
   */
 case class Scores(frequency: Frequency,
                   gain: Gain,

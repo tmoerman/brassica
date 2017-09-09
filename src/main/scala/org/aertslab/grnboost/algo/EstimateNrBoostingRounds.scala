@@ -14,7 +14,7 @@ import org.aertslab.grnboost.algo.TriangleRegularization.inflectionPointIndex
 import org.aertslab.grnboost.util.BreezeUtils._
 
 /**
-  * Experimental Implementation where the XGBoost DMatrix is constructed with a batch iterator instead of copying the
+  * Implementation where the XGBoost DMatrix is constructed with a batch iterator instead of copying the
   * CSC arrays. This approach is slower but has better memory usage characteristics.
   *
   * @param params The regression parameters.
@@ -66,9 +66,7 @@ case class EstimateNrBoostingRoundsIterated(params: XGBoostRegressionParams)
   * The inflection point is found in a lazy fashion, where increasing boosting rounds are evaluated on the presence of
   * an inflection point.
   *
-  * Deprecated because of a problem with dmatrix.slice:
-  *
-  *
+  * Deprecated because of a problem with dmatrix.slice when the matrix is large (happens with macosko but not with dream5).
   *
   * @param params The regression parameters.
   * @param regulators The list of regulator genes (transcription factors).
@@ -160,7 +158,7 @@ object EstimateNrBoostingRounds {
 
     val predicate = new Predicate[Option[RoundsEstimation]] {
 
-      override def apply(evalHist: util.List[String]) = {
+      override def apply(evalHist: util.List[String]): Option[RoundsEstimation] = {
         val rounds = (0 until evalHist.size)
 
         val lossScores =
@@ -180,13 +178,13 @@ object EstimateNrBoostingRounds {
           .map{ case (round, (_, testLoss)) => RoundsEstimation(0, targetGene, testLoss, round) }
       }
 
-      override def isDefined(opt: Option[RoundsEstimation]) = opt.isDefined
+      override def isDefined(opt: Option[RoundsEstimation]): Boolean = opt.isDefined
 
     }
 
     val estimation = updateWhile(cvPack, maxRounds, incRounds, predicate)
 
-    cvPack.dispose
+    cvPack.dispose()
 
     estimation
   }

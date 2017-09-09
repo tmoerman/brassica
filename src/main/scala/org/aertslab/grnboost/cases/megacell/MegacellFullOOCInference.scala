@@ -86,7 +86,7 @@ object MegacellFullOOCInference {
 
     val timingInfo =
       s"results written to $outDir\n" +
-        s"Wall time with ${params.nrRounds} boosting rounds: ${pretty(duration)}"
+      s"Wall time with ${params.nrRounds} boosting rounds: ${pretty(duration)}"
 
     println(timingInfo)
     writeToFile(timingFile, timingInfo)

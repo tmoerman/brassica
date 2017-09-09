@@ -86,7 +86,7 @@ object MegacellFullInference {
           val phaseDS = ds.slice(phaseCellIndices)
 
           val params =
-            new XGBoostRegressionParams(
+            XGBoostRegressionParams(
               nrRounds = Some(nrBoostingRounds),
               boosterParams = boosterParams)
 
@@ -109,7 +109,7 @@ object MegacellFullInference {
 
     val timingInfo =
       s"""
-         |* finised inferring network in ${phaseCount} phases.
+         |* finished inferring network in $phaseCount phases.
          |* wall time: ${pretty(duration)}
        """.stripMargin
 

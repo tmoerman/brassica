@@ -44,22 +44,25 @@ object GRNBoost {
     */
   def main(args: Array[String]): Unit =
     CLI(args: _*) match {
-      case Some(Config(Some(xgbConfig))) => run(xgbConfig)
+      case Some(Config(Some(xgbConfig))) => apply(xgbConfig)
       case Some(Config(None))            => out.print(ABOUT)
       case _                             => err.print("Input validation failure occurred, see error message above.")
     }
 
   /**
-    * Inspects the config and dispatches to the appropriate function for the GRNBoost RunMode.
-    * Note: although this function has a return type, it possibly performs side effects.
+    * Main GRNBoost procedure.
     *
     * @param xgbConfig The configuration parsed from the command line arguments.
     *
     * @return Returns a tuple of possibly updated config and parameter value objects.
     *         This return value is inspected by test routines, but ignored in the main GRNBoost function.
     */
-  def run(xgbConfig: XGBoostConfig): (XGBoostConfig, XGBoostRegressionParams) = {
+  def apply(xgbConfig: XGBoostConfig): (XGBoostConfig, XGBoostRegressionParams) = {
     import xgbConfig._
+
+    val started = now
+
+    // initialize a Spark session
 
     val spark =
       SparkSession
@@ -67,63 +70,111 @@ object GRNBoost {
         .appName(GRN_BOOST)
         .getOrCreate
 
-    val protoParams =
-      XGBoostRegressionParams(
-        nrFolds = nrFolds,
-        boosterParams = boosterParams)
+    // read the full or sub-sampled dataset
 
-    runMode match {
-      case DRY_RUN => (xgbConfig, protoParams)
-      case CFG_RUN => run(spark, xgbConfig, protoParams, doInference = false)
-      case INF_RUN => run(spark, xgbConfig, protoParams, doInference = true)
-    }
-  }
-
-  /**
-    * The main GRNBoost execution procedure.
-    *
-    * @param spark The Spark Session
-    * @param xgbConfig The configuration parsed from the command line arguments.
-    * @param protoParams A set of initial XGBoost regression parameters.
-    * @param doInference Flag that specifies whether to perform the GRN inference if true, else only the configuration
-    *                    estimation logic.
-    *
-    * @return Returns a tuple of possibly updated config and parameter value objects.
-    *         This return value is inspected by test routines, but ignored in the main GRNBoost function.
-    */
-  def run(spark: SparkSession,
-          xgbConfig: XGBoostConfig,
-          protoParams: XGBoostRegressionParams,
-          doInference: Boolean): (XGBoostConfig, XGBoostRegressionParams) = {
-
-    import xgbConfig._
-
-    val started = now
-
-    def initDS = {
+    lazy val expressionsByGene = {
       val ds = readExpressionsByGene(spark, inputPath.get, skipHeaders, delimiter, missing)
 
       sampleSize
         .map(nrCells => ds.subSample(nrCells)._2)
         .getOrElse(ds)
+        .cache
     }
-    
-    val expressionsByGene = initDS.cache
 
-    val parallelism = nrPartitions.orElse(Some(spark.sparkContext.defaultParallelism))
+    // create the broadcast variables
 
-    // broadcasts
+    lazy val (regulatorsBroadcast, regulatorCSCBroadcast) = {
+      val candidateRegulators = readRegulators(spark, regulatorsPath.get)
 
-    val candidateRegulators = readRegulators(spark, regulatorsPath.get)
+      createRegulatorBroadcasts(expressionsByGene, candidateRegulators)
+    }
+
+    // start with default parameters
+
+    val protoParams =
+      XGBoostRegressionParams(
+        nrFolds = nrFolds,
+        boosterParams = boosterParams)
+
+    // update the inference parameters with boosting rounds estimation
+
+    val (finalXgbConfig, finalParams) = runMode match {
+      case CFG_RUN | INF_RUN => updateConfigsWithEstimation(expressionsByGene, regulatorsBroadcast, regulatorCSCBroadcast, xgbConfig, protoParams)
+      case _                 => (xgbConfig, protoParams)
+    }
+
+    // infer the regulations
+
+    val regulations = runMode match {
+      case INF_RUN => Some(inferRegulations(expressionsByGene, regulatorsBroadcast, regulatorCSCBroadcast, xgbConfig, finalParams))
+      case _       => None
+    }
+
+    // write inference results
+
+    regulations.foreach(_.saveTxt(outputPath.get, includeFlags, delimiter))
+
+    // optionally write a report
+
+    if (report) {
+      writeReports(spark, outputPath.get, makeReport(started, finalXgbConfig, finalParams))
+    }
+
+    // output for tests
+
+    (finalXgbConfig, finalParams)
+  }
+
+  /**
+    * @return Returns the configured or default parallelism.
+    */
+  private[grnboost] def parallelism(spark: SparkSession, xgbConfig: XGBoostConfig) =
+    xgbConfig
+      .nrPartitions
+      .orElse(Some(spark.sparkContext.defaultParallelism))
+
+  /**
+    * Overloaded counterpart for testing purposes.
+    */
+  private[grnboost] def updateConfigsWithEstimation(expressionsByGene: Dataset[ExpressionByGene],
+                                                    candidateRegulators: Set[Gene],
+                                                    targetGenes: Set[Gene] = Set.empty,
+                                                    params: XGBoostRegressionParams,
+                                                    nrPartitions: Option[Count] = None): (XGBoostConfig, XGBoostRegressionParams) = {
 
     val (regulatorsBroadcast, regulatorCSCBroadcast) = createRegulatorBroadcasts(expressionsByGene, candidateRegulators)
 
-    // estimation logic
+    val xgbConfig = XGBoostConfig(targets = targetGenes)
+
+    updateConfigsWithEstimation(expressionsByGene, regulatorsBroadcast, regulatorCSCBroadcast, xgbConfig, params)
+  }
+
+  /**
+    * @param expressionsByGene The expressions by gene Dataset.
+    * @param regulatorsBroadcast The List of regulator genes broadcast variable.
+    * @param regulatorCSCBroadcast The CSCMatrix broadcast variable.
+    * @param xgbConfig The config parsed from the command line.
+    * @param params The proto params.
+    *
+    * @return Returns a tuple of XGBoostConfig and XGBoostRegressionParams params, with updated boosting rounds value.
+    */
+  def updateConfigsWithEstimation(expressionsByGene: Dataset[ExpressionByGene],
+                                  regulatorsBroadcast: Broadcast[List[Gene]],
+                                  regulatorCSCBroadcast: Broadcast[CSCMatrix[Expression]],
+                                  xgbConfig: XGBoostConfig,
+                                  params: XGBoostRegressionParams): (XGBoostConfig, XGBoostRegressionParams) = {
+
+    import xgbConfig._
+
+    val spark = expressionsByGene.sparkSession
+    import spark.implicits._
+
+    def nrPartitions = parallelism(spark, xgbConfig)
 
     def estimateNrRounds(ds: Dataset[ExpressionByGene], estimationSet: Either[FoldNr, Set[Gene]]) = {
       val estimationTargets = estimationSet match {
         case Left(estimationTargetSetSize) =>
-          new Random(protoParams.seed)
+          new Random(params.seed)
             .shuffle(ds.genes)
             .take(min(estimationTargetSetSize, ds.count).toInt)
             .toSet
@@ -132,9 +183,11 @@ object GRNBoost {
           estimationTargetSet
       }
 
-      val estimationDS = ds.filter(e => estimationTargets contains e.gene)
+      val targetsOnlyDS = ds.filter(e => estimationTargets contains e.gene)
 
-      val roundsEstimations = nrBoostingRoundsEstimationsIterated(estimationDS, regulatorsBroadcast, regulatorCSCBroadcast, protoParams, parallelism)
+      val taskFactory = EstimateNrBoostingRoundsIterated(params)(_, _)
+
+      val roundsEstimations = computeMapped(targetsOnlyDS, regulatorsBroadcast, regulatorCSCBroadcast, nrPartitions)(taskFactory)
 
       val estimatedNrRounds = aggregateEstimate(roundsEstimations)
 
@@ -147,82 +200,111 @@ object GRNBoost {
     }
 
     val updatedParams =
-      protoParams
+      params
         .copy(nrRounds = finalNrRounds)
-
-    // inference logic, performed when needed
-
-    if (doInference) {
-      import spark.implicits._
-
-      // narrowly-scoped functions closing over xgbConfig values, stitched together with a monad.
-
-      def targetsOnly(ds: Dataset[ExpressionByGene]) =
-        if (targets.isEmpty)
-          ds
-        else
-          ds.filter(e => targets contains e.gene)
-
-      def infer(ds: Dataset[ExpressionByGene]) =
-        if (iterated)
-          inferRegulationsIterated(ds, regulatorsBroadcast, regulatorCSCBroadcast, updatedParams, parallelism)
-        else
-          inferRegulations(ds, regulatorsBroadcast, regulatorCSCBroadcast, updatedParams, parallelism)
-
-      def regularize(ds: Dataset[Regulation]) =
-        if (regularized)
-          withRegularizationLabels(ds, updatedParams).filter($"include" === 1)
-        else
-          withRegularizationLabels(ds, updatedParams)
-
-      def normalize(ds: Dataset[Regulation]) =
-        if (normalized)
-          normalizedByAggregate(ds)
-        else
-          ds
-
-      def truncate(ds: Dataset[Regulation]) =
-        truncated
-          .map(nr => ds.sort($"gain".desc).limit(nr))
-          .getOrElse(ds)
-
-      def sort(ds: Dataset[Regulation]) = ds.sort($"gain".desc)
-
-      def write(ds: Dataset[Regulation]) = ds.saveTxt(outputPath.get, includeFlags, delimiter)
-
-      // monadic pipeline pattern
-
-      Some(expressionsByGene)
-        .map(targetsOnly)
-        .map(infer)
-        .map(regularize)
-        .map(normalize)
-        .map(truncate)
-        .map(sort)
-        .foreach(write)
-    }
 
     val updatedXgbConfig =
       xgbConfig
         .copy(estimationSet    = Right(estimationTargets))
         .copy(nrBoostingRounds = finalNrRounds)
-        .copy(nrPartitions     = parallelism)
-
-    // report
-
-    if (report) {
-      writeReports(spark, outputPath.get, makeReport(started, updatedXgbConfig))
-    }
+        .copy(nrPartitions     = nrPartitions)
 
     (updatedXgbConfig, updatedParams)
   }
 
   /**
+    * Overloaded counterpart for testing purposes.
+    */
+  private[grnboost] def inferRegulations(expressionsByGene: Dataset[ExpressionByGene],
+                                         candidateRegulators: Set[Gene],
+                                         targetGenes: Set[Gene] = Set.empty,
+                                         params: XGBoostRegressionParams,
+                                         nrPartitions: Option[Count] = None,
+                                         iterated: Boolean = false): Dataset[Regulation] = {
+
+    val (regulatorsBroadcast, regulatorCSCBroadcast) = createRegulatorBroadcasts(expressionsByGene, candidateRegulators)
+
+    val xgbConfig = XGBoostConfig(targets = targetGenes, iterated = iterated)
+
+    inferRegulations(expressionsByGene, regulatorsBroadcast, regulatorCSCBroadcast, xgbConfig, params)
+  }
+
+  /**
+    * @param expressionsByGene The expressions by gene Dataset.
+    * @param regulatorsBroadcast The List of regulator genes broadcast variable.
+    * @param regulatorCSCBroadcast The CSCMatrix broadcast variable.
+    * @param xgbConfig The config parsed from the command line.
+    * @param params The proto params.
+    *
+    * @return Returns a Dataset of regulations..
+    */
+  def inferRegulations(expressionsByGene: Dataset[ExpressionByGene],
+                       regulatorsBroadcast: Broadcast[List[Gene]],
+                       regulatorCSCBroadcast: Broadcast[CSCMatrix[Expression]],
+                       xgbConfig: XGBoostConfig,
+                       params: XGBoostRegressionParams): Dataset[Regulation] = {
+    import xgbConfig._
+
+    val spark = expressionsByGene.sparkSession
+    import spark.implicits._
+
+    def targetsOnly(ds: Dataset[ExpressionByGene]) =
+      if (targets.isEmpty)
+        ds
+      else
+        ds.filter(e => targets contains e.gene)
+
+    def nrPartitions = parallelism(spark, xgbConfig)
+
+    def infer(ds: Dataset[ExpressionByGene]) =
+      if (iterated) {
+        val taskFactory = InferRegulationsIterated(params)(_, _)
+
+        computeMapped(ds, regulatorsBroadcast, regulatorCSCBroadcast, nrPartitions)(taskFactory)
+      } else {
+        val partitionTaskFactory = InferRegulations(params)(_, _, _)
+
+        computePartitioned(ds, regulatorsBroadcast, regulatorCSCBroadcast, nrPartitions)(partitionTaskFactory)
+      }
+
+    def regularize(ds: Dataset[Regulation]) =
+      if (regularized)
+        withRegularizationLabels(ds, params).filter($"include" === 1)
+      else
+        withRegularizationLabels(ds, params)
+
+    def normalize(ds: Dataset[Regulation]) =
+      if (normalized)
+        normalizedByAggregate(ds)
+      else
+        ds
+
+    def truncate(ds: Dataset[Regulation]) =
+      truncated
+        .map(nr => ds.sort($"gain".desc).limit(nr))
+        .getOrElse(ds)
+
+    def sort(ds: Dataset[Regulation]) = ds.sort($"gain".desc)
+
+    Some(expressionsByGene)
+      .map(targetsOnly)
+      .map(infer)
+      .map(regularize)
+      .map(normalize)
+      .map(truncate)
+      .map(sort)
+      .get
+  }
+
+  /**
     * @param expressionsByGene The Dataset.
     * @param candidateRegulators The Set of candidate regulators.
+    *
     * @return Returns a tuple of broadcast variables.
     */
-  def createRegulatorBroadcasts(expressionsByGene: Dataset[ExpressionByGene], candidateRegulators: Set[Gene]): (Broadcast[List[Gene]], Broadcast[CSCMatrix[Expression]]) = {
+  def createRegulatorBroadcasts(expressionsByGene: Dataset[ExpressionByGene], candidateRegulators: Set[Gene]):
+      (Broadcast[List[Gene]], Broadcast[CSCMatrix[Expression]]) = {
+
     val sc = expressionsByGene.sparkSession.sparkContext
 
     val regulators = expressionsByGene.genes.filter(candidateRegulators.contains)
@@ -231,13 +313,15 @@ object GRNBoost {
 
     val regulatorCSC = reduceToRegulatorCSCMatrix(expressionsByGene, regulators)
 
+    println(s"Estimated size of regulator matrix broadcast variable: ${SizeEstimator.estimate(regulatorCSC)} bytes")
+
     (sc.broadcast(regulators), sc.broadcast(regulatorCSC))
   }
 
   /**
     * @return Returns a multi-line String containing a human readable report of the inference run.
     */
-  def makeReport(started: DateTime, inferenceConfig: XGBoostConfig): String = {
+  def makeReport(started: DateTime, inferenceConfig: XGBoostConfig, params: XGBoostRegressionParams): String = {
     val finished = now
     val format = DateTimeFormat.forPattern("yyyy-MM-dd:hh.mm.ss")
     val startedPretty  = format.print(started)
@@ -250,6 +334,9 @@ object GRNBoost {
       |
       |* Inference configuration:
       |${inferenceConfig.toString}
+      |
+      |* Actual regrssion params:
+      |${params.toString}
     """.stripMargin
   }
 
@@ -281,45 +368,6 @@ object GRNBoost {
   private def reportOutput(output: Path) = s"$output.report.log"
   private def sampleOutput(output: Path) = s"$output.sample.log"
 
-  def inferRegulationsIterated(expressionsByGene: Dataset[ExpressionByGene],
-                               regulatorsBroadcast: Broadcast[List[Gene]],
-                               regulatorCSCBroadcast: Broadcast[CSCMatrix[Expression]],
-                               params: XGBoostRegressionParams,
-                               nrPartitions: Option[Count] = None): Dataset[Regulation] = {
-
-    import expressionsByGene.sparkSession.implicits._
-
-    val taskFactory = InferRegulationsIterated(params)(_, _)
-
-    computeMapped2(expressionsByGene, regulatorsBroadcast, regulatorCSCBroadcast, nrPartitions)(taskFactory)
-  }
-
-  def inferRegulations(expressionsByGene: Dataset[ExpressionByGene],
-                       regulatorsBroadcast: Broadcast[List[Gene]],
-                       regulatorCSCBroadcast: Broadcast[CSCMatrix[Expression]],
-                       params: XGBoostRegressionParams,
-                       nrPartitions: Option[Count] = None): Dataset[Regulation] = {
-
-    import expressionsByGene.sparkSession.implicits._
-
-    val partitionTaskFactory = InferRegulations(params)(_, _, _)
-
-    computePartitioned2(expressionsByGene, regulatorsBroadcast, regulatorCSCBroadcast, nrPartitions)(partitionTaskFactory)
-  }
-
-  def nrBoostingRoundsEstimationsIterated(expressionsByGene: Dataset[ExpressionByGene],
-                                          regulatorsBroadcast: Broadcast[List[Gene]],
-                                          regulatorCSCBroadcast: Broadcast[CSCMatrix[Expression]],
-                                          params: XGBoostRegressionParams,
-                                          nrPartitions: Option[Count] = None): Dataset[RoundsEstimation] = {
-
-    import expressionsByGene.sparkSession.implicits._
-
-    val taskFactory = EstimateNrBoostingRoundsIterated(params)(_, _)
-
-    computeMapped2(expressionsByGene, regulatorsBroadcast, regulatorCSCBroadcast, nrPartitions)(taskFactory)
-  }
-
   /**
     * @param estimations The Dataset of RoundsEstimation instances
     * @param agg The aggregation function. Default = max.
@@ -344,12 +392,11 @@ object GRNBoost {
     *
     * @return Returns a Dataset of generic type equal to the generic type of the mapTaskFactory.
     */
-  @Experimental
-  def computeMapped2[T : Encoder : ClassTag](expressionsByGene: Dataset[ExpressionByGene],
-                                             regulatorsBroadcast: Broadcast[List[Gene]],
-                                             regulatorCSCBroadcast: Broadcast[CSCMatrix[Expression]],
-                                             nrPartitions: Option[Count] = None)
-                                            (mapTaskFactory: (List[Gene], CSCMatrix[Expression]) => Task[T]): Dataset[T] = {
+  def computeMapped[T : Encoder : ClassTag](expressionsByGene: Dataset[ExpressionByGene],
+                                            regulatorsBroadcast: Broadcast[List[Gene]],
+                                            regulatorCSCBroadcast: Broadcast[CSCMatrix[Expression]],
+                                            nrPartitions: Option[Count] = None)
+                                           (mapTaskFactory: (List[Gene], CSCMatrix[Expression]) => Task[T]): Dataset[T] = {
 
     def repartition(ds: Dataset[ExpressionByGene]) =
       nrPartitions
@@ -379,11 +426,11 @@ object GRNBoost {
     *
     * @return Returns a Dataset of generic type equal to the generic type of the partitionTaskFactory.
     */
-  def computePartitioned2[T : Encoder : ClassTag](expressionsByGene: Dataset[ExpressionByGene],
-                                                  regulatorsBroadcast: Broadcast[List[Gene]],
-                                                  regulatorCSCBroadcast: Broadcast[CSCMatrix[Expression]],
-                                                  nrPartitions: Option[Count])
-                                                 (partitionTaskFactory: (List[Gene], CSCMatrix[Expression], Partition) => PartitionTask[T]): Dataset[T] = {
+  def computePartitioned[T : Encoder : ClassTag](expressionsByGene: Dataset[ExpressionByGene],
+                                                 regulatorsBroadcast: Broadcast[List[Gene]],
+                                                 regulatorCSCBroadcast: Broadcast[CSCMatrix[Expression]],
+                                                 nrPartitions: Option[Count])
+                                                (partitionTaskFactory: (List[Gene], CSCMatrix[Expression], Partition) => PartitionTask[T]): Dataset[T] = {
 
     import expressionsByGene.sparkSession.implicits._
 
@@ -442,30 +489,25 @@ object GRNBoost {
     def isPredictor(gene: Gene) = regulatorIndexMap.contains(gene)
     def cscIndex(gene: Gene)    = regulatorIndexMap.apply(gene)
 
-    val regulatorCSC =
-      expressionsByGene
-        .rdd
-        .filter(e => isPredictor(e.gene))
-        .mapPartitions{ it =>
-          val matrixBuilder = new CSCMatrix.Builder[Expression](rows = nrCells, cols = nrGenes)
+    expressionsByGene
+      .rdd
+      .filter(e => isPredictor(e.gene))
+      .mapPartitions{ it =>
+        val matrixBuilder = new CSCMatrix.Builder[Expression](rows = nrCells, cols = nrGenes)
 
-          it.foreach { case ExpressionByGene(gene, expression) =>
+        it.foreach { case ExpressionByGene(gene, expression) =>
 
-            val geneIdx = cscIndex(gene)
+          val geneIdx = cscIndex(gene)
 
-            expression
-              .foreachActive{ (cellIdx, value) =>
-                matrixBuilder.add(cellIdx, geneIdx, value.toFloat)
-              }
-          }
-
-          Iterator(matrixBuilder.result)
+          expression
+            .foreachActive{ (cellIdx, value) =>
+              matrixBuilder.add(cellIdx, geneIdx, value.toFloat)
+            }
         }
-        .treeReduce(_ + _) // https://issues.apache.org/jira/browse/SPARK-2174
 
-    println(s"Estimated size of regulator matrix broadcast variable: ${SizeEstimator.estimate(regulatorCSC)} bytes")
-
-    regulatorCSC
+        Iterator(matrixBuilder.result)
+      }
+      .treeReduce(_ + _) // https://issues.apache.org/jira/browse/SPARK-2174
   }
 
 }

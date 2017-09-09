@@ -24,7 +24,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     val inferenceCfg = CLI.parse(args).get.xgb.get
 
-    val (_, params) = GRNBoost.run(inferenceCfg)
+    val (_, params) = GRNBoost(inferenceCfg)
 
     inferenceCfg.runMode shouldBe DRY_RUN
 
@@ -44,7 +44,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     val inferenceCfg = CLI.parse(args).get.xgb.get
 
-    val (updatedCfg, params) = GRNBoost.run(inferenceCfg)
+    val (updatedCfg, params) = GRNBoost(inferenceCfg)
 
     updatedCfg.estimationSet.right.get.size shouldBe 2
   }
@@ -69,7 +69,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     inferenceCfg.regularized shouldBe true
 
-    val (updatedCfg, _) = GRNBoost.run(inferenceCfg)
+    val (updatedCfg, _) = GRNBoost(inferenceCfg)
 
     updatedCfg.estimationSet.right.get.size shouldBe 2
 
@@ -101,7 +101,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     inferenceCfg.regularized shouldBe true
 
-    val (updatedCfg, _) = GRNBoost.run(inferenceCfg)
+    val (updatedCfg, _) = GRNBoost(inferenceCfg)
 
     updatedCfg.estimationSet.right.get.size shouldBe 2
 
