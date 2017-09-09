@@ -7,6 +7,7 @@ import org.aertslab.grnboost.DataReader._
 import org.aertslab.grnboost.algo._
 import org.aertslab.grnboost.util.TimeUtils._
 import org.apache.spark.annotation.Experimental
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Column, Dataset, Encoder, SparkSession}
@@ -93,25 +94,30 @@ object GRNBoost {
   def run(spark: SparkSession,
           xgbConfig: XGBoostConfig,
           protoParams: XGBoostRegressionParams,
-          doInference: Boolean) = {
+          doInference: Boolean): (XGBoostConfig, XGBoostRegressionParams) = {
 
     import xgbConfig._
 
     val started = now
 
-    val ds = readExpressionsByGene(spark, input.get, skipHeaders, delimiter, missing).cache
-
-    val (sampleCellIndices, maybeSampled) =
-      sampleSize
-        .map(nrCells => ds.subSample(nrCells))
-        .getOrElse(Nil, ds)
-
-    val candidateRegulators = readRegulators(spark, regulators.get)
+    val expressionsByGene = readExpressionsByGene(spark, inputPath.get, skipHeaders, delimiter, missing).cache
 
     val parallelism = nrPartitions.orElse(Some(spark.sparkContext.defaultParallelism))
 
+    val (sampleCellIndices, maybeSampled) =
+      sampleSize
+        .map(nrCells => expressionsByGene.subSample(nrCells))
+        .getOrElse(Nil, expressionsByGene)
+
+    // broadcasts
+
+    val candidateRegulators = readRegulators(spark, regulatorsPath.get)
+
+    val (regulatorsBroadcast, regulatorCSCBroadcast) = createRegulatorBroadcasts(expressionsByGene, candidateRegulators)
+
     // estimation logic
-    def estimateNrRounds(ds: Dataset[ExpressionByGene], estimationSet: Either[Int, Set[Gene]]) = {
+
+    def estimateNrRounds(ds: Dataset[ExpressionByGene], estimationSet: Either[FoldNr, Set[Gene]]) = {
       val estimationTargets = estimationSet match {
         case Left(estimationTargetSetSize) =>
           new Random(protoParams.seed)
@@ -123,16 +129,18 @@ object GRNBoost {
           estimationTargetSet
       }
 
-      val roundsEstimations = nrBoostingRoundsEstimationsIterated(ds, candidateRegulators, estimationTargets, protoParams, parallelism)
+      val estimationDS = ds.filter(e => estimationTargets contains e.gene)
+
+      val roundsEstimations = nrBoostingRoundsEstimationsIterated(estimationDS, regulatorsBroadcast, regulatorCSCBroadcast, protoParams, parallelism)
 
       val estimatedNrRounds = aggregateEstimate(roundsEstimations)
 
       (estimatedNrRounds, estimationTargets)
     }
 
-    val (finalNrRounds, estimationTargets): (Option[Int], Set[Gene]) = (nrBoostingRounds, estimationSet) match {
-      case (None, estimationSet) => estimateNrRounds(maybeSampled, estimationSet)
-      case (nrRounds, _)         => (nrRounds, Set.empty)
+    val (finalNrRounds, estimationTargets): (Option[FoldNr], Set[Gene]) = (nrBoostingRounds, estimationSet) match {
+      case (None, set)   => estimateNrRounds(maybeSampled, set)
+      case (nrRounds, _) => (nrRounds, Set.empty)
     }
 
     val updatedParams =
@@ -140,16 +148,23 @@ object GRNBoost {
         .copy(nrRounds = finalNrRounds)
 
     // inference logic, performed when needed
+
     if (doInference) {
       import spark.implicits._
 
       // narrowly-scoped functions closing over xgbConfig values, stitched together with a monad.
 
+      def targetsOnly(ds: Dataset[ExpressionByGene]) =
+        if (targets.isEmpty)
+          ds
+        else
+          ds.filter(e => targets contains e.gene)
+
       def infer(ds: Dataset[ExpressionByGene]) =
         if (iterated)
-          inferRegulationsIterated(ds, candidateRegulators, targets, updatedParams, parallelism)
+          inferRegulationsIterated(ds, regulatorsBroadcast, regulatorCSCBroadcast, updatedParams, parallelism)
         else
-          inferRegulations(ds, candidateRegulators, targets, updatedParams, parallelism)
+          inferRegulations(ds, regulatorsBroadcast, regulatorCSCBroadcast, updatedParams, parallelism)
 
       def regularize(ds: Dataset[Regulation]) =
         if (regularized)
@@ -170,11 +185,12 @@ object GRNBoost {
 
       def sort(ds: Dataset[Regulation]) = ds.sort($"gain".desc)
 
-      def write(ds: Dataset[Regulation]) = ds.saveTxt(output.get, includeFlags, delimiter)
+      def write(ds: Dataset[Regulation]) = ds.saveTxt(outputPath.get, includeFlags, delimiter)
 
       // monadic pipeline pattern
 
       Some(maybeSampled)
+        .map(targetsOnly)
         .map(infer)
         .map(regularize)
         .map(normalize)
@@ -189,11 +205,30 @@ object GRNBoost {
         .copy(nrBoostingRounds = finalNrRounds)
         .copy(nrPartitions     = parallelism)
 
+    // report
+
     if (report) {
-      writeReports(spark, output.get, makeReport(started, updatedXgbConfig), sampleCellIndices)
+      writeReports(spark, outputPath.get, makeReport(started, updatedXgbConfig), sampleCellIndices)
     }
 
     (updatedXgbConfig, updatedParams)
+  }
+
+  /**
+    * @param expressionsByGene The Dataset.
+    * @param candidateRegulators The Set of candidate regulators.
+    * @return Returns a tuple of broadcast variables.
+    */
+  def createRegulatorBroadcasts(expressionsByGene: Dataset[ExpressionByGene], candidateRegulators: Set[Gene]): (Broadcast[List[Gene]], Broadcast[CSCMatrix[Expression]]) = {
+    val sc = expressionsByGene.sparkSession.sparkContext
+
+    val regulators = expressionsByGene.genes.filter(candidateRegulators.contains)
+
+    assert(regulators.nonEmpty, s"no regulators w.r.t. specified candidate regulators ${candidateRegulators.take(3).mkString(",")}...")
+
+    val regulatorCSC = reduceToRegulatorCSCMatrix(expressionsByGene, regulators)
+
+    (sc.broadcast(regulators), sc.broadcast(regulatorCSC))
   }
 
   /**
@@ -253,10 +288,9 @@ object GRNBoost {
   private def reportOutput(output: Path) = s"$output.report.log"
   private def sampleOutput(output: Path) = s"$output.sample.log"
 
-  @Experimental
   def inferRegulationsIterated(expressionsByGene: Dataset[ExpressionByGene],
-                               candidateRegulators: Set[Gene],
-                               targetGenes: Set[Gene] = Set.empty,
+                               regulatorsBroadcast: Broadcast[List[Gene]],
+                               regulatorCSCBroadcast: Broadcast[CSCMatrix[Expression]],
                                params: XGBoostRegressionParams,
                                nrPartitions: Option[Count] = None): Dataset[Regulation] = {
 
@@ -264,12 +298,12 @@ object GRNBoost {
 
     val taskFactory = InferRegulationsIterated(params)(_, _)
 
-    computeMapped(expressionsByGene, candidateRegulators, targetGenes, nrPartitions)(taskFactory)
+    computeMapped2(expressionsByGene, regulatorsBroadcast, regulatorCSCBroadcast, nrPartitions)(taskFactory)
   }
 
   def inferRegulations(expressionsByGene: Dataset[ExpressionByGene],
-                       candidateRegulators: Set[Gene],
-                       targetGenes: Set[Gene] = Set.empty,
+                       regulatorsBroadcast: Broadcast[List[Gene]],
+                       regulatorCSCBroadcast: Broadcast[CSCMatrix[Expression]],
                        params: XGBoostRegressionParams,
                        nrPartitions: Option[Count] = None): Dataset[Regulation] = {
 
@@ -277,13 +311,12 @@ object GRNBoost {
 
     val partitionTaskFactory = InferRegulations(params)(_, _, _)
 
-    computePartitioned(expressionsByGene, candidateRegulators, targetGenes, nrPartitions)(partitionTaskFactory)
+    computePartitioned2(expressionsByGene, regulatorsBroadcast, regulatorCSCBroadcast, nrPartitions)(partitionTaskFactory)
   }
 
-
   def nrBoostingRoundsEstimationsIterated(expressionsByGene: Dataset[ExpressionByGene],
-                                          candidateRegulators: Set[Gene],
-                                          targetGenes: Set[Gene] = Set.empty,
+                                          regulatorsBroadcast: Broadcast[List[Gene]],
+                                          regulatorCSCBroadcast: Broadcast[CSCMatrix[Expression]],
                                           params: XGBoostRegressionParams,
                                           nrPartitions: Option[Count] = None): Dataset[RoundsEstimation] = {
 
@@ -291,21 +324,7 @@ object GRNBoost {
 
     val taskFactory = EstimateNrBoostingRoundsIterated(params)(_, _)
 
-    computeMapped(expressionsByGene, candidateRegulators, targetGenes, nrPartitions)(taskFactory)
-  }
-
-  @deprecated
-  def nrBoostingRoundsEstimations(expressionsByGene: Dataset[ExpressionByGene],
-                                  candidateRegulators: Set[Gene],
-                                  targetGenes: Set[Gene] = Set.empty,
-                                  params: XGBoostRegressionParams,
-                                  nrPartitions: Option[Count] = None): Dataset[RoundsEstimation] = {
-
-    import expressionsByGene.sparkSession.implicits._
-
-    val partitionTaskFactory = EstimateNrBoostingRounds(params)(_, _, _)
-
-    computePartitioned(expressionsByGene, candidateRegulators, targetGenes, nrPartitions)(partitionTaskFactory)
+    computeMapped2(expressionsByGene, regulatorsBroadcast, regulatorCSCBroadcast, nrPartitions)(taskFactory)
   }
 
   /**
@@ -314,7 +333,7 @@ object GRNBoost {
     * @return Returns the final estimate of the nr of boosting rounds as a Try Option.
     */
   def aggregateEstimate(estimations: Dataset[RoundsEstimation],
-                        agg: Column => Column = max) = {
+                        agg: Column => Column = max): Option[Int] = {
 
     import estimations.sparkSession.implicits._
 
@@ -333,37 +352,19 @@ object GRNBoost {
     * @return Returns a Dataset of generic type equal to the generic type of the mapTaskFactory.
     */
   @Experimental
-  def computeMapped[T : Encoder : ClassTag](expressionsByGene: Dataset[ExpressionByGene],
-                                            candidateRegulators: Set[Gene],
-                                            targetGenes: Set[Gene] = Set.empty,
-                                            nrPartitions: Option[Count] = None)
-                                           (mapTaskFactory: (List[Gene], CSCMatrix[Expression]) => Task[T]): Dataset[T] = {
+  def computeMapped2[T : Encoder : ClassTag](expressionsByGene: Dataset[ExpressionByGene],
+                                             regulatorsBroadcast: Broadcast[List[Gene]],
+                                             regulatorCSCBroadcast: Broadcast[CSCMatrix[Expression]],
+                                             nrPartitions: Option[Count] = None)
+                                            (mapTaskFactory: (List[Gene], CSCMatrix[Expression]) => Task[T]): Dataset[T] = {
 
-    val spark = expressionsByGene.sparkSession
-    val sc = spark.sparkContext
-    import spark.implicits._
-
-    val regulators = expressionsByGene.genes.filter(candidateRegulators.contains)
-    assert(regulators.nonEmpty, s"no regulators w.r.t. specified candidate regulators ${candidateRegulators.take(3).mkString(",")}...")
-
-    val regulatorCSC = reduceToRegulatorCSCMatrix(expressionsByGene, regulators)
-
-    val regulatorsBroadcast   = sc.broadcast(regulators)
-    val regulatorCSCBroadcast = sc.broadcast(regulatorCSC)
-
-    def targetsOnly(ds: Dataset[ExpressionByGene]) =
-      if (targetGenes.isEmpty)
-        ds
-      else
-        ds.filter(e => targetGenes contains e.gene)
-
-    def repartition(rdd: RDD[ExpressionByGene]) =
+    def repartition(ds: Dataset[ExpressionByGene]) =
       nrPartitions
-        .map(rdd.repartition(_).cache)
-        .getOrElse(rdd)
+        .map(ds.repartition(_).cache)
+        .getOrElse(ds)
 
-    def mapTask(rdd: RDD[ExpressionByGene]) =
-      rdd
+    def mapTask(ds: Dataset[ExpressionByGene]) =
+      ds
         .flatMap(expressionByGene => {
           val task =
             mapTaskFactory(
@@ -375,11 +376,8 @@ object GRNBoost {
 
     // monadic pipeline pattern
     Some(expressionsByGene)
-      .map(targetsOnly)
-      .map(_.rdd)
       .map(repartition)
       .map(mapTask)
-      .map(_.toDS)
       .get
   }
 
@@ -389,30 +387,13 @@ object GRNBoost {
     *
     * @return Returns a Dataset of generic type equal to the generic type of the partitionTaskFactory.
     */
-  def computePartitioned[T : Encoder : ClassTag](expressionsByGene: Dataset[ExpressionByGene],
-                                                 candidateRegulators: Set[Gene],
-                                                 targetGenes: Set[Gene],
-                                                 nrPartitions: Option[Count])
-                                                (partitionTaskFactory: (List[Gene], CSCMatrix[Expression], Partition) => PartitionTask[T]): Dataset[T] = {
+  def computePartitioned2[T : Encoder : ClassTag](expressionsByGene: Dataset[ExpressionByGene],
+                                                  regulatorsBroadcast: Broadcast[List[Gene]],
+                                                  regulatorCSCBroadcast: Broadcast[CSCMatrix[Expression]],
+                                                  nrPartitions: Option[Count])
+                                                 (partitionTaskFactory: (List[Gene], CSCMatrix[Expression], Partition) => PartitionTask[T]): Dataset[T] = {
 
-    val spark = expressionsByGene.sparkSession
-    val sc = spark.sparkContext
-    import spark.implicits._
-
-    // FIXME extract these so that the regulatorCSC size can be included in the report
-    val regulators = expressionsByGene.genes.filter(candidateRegulators.contains)
-    assert(regulators.nonEmpty, s"no regulators w.r.t. specified candidate regulators ${candidateRegulators.take(3).mkString(",")}...")
-
-    val regulatorCSC = reduceToRegulatorCSCMatrix(expressionsByGene, regulators)
-
-    val regulatorsBroadcast   = sc.broadcast(regulators)
-    val regulatorCSCBroadcast = sc.broadcast(regulatorCSC)
-
-    def targetsOnly(ds: Dataset[ExpressionByGene]) =
-      if (targetGenes.isEmpty)
-        ds
-      else
-        ds.filter(e => targetGenes contains e.gene)
+    import expressionsByGene.sparkSession.implicits._
 
     def repartition(rdd: RDD[ExpressionByGene]) =
       nrPartitions
@@ -445,7 +426,6 @@ object GRNBoost {
 
     // monadic pipeline pattern
     Some(expressionsByGene)
-      .map(targetsOnly)
       .map(_.rdd)
       .map(repartition)
       .map(mapPartitionTask)
