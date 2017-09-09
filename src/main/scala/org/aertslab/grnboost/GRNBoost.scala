@@ -335,7 +335,7 @@ object GRNBoost {
       |* Inference configuration:
       |${inferenceConfig.toString}
       |
-      |* Actual regrssion params:
+      |* Regression params:
       |${params.toString}
     """.stripMargin
   }
