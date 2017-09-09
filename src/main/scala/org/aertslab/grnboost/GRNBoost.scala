@@ -100,14 +100,17 @@ object GRNBoost {
 
     val started = now
 
-    val expressionsByGene = readExpressionsByGene(spark, inputPath.get, skipHeaders, delimiter, missing).cache
+    def initDS = {
+      val ds = readExpressionsByGene(spark, inputPath.get, skipHeaders, delimiter, missing)
+
+      sampleSize
+        .map(nrCells => ds.subSample(nrCells)._2)
+        .getOrElse(ds)
+    }
+    
+    val expressionsByGene = initDS.cache
 
     val parallelism = nrPartitions.orElse(Some(spark.sparkContext.defaultParallelism))
-
-    val (sampleCellIndices, maybeSampled) =
-      sampleSize
-        .map(nrCells => expressionsByGene.subSample(nrCells))
-        .getOrElse(Nil, expressionsByGene)
 
     // broadcasts
 
@@ -139,7 +142,7 @@ object GRNBoost {
     }
 
     val (finalNrRounds, estimationTargets): (Option[FoldNr], Set[Gene]) = (nrBoostingRounds, estimationSet) match {
-      case (None, set)   => estimateNrRounds(maybeSampled, set)
+      case (None, set)   => estimateNrRounds(expressionsByGene, set)
       case (nrRounds, _) => (nrRounds, Set.empty)
     }
 
@@ -189,7 +192,7 @@ object GRNBoost {
 
       // monadic pipeline pattern
 
-      Some(maybeSampled)
+      Some(expressionsByGene)
         .map(targetsOnly)
         .map(infer)
         .map(regularize)
@@ -208,7 +211,7 @@ object GRNBoost {
     // report
 
     if (report) {
-      writeReports(spark, outputPath.get, makeReport(started, updatedXgbConfig), sampleCellIndices)
+      writeReports(spark, outputPath.get, makeReport(started, updatedXgbConfig))
     }
 
     (updatedXgbConfig, updatedParams)
@@ -257,14 +260,11 @@ object GRNBoost {
     * @param spark The Spark Session
     * @param output The output path for the inference result, folder name is used with a suffix for the file report.
     * @param report The human readable report String.
-    * @param cellIndices The cell indices, if a sub-sample was specified. If empty, we assume no sampling was specified
-    *                    and all cells are taken into account.
     * @param reportToFile Boolean indicator that specifies whether reports should be written to file.
     */
   def writeReports(spark: SparkSession,
                    output: Path,
                    report: String,
-                   cellIndices: Seq[CellIndex],
                    reportToFile: Boolean = false): Unit = {
 
     out.println(report)
@@ -275,13 +275,6 @@ object GRNBoost {
         .parallelize(report.split("\n"))
         .coalesce(1)
         .saveAsTextFile(reportOutput(output))
-
-      if (cellIndices.nonEmpty)
-        spark
-          .sparkContext
-          .parallelize(cellIndices)
-          .coalesce(1)
-          .saveAsTextFile(sampleOutput(output))
     }
   }
 
@@ -374,7 +367,6 @@ object GRNBoost {
           task.apply(expressionByGene)
         })
 
-    // monadic pipeline pattern
     Some(expressionsByGene)
       .map(repartition)
       .map(mapTask)
@@ -424,7 +416,6 @@ object GRNBoost {
             Nil.iterator.asInstanceOf[Iterator[T]]
         }}
 
-    // monadic pipeline pattern
     Some(expressionsByGene)
       .map(_.rdd)
       .map(repartition)
