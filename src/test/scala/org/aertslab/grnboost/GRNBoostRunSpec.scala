@@ -3,7 +3,7 @@ package org.aertslab.grnboost
 import java.io.File
 
 import org.aertslab.grnboost.util.PropsReader.props
-import org.apache.commons.io.FileUtils.deleteQuietly
+import org.apache.commons.io.FileUtils.cleanDirectory
 import org.scalatest.tagobjects.Slow
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -50,10 +50,11 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   }
 
   "run" should "pass smoke for 1 target" taggedAs Slow in {
-    val outPath = "src/test/resources/zeisel/out.regularized.txt"
+    val outDir  = "src/test/resources/zeisel"
+    val outPath = outDir + "/out.regularized"
     val out  = new File(outPath)
 
-    deleteQuietly(out)
+    cleanDirectory(new File(outDir))
 
     val args = Array(
       "infer",
@@ -73,7 +74,7 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     updatedCfg.estimationSet.right.get.size shouldBe 2
 
-    val lines = Source.fromFile(outPath).getLines.toList
+    val lines = Source.fromFile(outPath + ".result.tsv").getLines.toList
 
     lines.size shouldBe 13
 
@@ -81,10 +82,12 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
   }
 
   "run" should "pass smoke for 1 target, iterated" taggedAs Slow in {
-    val outPath = "src/test/resources/zeisel/out.regularized.txt"
+
+    val outDir  = "src/test/resources/zeisel"
+    val outPath = outDir + "/out.regularized"
     val out  = new File(outPath)
 
-    deleteQuietly(out)
+    cleanDirectory(new File(outDir))
 
     val args = Array(
       "infer",
@@ -105,11 +108,13 @@ class GRNBoostRunSpec extends FlatSpec with GRNBoostSuiteBase with Matchers {
 
     updatedCfg.estimationSet.right.get.size shouldBe 2
 
-    val lines = Source.fromFile(outPath).getLines.toList
+    val lines = Source.fromFile(outPath + ".result.tsv").getLines.toList
 
     lines.size shouldBe 13
 
     println(lines.mkString("\n"))
+
+    cleanDirectory(new File(outDir))
   }
 
 }
