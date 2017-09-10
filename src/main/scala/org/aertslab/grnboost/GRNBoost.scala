@@ -118,7 +118,12 @@ object GRNBoost {
     // optionally write a report
 
     if (report) {
-      writeReports(spark, outputPath.get, makeReport(started, finalXgbConfig, regulatorCSCBroadcast, finalParams))
+      val cscBroadcastToMeasure = runMode match {
+        case DRY_RUN => None
+        case _       => Some(regulatorCSCBroadcast.value)
+      }
+
+      writeReports(spark, outputPath.get, makeReport(started, finalXgbConfig, cscBroadcastToMeasure, finalParams))
     }
 
     // move outputs if possible
@@ -328,21 +333,22 @@ object GRNBoost {
     */
   def makeReport(started: DateTime,
                  inferenceConfig: XGBoostConfig,
-                 regulatorCSC: Broadcast[CSCMatrix[Expression]],
+                 regulatorCSC: Option[CSCMatrix[Expression]],
                  params: XGBoostRegressionParams): String = {
 
     val finished = now
     val format = DateTimeFormat.forPattern("yyyy-MM-dd:hh.mm.ss")
     val startedPretty  = format.print(started)
     val finishedPretty = format.print(finished)
-    val cscSize = SizeEstimator.estimate(regulatorCSC.value)
+
+    val cscSize = regulatorCSC.map(csc => s"${SizeEstimator.estimate(csc)} bytes").getOrElse("not measured")
 
     s"""
       |# $GRN_BOOST run log
       |
       |* Started: $startedPretty, finished: $finishedPretty, diff: ${pretty(diff(started, finished))}
       |
-      |* CSC broadcast size estimation: $cscSize bytes.
+      |* CSC broadcast size estimation: $cscSize.
       |
       |* Inference configuration:
       |${inferenceConfig.toString}
