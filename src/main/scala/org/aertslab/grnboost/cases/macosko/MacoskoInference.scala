@@ -77,7 +77,6 @@ object MacoskoInference {
               .cache
 
           regulations
-            // .addElbowGroups(params)
             .sort($"regulator", $"target", $"gain".desc)
             .saveTxt(s"${out}stumps_${params.nrRounds}_rounds_eta_0.01")
 

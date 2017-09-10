@@ -6,7 +6,6 @@ import breeze.linalg.CSCMatrix
 import org.aertslab.grnboost.DataReader._
 import org.aertslab.grnboost.algo._
 import org.aertslab.grnboost.util.TimeUtils._
-import org.apache.spark.annotation.Experimental
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
@@ -112,12 +111,14 @@ object GRNBoost {
 
     // write inference results
 
-    regulations.foreach(_.saveTxt(outputPath.get, includeFlags, delimiter))
+    regulations.foreach(_.saveTxt(resultOutput(outputPath.get), includeFlags, delimiter))
 
     // optionally write a report
 
+    // FIXME record failure or success in report
+
     if (report) {
-      writeReports(spark, outputPath.get, makeReport(started, finalXgbConfig, finalParams))
+      writeReports(spark, outputPath.get, makeReport(started, finalXgbConfig, regulatorCSCBroadcast, finalParams))
     }
 
     // output for tests
@@ -321,16 +322,23 @@ object GRNBoost {
   /**
     * @return Returns a multi-line String containing a human readable report of the inference run.
     */
-  def makeReport(started: DateTime, inferenceConfig: XGBoostConfig, params: XGBoostRegressionParams): String = {
+  def makeReport(started: DateTime,
+                 inferenceConfig: XGBoostConfig,
+                 regulatorCSC: Broadcast[CSCMatrix[Expression]],
+                 params: XGBoostRegressionParams): String = {
+
     val finished = now
     val format = DateTimeFormat.forPattern("yyyy-MM-dd:hh.mm.ss")
     val startedPretty  = format.print(started)
     val finishedPretty = format.print(finished)
+    val cscSize = SizeEstimator.estimate(regulatorCSC.value)
 
     s"""
       |# $GRNBoost run log
       |
       |* Started: $startedPretty, finished: $finishedPretty, diff: ${pretty(diff(started, finished))}
+      |
+      |* CSC broadcast size estimation: $cscSize bytes.
       |
       |* Inference configuration:
       |${inferenceConfig.toString}
@@ -352,7 +360,7 @@ object GRNBoost {
   def writeReports(spark: SparkSession,
                    output: Path,
                    report: String,
-                   reportToFile: Boolean = false): Unit = {
+                   reportToFile: Boolean = true): Unit = {
 
     out.println(report)
 
@@ -365,8 +373,9 @@ object GRNBoost {
     }
   }
 
-  private def reportOutput(output: Path) = s"$output.report.log"
-  private def sampleOutput(output: Path) = s"$output.sample.log"
+  private[grnboost] def resultOutput(output: Path) = s"$output.result"
+
+  private[grnboost] def reportOutput(output: Path) = s"$output.report"
 
   /**
     * @param estimations The Dataset of RoundsEstimation instances

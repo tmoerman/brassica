@@ -160,10 +160,10 @@ package object grnboost {
   /**
     * Raw XGBoost regression output data structure.
     *
-    * @param regulator
-    * @param target
-    * @param gain
-    * @param include
+    * @param regulator The regulating gene.
+    * @param target The target gene.
+    * @param gain The gain score.
+    * @param include Flag to indicate whether the link passed the regularization filter.
     */
   case class Regulation(regulator: Gene,
                         target: Gene,
@@ -175,7 +175,7 @@ package object grnboost {
   }
 
   /**
-    * @param foldNr
+    * @param foldNr The fold nr.
     * @param target The target gene.
     * @param loss The loss value.
     * @param rounds The number of rounds.
@@ -273,17 +273,11 @@ package object grnboost {
 
       val nrCols = if (includeFlags) 4 else 3
 
-      val temp = s"$out.temp"
-
       ds
         .rdd
         .map(_.productIterator.take(nrCols).mkString(delimiter))
         .repartition(1)
-        .saveAsTextFile(temp)
-
-      copyFile(new File(temp, "part-00000"), new File(out), false)
-
-      deleteDirectory(new File(temp))
+        .saveAsTextFile(out)
     }
 
   }
