@@ -1,11 +1,13 @@
 package org.aertslab.grnboost
 
+import java.io.File
 import java.lang.Math.min
 
 import breeze.linalg.CSCMatrix
 import org.aertslab.grnboost.DataReader._
 import org.aertslab.grnboost.algo._
 import org.aertslab.grnboost.util.TimeUtils._
+import org.apache.commons.io.FileUtils.{copyFile, deleteDirectory}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
@@ -115,11 +117,13 @@ object GRNBoost {
 
     // optionally write a report
 
-    // FIXME record failure or success in report
-
     if (report) {
       writeReports(spark, outputPath.get, makeReport(started, finalXgbConfig, regulatorCSCBroadcast, finalParams))
     }
+
+    // move outputs if possible
+
+    moveOutputs(outputPath.get)
 
     // output for tests
 
@@ -334,7 +338,7 @@ object GRNBoost {
     val cscSize = SizeEstimator.estimate(regulatorCSC.value)
 
     s"""
-      |# $GRNBoost run log
+      |# $GRN_BOOST run log
       |
       |* Started: $startedPretty, finished: $finishedPretty, diff: ${pretty(diff(started, finished))}
       |
@@ -368,7 +372,7 @@ object GRNBoost {
       spark
         .sparkContext
         .parallelize(report.split("\n"))
-        .coalesce(1)
+        .repartition(1)
         .saveAsTextFile(reportOutput(output))
     }
   }
@@ -376,6 +380,24 @@ object GRNBoost {
   private[grnboost] def resultOutput(output: Path) = s"$output.result"
 
   private[grnboost] def reportOutput(output: Path) = s"$output.report"
+
+  /**
+    * Move outputs from the Hadoop conventional directory structure to files if possible, fails silently.
+    * Note: this procedure uses FileUtils, which doesn't work on S3, therefore we fail gracefully.
+    *
+    * @param output The output directory
+    */
+  private[grnboost] def moveOutputs(output: Path): Unit =
+    Seq(
+      (resultOutput(output), "tsv"),
+      (reportOutput(output), "txt"))
+      .foreach{ case (dir, extension) => try {
+        copyFile(new File(dir, "part-00000"), new File(s"$dir.$extension"), false)
+
+        deleteDirectory(new File(dir))
+      } catch {
+        case _: Exception => log.warn("could not ")
+      }}
 
   /**
     * @param estimations The Dataset of RoundsEstimation instances
