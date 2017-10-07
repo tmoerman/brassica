@@ -19,6 +19,7 @@ Following pages provide in-depth material to install and use GRNBoost:
 
 * [Installation guide](docs/installation.md)
 * [User guide](docs/user_guide.md)
+* [Command line reference guide](docs/cli_reference.md)
 * [Developer Guide](docs/developer_guide.md)
 
 ## License
