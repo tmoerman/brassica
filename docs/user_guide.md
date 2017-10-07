@@ -2,17 +2,133 @@
 
 # User Guide
 
-GRNBoost is an [Apache Spark](http://spark.apache.org/) Application library. A Spark application entails a program, bundled as a [.jar file](https://en.wikipedia.org/wiki/JAR_(file_format)), that can be launched by [submitting](http://spark.apache.org/docs/latest/submitting-applications.html#launching-applications-with-spark-submit) it to a Spark instance.
+1. [Anatomy of a GRNBoost Job](#1-anatomy-of-a-GRNBoost-job)
+2. [File Format Conventions](#2-file-format-conventions)
+3. [Running GRNBoost in Local mode](#3-running-grnboost-in-local-mode)
+4. [Running GRNBoost on Amazon Elastic MapReduce](#4-running-grnboost-on-amazon-elastic-mapreduce)
 
-1. [Running in local mode](#1-running-grnboost-in-local-mode)
-2. [Running on Amazon Elastic MapReduce](#2-running-grnboost-on-amazon-elastic-mapreduce)
+## 1 Anatomy of a GRNBoost Job
 
-## 1 Running in local mode
+GRNBoost is an [Apache Spark](http://spark.apache.org/) Application library. A Spark application entails a program, bundled as a [.jar file](https://en.wikipedia.org/wiki/JAR_(file_format)), that can be launched by [submitting](http://spark.apache.org/docs/latest/submitting-applications.html#launching-applications-with-spark-submit) it to a Spark instance using the command line. Let's have a look at an example:
+
+> NOTE: the backslashes are used for multiline bash shell commands
+
+```bash
+$SPARK_HOME/bin/spark-submit \
+    --class org.aertslab.grnboost.GRNBoost \
+    --master local[*] \
+    --deploy-mode client \
+    --driver-memory 96g \
+    --conf spark.executor.memory=96g \    
+    --jars /home/xxx/.m2/repository/ml/dmlc/xgboost4j/0.7/xgboost4j-0.7.jar \    
+    /path/to/GRNBoost.jar \    
+    infer \    
+    -i  /media/tmo/data/work/datasets/dream5/training\ data/Network\ 1\ -\ in\ silico/net1_expression_data.transposed.tsv \
+    -tf /media/tmo/data/work/datasets/dream5/training\ data/Network\ 1\ -\ in\ silico/net1_transcription_factors.tsv \
+    -o  /media/tmo/data/work/datasets/dream5/grnboost/net1/net1_grnboost_depth3.tsv \
+    -p eta=0.01 \
+    -p max_depth=3 \
+    -p colsample_bytree=0.1 \        
+    --truncate 100000
+```
+
+A GRNBoost job consists of 4 different parts:
+
+1. Call the `spark-submit` executable.
+
+    ```bash
+    $SPARK_HOME/bin/spark-submit \
+    ```
+
+2. Specify the Spark command line arguments. Consult to the Spark [Submitting Applications](https://spark.apache.org/docs/latest/submitting-applications.html#launching-applications-with-spark-submit) page for detailed information.
+
+    ```bash
+    --class org.aertslab.grnboost.GRNBoost \        
+    --master local[*] \
+    --deploy-mode client \
+    --driver-memory 96g \
+    --conf spark.executor.memory=96g \    
+    --jars /path/to/xgboost4j-0.7.jar \     
+    ```
+
+    Notice that in the last line, we specify the location of the xgboost .jar file we already [built or downloaded](installation.md). We chose not to include xgboost by default in GRNBoost because it is built differently on different platforms (MaxOS, Unbuntu, ...). Instead we refer to it as an additional `.jar` file in the Spark job.
+
+3. Specify the path to the Spark Application `.jar` file, in this case the GRNBoost.jar artifact.
+
+    ```bash
+    /path/to/GRNBoost.jar \    
+    ```
+
+4. Specify the GRNBoost command line arguments. Consult the [Command Line Reference](cli_reference.md) for detailed information.
+
+    ```bash
+    infer \    
+    -i  /media/tmo/data/work/datasets/dream5/training\ data/Network\ 1\ -\ in\ silico/net1_expression_data.transposed.tsv \
+    -tf /media/tmo/data/work/datasets/dream5/training\ data/Network\ 1\ -\ in\ silico/net1_transcription_factors.tsv \
+    -o  /media/tmo/data/work/datasets/dream5/grnboost/net1/net1_grnboost_depth3.tsv \
+    -p eta=0.01 \
+    -p max_depth=3 \
+    -p colsample_bytree=0.1 \        
+    --truncate 100000
+    ```
+
+    GRNBoost parameters are typically:
+    * the input file containing the expression matrix
+    * the file containing the list of transcription factors
+    * the output file name
+    * some optional [xgboost-specific parameters](https://xgboost.readthedocs.io/en/latest//parameter.html) for controlling regression behaviour
+    * parameters for post-processing the collection of inferred regulatory links between candidate regulators and target genes
+
+## 2 File Format Conventions
+
+### 2.1 Input File Format
+
+GRNBoost accepts text files with following layout. Each non-header line starts with a gene name and its expression profile across the observations. The [CLI](cli-reference.md) provides an option to skip header lines.
+
+```bash
+header etc.                                         # <-- unused header line
+GENE        obs1    obs2    obs3    obs4    obs5    # <-- unused header line
+Tspan12     0       0.666   0       0       0.089   # gene + expression profile     
+Gad1        1.800   0       0       0.061   0       # gene + expression profile
+Neurod1     0       0       1.301   0.232   0       # gene + expression profile
+...
+...
+#       ^       ^       ^       ^       ^
+#       expression profile matrix from second to last column
+#
+#  ^
+#  first column contains gene name
+
+```
+
+### 2.2 Output file format
+
+GRNBoost outputs the inferred gene regulatory network as link list in a text file.
+
+```
+TF1     target1     0.234
+TF2     target7     0.225
+TF10    target2     0.201
+...
+...
+```
+
+## 3 Running GRNBoost in local mode
 
 Although Spark was designed to run on a multi-node compute cluster, it is also capable to make good use of the resources of a (preferably powerful) computer with one or more physical CPUs, like a single cluster node. In this case we can simply install Spark in a local folder and [submit](http://spark.apache.org/docs/latest/submitting-applications.html#launching-applications-with-spark-submit) GRNBoost as a Spark job to that instance.
 
-1.
+GRNBoost was developed against Spark `2.1.0`, so any version equal or higher than that will do nicely. We recommend downloading the default suggested release from the [Spark downloads page](http://spark.apache.org/downloads.html).
 
-## 2 Running on Amazon Elastic MapReduce
+1. [Download a Spark release](http://spark.apache.org/downloads.html) and unpack it somewhere.
+2. Add the `SPARK_HOME` environment variable to your `~/.bash_profile` or `~/.bashrc` file, for example:
 
-Following steps walk through launching GRNBoost on Amazon Elastic MapReduce. Be aware that this can incur a monetary cost, options to
+    ```
+    export SPARK_HOME=~/<..folders../..here..>/spark-2.0.2-bin-hadoop2.7
+    ```
+
+3. Now we can submit a GRNBoost Spark job via the command line. Make sure you have [obtained or built](installation.md) the GRNBoost and xgboost artifacts, we refer to those in the job submit command. The job described  [above](#1-anatomy-of-a-GRNBoost-job) is a local mode job. Observe the
+
+
+## 4 Running on Amazon Elastic MapReduce
+
+Following steps walk through launching GRNBoost on Amazon Elastic MapReduce. Be aware that running on AWS can incur a monetary cost.
