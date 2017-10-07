@@ -1,6 +1,6 @@
-[Home](../README.md) | __[Installation Guide](installation.md)__ | [User Guide](user_guide.md) | [Command Line Reference](cli_reference.md) | [Developer Guide](developer_guide.md)
+[Home](../README.md) | [__Installation Guide__](installation.md) | [User Guide](user_guide.md) | [Command Line Reference](cli_reference.md) | [Developer Guide](developer_guide.md)
 
-# GRNBoost Installation Guide
+# Installation Guide
 
 This page describes how to build and install GRNBoost on different operating systems.
 
