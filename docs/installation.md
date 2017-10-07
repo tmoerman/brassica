@@ -1,4 +1,4 @@
-< [Home](../README.md)
+[Home](../README.md) | __[Installation Guide](installation.md)__ | [User Guide](user_guide.md) | [Command Line Reference](cli_reference.md) | [Developer Guide](developer_guide.md)
 
 # GRNBoost Installation Guide
 
@@ -19,7 +19,6 @@ Building GRNBoost from source requires additional software, make sure you have t
 2. __[SBT](http://www.scala-sbt.org/)__ for building __GRNBoost__ from source.
 3. __[Maven](https://maven.apache.org/)__ for building the xgboost Java bindings.
 4. A C++ compiler.
-
 
 #### Linux (Ubuntu)
 
@@ -50,16 +49,37 @@ On Ubuntu or Debian, using the classic `apt-get` routine is the best option.
 
 #### MacOS
 
-On Mac, we recommend using the [Homebrew](https://brew.sh/) package manager. Other installation options are available, please refer to the software packages' documentation for more info.
+On Mac, we recommend the handy [Homebrew](https://brew.sh/) package manager. Other installation options are available, please refer to the software packages' documentation for more info.
 
-* __Git__: `$ brew install git` - https://git-scm.com/book/en/v1/Getting-Started-Installing-Git#Installing-on-Mac
-* __SBT__: `$ brew install sbt` - http://www.scala-sbt.org/0.13/docs/Installing-sbt-on-Mac.html
-* __Maven__: `$ brew install maven` - http://brewformulas.org/Maven
-* __GCC__*: `$ brew install gcc --without-multilib`` --
+* __Git__: https://git-scm.com/book/en/v1/Getting-Started-Installing-Git#Installing-on-Mac
+
+    ```bash
+    $ brew install git
+    ```
+
+* __SBT__: http://www.scala-sbt.org/0.13/docs/Installing-sbt-on-Mac.html
+
+    ```bash
+    $ brew install sbt
+    ```
+
+* __Maven__: http://brewformulas.org/Maven
+
+    ```bash
+    $ brew install maven
+    ```
+
+* __GCC__: https://gcc.gnu.org/
+
+    ```
+    $ brew install gcc --without-multilib
+    ```
 
 ### 2.1 Build xgboost
 
-GRNBoost depends upon xgboost, so we build this first. Xgboost is essentially a C++ library with Java, Scala, R and Python wrappers. We first compile the C++ part using the gcc compiler, and then build and install the Java components using Maven. The following instructions contains excerpts from the [xgboost build guide](https://xgboost.readthedocs.io/en/latest/build.html).
+GRNBoost depends upon xgboost, so we build this first. Xgboost is essentially a C++ library with Java, Scala, R and Python wrappers. We first compile the C++ core component and then build and install the Java components using Maven.
+
+The following instructions contains excerpts from the [xgboost build guide](https://xgboost.readthedocs.io/en/latest/build.html):
 
 1. Using git, [clone](https://git-scm.com/docs/git-clone) the xgboost Github repository (recursively! -- we need the sub-projects as well) :
 
