@@ -23,9 +23,9 @@ On Ubuntu or Debian, using the classic `apt-get` routine is the best option.
 * __Git__:  https://www.digitalocean.com/community/tutorials/how-to-install-git-on-ubuntu-14-04
 
     ```bash
-sudo apt-get update
-sudo apt-get install git
-```
+    sudo apt-get update
+    sudo apt-get install git
+    ```
 
 * __SBT__: http://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html
 
