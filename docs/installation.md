@@ -1,3 +1,5 @@
+< [Home](#../README.md)
+
 # GRNBoost Installation Guide
 
 This page describes how to build and install GRNBoost on different operating systems.
