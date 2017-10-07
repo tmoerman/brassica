@@ -15,7 +15,7 @@ __GRNBoost__ adopts GENIE3's algorithmic blueprint and aims at improving its run
 
 ## Getting Started
 
-Following pages provide in-depth material to install and use GRNBoost.
+Following pages provide in-depth material to install and use GRNBoost:
 
 * [Installation guide](docs/installation.md)
 * [User guide](docs/user_guide.md)
@@ -31,6 +31,6 @@ Please report a problem by filing an [issue](https://github.com/aertslab/GRNBoos
 
 ## References
 
-GRNBoost was developed at the ([Stein Aerts](http://www.vib.be/en/research/scientists/Pages/Stein-Aerts-Lab.aspx)) [Laboratory of Computational Biology](https://gbiomed.kuleuven.be/english/research/50000622/lcb) in the context of the [SCENIC](https://gbiomed.kuleuven.be/english/research/50000622/lcb/tools/scenic) project.
+GRNBoost was developed at the [Laboratory of Computational Biology](https://gbiomed.kuleuven.be/english/research/50000622/lcb) ([Stein Aerts](http://www.vib.be/en/research/scientists/Pages/Stein-Aerts-Lab.aspx)) as an optional component for the [SCENIC](https://gbiomed.kuleuven.be/english/research/50000622/lcb/tools/scenic) workflow.
 
 __Aibar S, González-Blas CB, Moerman T, Wouters J__, Huynh-Thu VA, __Imrichová H, Kalender Atak Z, Hulselmans G__, Dewaele M, Rambow F, Geurts P, Aerts J, Marine JC, van den Oord J, __Aerts S.__ [SCENIC: Single-Cell Regulatory Network Inference And Clustering](http://biorxiv.org/content/early/2017/05/31/144501). bioRxiv Preprint 2017 May 31. https://doi.org/10.1101/144501
