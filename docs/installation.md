@@ -2,11 +2,11 @@
 
 # Installation Guide
 
-This page describes how to build and install GRNBoost on different operating systems.
+This page describes how to obtain GRNBoost on different operating systems.
 
-* [Download pre-built artifacts](#1-download-pre-built-artifacts)
-* [Build GRNBoost from source](#2-build-grnboost-from-source)
-* [Troubleshooting](#3-troubleshooting)
+1. [Download pre-built artifacts](#1-download-pre-built-artifacts)
+2. [Build GRNBoost from source](#2-build-grnboost-from-source)
+3.  [Troubleshooting](#3-troubleshooting)
 
 ## 1 Download Pre-built Artifacts
 

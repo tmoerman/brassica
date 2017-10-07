@@ -2,6 +2,14 @@
 
 TODO travis-ci status goes here
 
+## Contents
+
+* [Installation guide](docs/installation.md)
+* [User guide](docs/user_guide.md)
+* [Command line reference guide](docs/cli_reference.md)
+* [Developer Guide](docs/developer_guide.md)
+* [Report an issue](https://github.com/aertslab/GRNBoost/issues/new)
+
 ## Introduction
 
 __GRNBoost__ is a library built on top of [Apache Spark](http://spark.apache.org/) that implements a scalable
@@ -15,20 +23,31 @@ __GRNBoost__ adopts GENIE3's algorithmic blueprint and aims at improving its run
 
 ## Getting Started
 
-Following pages provide in-depth material to install and use GRNBoost:
+```
+            +-------------------------+
+            | 1. Install Apache Spark |
+            +------------,------------+
+                         |
+              +----------+----------+
+              |                     |
+              v                     v
+      +---------------+  +--------------------+
+      | 2.a Download  |  | 2.b Build GRNBoost |           
+      |     GRNBoost  |  |     from source    |
+      +-------,-------+  +----------,---------+
+              |                     |
+              +----------+----------+
+                         |
+                         v
+              +--------------------+
+              | 3. Launch GRNBoost |
+              +--------------------+
 
-* [Installation guide](docs/installation.md)
-* [User guide](docs/user_guide.md)
-* [Command line reference guide](docs/cli_reference.md)
-* [Developer Guide](docs/developer_guide.md)
+```
 
 ## License
 
 GRNBoost is available via the [3-Clause BSD license](https://opensource.org/licenses/BSD-3-Clause).
-
-## Report a Problem
-
-Please report a problem by filing an [issue](https://github.com/aertslab/GRNBoost/issues/new).
 
 ## References
 
